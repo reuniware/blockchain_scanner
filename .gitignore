@@ -8,22 +8,21 @@ build/
 
 # Temp files from testing
 *.txt
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
 # OS
 .DS_Store
 Thumbs.db
-
 # Node/exploit
 exploit/node_modules/
 exploit/artifacts/
 exploit/cache/
 exploit/typechain-types/
-
 # Config with secrets (keep template, not actual keys)
 # config.yaml
+guardian_data.db
+guardian_exploits_found.txt
+guardian_output.log

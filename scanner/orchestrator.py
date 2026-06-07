@@ -24,10 +24,29 @@ class ScannerOrchestrator:
     Manages lifecycle (start/stop), event routing, and stats aggregation.
     """
 
-    def __init__(self, config: dict[str, Any]):
+    def __init__(
+        self,
+        config: dict[str, Any],
+        on_contract_checked: Optional[callable] = None,
+        on_unverified_contract: Optional[callable] = None,
+        auto_stop_enabled: bool = True,
+    ):
+        """
+        Args:
+            config: YAML config dict
+            on_contract_checked: async callback(address, chain_id, chain_name, findings, source_code)
+                                Called when a verified contract is fully scanned.
+            on_unverified_contract: async callback(address, chain_id, chain_name)
+                                    Called when a contract is detected but NOT verified.
+            auto_stop_enabled: If True, sets vulnerability_found_event on HIGH/CRITICAL finding
+                               (used by main.py). Guardian mode sets this to False.
+        """
         self.config = config
         self.global_config = config.get("global", {})
         self.chains_config = config.get("chains", {})
+        self._on_contract_checked = on_contract_checked
+        self._on_unverified_contract = on_unverified_contract
+        self._auto_stop_enabled = auto_stop_enabled
 
         self.scanners: dict[str, BaseScanner] = {}
         self.display: Optional[DisplayManager] = None
@@ -250,6 +269,16 @@ class ScannerOrchestrator:
                     asyncio.create_task(
                         self._scan_vulnerabilities(event)
                     )
+                elif self._on_unverified_contract:
+                    # Fire callback for unverified contracts too
+                    try:
+                        await self._on_unverified_contract(
+                            address=event.contract_address,
+                            chain_id=event.chain_id,
+                            chain_name=event.chain,
+                        )
+                    except Exception as e:
+                        logger.error(f"[callback] Error in on_unverified_contract: {e}")
 
         except Exception as e:
             logger.debug(f"[verify] Error verifying {addr_key}: {e}")
@@ -302,7 +331,7 @@ class ScannerOrchestrator:
 
                 # Check if any finding is exploitable (HIGH or CRITICAL)
                 exploitable = [f for f in findings if f.severity in ("HIGH", "CRITICAL")]
-                if exploitable:
+                if exploitable and self._auto_stop_enabled:
                     self._found_vulnerability = exploitable[0]
                     self._last_vuln_address = event.contract_address
                     self._last_vuln_chain_id = event.chain_id
@@ -316,6 +345,20 @@ class ScannerOrchestrator:
                     f"[vuln] {event.contract_address[:10]}.. "
                     f"-> No vulnerabilities detected"
                 )
+
+            # Fire callback to guardian (if set) with findings and source code
+            # Called ALWAYS — even with 0 findings, so the guardian knows about the contract
+            if self._on_contract_checked and event.contract_address:
+                try:
+                    await self._on_contract_checked(
+                        address=event.contract_address,
+                        chain_id=event.chain_id,
+                        chain_name=event.chain,
+                        findings=findings,
+                        source_code=source_code,
+                    )
+                except Exception as e:
+                    logger.error(f"[callback] Error in on_contract_checked: {e}")
 
         except Exception as e:
             logger.debug(f"[vuln] Error scanning {addr_key}: {e}")
