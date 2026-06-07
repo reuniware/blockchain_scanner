@@ -40,7 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from scanner.orchestrator import ScannerOrchestrator
 from analysis.vulnerability_scanner import VulnerabilityFinding
-from exploit_pipeline import ExploitPipeline
+from exploit_pipeline import ExploitPipeline, CHAIN_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -269,12 +269,8 @@ class HardhatValidator:
     4. Checks if state changed (balance, storage) => CONFIRMED or FAILED
     """
 
-    # RPC URLs for forking (free tiers, works for Hardhat fork)
-    RPC_URLS = {
-        1: "https://mainnet.infura.io/v3/420dca4972c44ff9b72c95c4ac7a0cd1",
-        56: "https://bsc-dataseed1.binance.org",
-        137: "https://polygon-bor-rpc.publicnode.com",
-    }
+    # RPC URLs for forking — derived from exploit_pipeline.CHAIN_REGISTRY
+    RPC_URLS = {k: v[2] for k, v in CHAIN_REGISTRY.items()}
 
     def __init__(self, db: FindingsDB, exploit_dir: str = ""):
         self.db = db
@@ -732,13 +728,11 @@ class Guardian:
             finding_count=len(findings),
         )
 
-        # Get native balance
+        # Get native balance (using CHAIN_REGISTRY from exploit_pipeline)
         try:
             import httpx
-            rpc_urls = {1: "https://mainnet.infura.io/v3/420dca4972c44ff9b72c95c4ac7a0cd1",
-                       56: "https://bsc-dataseed1.binance.org",
-                       137: "https://polygon-bor-rpc.publicnode.com"}
-            rpc = rpc_urls.get(chain_id)
+            chain_info = CHAIN_REGISTRY.get(chain_id)
+            rpc = chain_info[2] if chain_info else None
             if rpc:
                 async with httpx.AsyncClient(timeout=10) as c:
                     r = await c.post(rpc, json={
