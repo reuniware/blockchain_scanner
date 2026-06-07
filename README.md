@@ -1,6 +1,6 @@
 # Multi-Chain Blockchain Transaction Scanner
 
-Real-time monitoring of transactions and blocks across **6 blockchains** — Ethereum, Polygon, BSC, Arbitrum, Solana, and Bitcoin. No API keys required for basic usage (free public endpoints).
+Real-time monitoring of transactions and blocks across **6 blockchains** — Ethereum, Polygon, BSC, Arbitrum, Solana, and Bitcoin. No API keys required for basic block monitoring (free public endpoints). Optional Etherscan API key enables contract source code verification and vulnerability scanning.
 
 ## Quick Start
 
@@ -26,8 +26,13 @@ python main.py
 | `python main.py --chains ethereum` | Scan Ethereum only |
 | `python main.py --chains ethereum,bsc,bitcoin` | Scan specific chains |
 | `python main.py --list-chains` | List configured chains without scanning |
+| `python exploit_pipeline.py --address 0x... --chain ethereum` | Analyze a contract's vulnerabilities |
+| `cd exploit && npx hardhat run scripts/deploy_and_exploit.js` | Run classic reentrancy attack demo |
+| `cd exploit && npx hardhat run scripts/test_campaign_reentrancy.js` | Run CampaignWrapper CEI reentrancy validation |
+| `cd exploit && npx hardhat run scripts/test_cei_reentrancy.js` | Run combined reentrancy validation suite |
+| `cat findings/README.md` | Browse the findings catalog |
 
-### Options
+### Scanner options
 
 | Option | Description |
 |:---|---:|
@@ -38,6 +43,14 @@ python main.py
 | `-j FILE` / `--json FILE` | Export transactions to JSON file |
 | `-c FILE` / `--config FILE` | Custom config file path |
 | `--version` | Show version and exit |
+
+### Exploit pipeline options
+
+| Option | Description |
+|:---|---:|
+| `--address ADDR` / `-a` | Contract address to analyze |
+| `--chain CHAIN` / `-c` | Chain: `ethereum`, `bsc`, `polygon` (default: bsc) |
+| `--api-key KEY` / `-k` | Etherscan API V2 key |
 
 ### Examples
 
@@ -88,6 +101,81 @@ python main.py --chains ethereum -v
 - Displays `[verify] 0x... -> VERIFIED` or `NOT VERIFIED` alongside transactions
 - Uses Etherscan API V2 — a single API key works for **all 60+ chains**
 - Results cached in memory to avoid redundant API calls
+
+### Solidity Vulnerability Scanner (NEW)
+Analyzes verified smart contract source code for **10 types of security vulnerabilities**:
+
+| Vulnerability | Severity | Description |
+|:---|---:|:---|
+| Reentrancy | CRITICAL | State change AFTER external call — fund theft |
+| Selfdestruct | CRITICAL | Contract destruction without access control |
+| Delegatecall | CRITICAL | Dynamic target — contract takeover |
+| TX Origin | HIGH | tx.origin used for auth — phishing risk |
+| Unprotected Withdraw | HIGH | Withdraw/claim without access control |
+| Unprotected Init | HIGH | Initializer callable multiple times |
+| Unchecked Call | MEDIUM | External call result not verified |
+| Integer Overflow | MEDIUM | Arithmetic without SafeMath (pre-0.8) |
+| Gas Loop | MEDIUM | Unbounded loop over dynamic array |
+| Arbitrary transferFrom | MEDIUM | User-controlled 'from' without allowance |
+
+Results appear automatically when a verified contract is detected:
+```
+[vuln] 0x7a250d56.. -> 6 vulnerability(ies) found
+  >> Security Scan: 0x7a250d56.. (6 finding(s): 2 high, 4 medium)
+   [!HIGH!] Unprotected Withdraw/Claim Function (lines: 224)
+       [dim]Withdraw/claim function without access control...
+```
+
+### Exploit Pipeline (NEW)
+Validates whether discovered vulnerabilities are **actually exploitable** by analyzing:
+- Solidity version (>=0.8 blocks reentrancy via underflow protection)
+- `unchecked {}` blocks (bypass overflow protection)
+- Access control modifiers (onlyOwner, onlyRole)
+- CEI pattern (Checks-Effects-Interactions ordering)
+
+```bash
+# Analyze any verified contract on any chain
+python exploit_pipeline.py --address 0x... --chain ethereum
+python exploit_pipeline.py --address 0x... --chain bsc
+```
+
+Output: detailed report with JSON export showing which findings are exploitable.
+
+### Local Hardhat Exploitation Demo
+
+Two demos are available, each demonstrating a different reentrancy vector:
+
+#### 1. Classic underflow reentrancy (VulnerableBank)
+```bash
+cd exploit
+npx hardhat run scripts/deploy_and_exploit.js --network hardhat
+```
+- Alice deposits 100 ETH in a deliberately vulnerable bank
+- Bob deploys an exploit contract with 60 ETH
+- The reentrancy attack drains the bank in ~3 rounds
+- Bob profits 100 ETH
+
+#### 2. CEI pattern reentrancy (CampaignWrapper validation)
+```bash
+cd exploit
+npx hardhat run scripts/test_campaign_reentrancy.js --network hardhat
+npx hardhat run scripts/test_cei_reentrancy.js --network hardhat
+```
+- Reproduces the exact pattern found in CampaignWrapper (0x8a56c6be..)
+- Demonstrates that CEI reentrancy on bool flags works even in Solidity >=0.8
+- Shows that non-arithmetic state (hasClaimed flag) CAN be bypassed by reentrancy
+- Validates 5 rounds of recursive claim draining 5 ETH
+
+### Key discovery: Solidity >=0.8 blocks underflow reentrancy but NOT CEI reentrancy
+
+**Underflow reentrancy (classic DAO style):** BLOCKED in >=0.8
+- `balances[msg.sender] -= amount` reverts with `panic(0x11)` on underflow
+- Requires `unchecked {}` to function
+
+**CEI reentrancy (bool flag bypass):** WORKS in >=0.8
+- `!hasClaimed[user]` is not arithmetic — can be bypassed by reentrancy
+- The state update happens AFTER the external call, so the check passes multiple times
+- Each recursive call drains another full refund amount
 
 ### Bitcoin mempool tracking
 - Connects to mempool.space WebSocket for real-time unconfirmed transactions
@@ -142,7 +230,12 @@ global:
 |:---|---:|
 | `[BLK]` | New block detected |
 | `[XFR]` | ERC-20 transfer event |
-| `[verify]` | Contract verification result |
+| `[verify]` | Contract verification result (VERIFIED / NOT VERIFIED) |
+| `[vuln]` | Vulnerability scan results (finding count) |
+| `>> Security Scan` | Detailed vulnerability listing with severity, lines, description |
+| `[!CRITICAL!]` | Critical severity vulnerability (red) |
+| `[!HIGH!]` | High severity vulnerability (yellow) |
+| `[WARN]` | Medium severity vulnerability |
 | `[MP]` | Mempool transaction (Bitcoin / pending EVM) |
 | `[ACC]` | Account activity (filtered address) |
 | `[TX]` | General transaction |
@@ -171,20 +264,47 @@ pip install -r requirements.txt
 
 ```
 blockchain_scanner/
-  main.py              # CLI entry point
-  config.yaml          # Configuration (chains, filters, API keys)
-  verify.py            # Contract source code verification (Etherscan V2)
-  requirements.txt     # Python dependencies
+  main.py                    # CLI entry point
+  config.yaml                # Configuration (chains, filters, API keys)
+  verify.py                  # Contract source code verification (Etherscan V2)
+  exploit_pipeline.py        # NEW: Automated vulnerability validation pipeline
+  requirements.txt           # Python dependencies
+  .gitignore                 # Git ignore rules
+  README.md                  # This file
   scanner/
-    base.py            # BaseScanner ABC (auto-reconnect, stats)
-    evm_scanner.py     # EVM chains (Ethereum, Polygon, BSC, Arbitrum)
-    bitcoin_scanner.py # Bitcoin via mempool.space
-    solana_scanner.py  # Solana
-    orchestrator.py    # Scanner lifecycle manager
+    base.py                  # BaseScanner ABC (auto-reconnect, stats)
+    evm_scanner.py           # EVM chains (Ethereum, Polygon, BSC, Arbitrum)
+    bitcoin_scanner.py       # Bitcoin via mempool.space
+    solana_scanner.py        # Solana
+    orchestrator.py          # Scanner lifecycle + vulnerability scan integration
+  analysis/
+    __init__.py              # NEW: Analysis package
+    vulnerability_scanner.py # NEW: Solidity vulnerability scanner (10 patterns)
   filters/
-    filters.py         # Transaction filters
+    filters.py               # Transaction filters
   output/
-    display.py         # Terminal display (Rich)
+    display.py               # Terminal display (Rich + vulnerability output)
+  exploit/                   # Local Hardhat exploitation demos
+    contracts/
+      VulnerableBank.sol     # Deliberately vulnerable bank (CEI violation, underflow)
+      Exploit.sol            # Reentrancy attack contract (underflow)
+      ExploitV2.sol          # Debug version with configurable recursion
+      CampaignVulnerable.sol # Reproduces CampaignWrapper pattern (CEI bool flag)
+      CampaignExploit.sol    # CEI reentrancy exploit with guard-rail
+    scripts/
+      deploy_and_exploit.js   # Classic underflow reentrancy demo
+      test_simple_withdraw.js # Basic sanity check
+      test_campaign_reentrancy.js  # CampaignWrapper CEI validation
+      test_cei_reentrancy.js       # Combined validation suite
+    hardhat.config.js         # Hardhat config (Solidity 0.8.20)
+    package.json
+    .gitignore
+  findings/                  # Vulnerability findings catalog
+    README.md                # Index of all analyzed contracts
+    campaign_wrapper.md      # Detailed CampaignWrapper vulnerability report
+    scanned_contracts.md     # Log of all scanned contracts
+  skill/                     # Skill documentation
+    multi-chain-blockchain-scanner.md  # Full reference
 ```
 
 ## Limitations

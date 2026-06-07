@@ -192,3 +192,17 @@ Scanner finds patterns, not vulnerabilities. WETH9 case:
 
 ### Key Lesson
 Always validate findings manually. Pipeline gives theoretical analysis (Solidity version, unchecked blocks, access control), but empirical testing on Hardhat is the only way to confirm.
+
+### CEI Reentrancy Validation (This Session)
+
+**CampaignWrapper** (0x8a56c6be..) — 7 HIGH findings, 1 MEDIUM. Validated empirically:
+- Created CampaignVulnerable.sol (reproduces .call{value:} BEFORE state update)
+- Created CampaignExploit.sol (re-enters via receive() before hasClaimed is set)
+- **5 rounds of reentrancy confirmed** — 5 ETH drained from 5 ETH
+
+**Key discovery:** CEI reentrancy on bool flags works in Solidity >=0.8 because:
+- `!hasClaimed[user]` is NOT arithmetic — no underflow protection applies
+- State update (bool = true) happens AFTER .call{value:}
+- Check passes every time during reentrancy because state hasn't been updated yet
+
+**Fix for >=0.8 reentrancy:** Use ReentrancyGuard modifier, NOT just relying on underflow protection.

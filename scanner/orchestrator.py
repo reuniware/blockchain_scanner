@@ -40,6 +40,12 @@ class ScannerOrchestrator:
         self._event_queue: asyncio.Queue[TransactionEvent] = asyncio.Queue()
         self._processor_task: Optional[asyncio.Task] = None
 
+        # Auto-stop: set when a vulnerability is found (for user-facing "stop on first vuln" mode)
+        self.vulnerability_found_event: asyncio.Event = asyncio.Event()
+        self._found_vulnerability: Optional[VulnerabilityFinding] = None
+        self._last_vuln_address: Optional[str] = None
+        self._last_vuln_chain_id: Optional[int] = None
+
         # Source code verifier (checks if contracts are verified on block explorers)
         # A single Etherscan API V2 key works for ALL chains (60+ chains)
         explorer_key = self.global_config.get("explorer_api_key") or ""
@@ -51,6 +57,18 @@ class ScannerOrchestrator:
         # Cache of vulnerability scan results to avoid re-scanning
         self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}
         self._scanning_vulns: set[str] = set()
+
+    @property
+    def found_vulnerability(self) -> Optional[VulnerabilityFinding]:
+        return self._found_vulnerability
+
+    @property
+    def last_vuln_address(self) -> Optional[str]:
+        return self._last_vuln_address
+
+    @property
+    def last_vuln_chain_id(self) -> Optional[int]:
+        return self._last_vuln_chain_id
 
     def _create_scanner(
         self, chain_key: str, chain_cfg: dict
@@ -181,7 +199,7 @@ class ScannerOrchestrator:
 
                 # Async contract source code verification (non-blocking)
                 # Only for EVM chains with a contract address
-                if event.contract_address and event.chain_id and event.event_type in ("transfer", "transaction"):
+                if event.contract_address and event.chain_id and event.event_type in ("transfer", "transaction", "contract_deploy"):
                     asyncio.create_task(
                         self._verify_contract(event)
                     )
@@ -280,6 +298,18 @@ class ScannerOrchestrator:
                 if self.display:
                     await self.display.show_vulnerabilities(
                         event, findings
+                    )
+
+                # Check if any finding is exploitable (HIGH or CRITICAL)
+                exploitable = [f for f in findings if f.severity in ("HIGH", "CRITICAL")]
+                if exploitable:
+                    self._found_vulnerability = exploitable[0]
+                    self._last_vuln_address = event.contract_address
+                    self._last_vuln_chain_id = event.chain_id
+                    self.vulnerability_found_event.set()
+                    logger.warning(
+                        f"[AUTO-STOP] HIGH/CRITICAL vulnerability found in "
+                        f"{event.contract_address[:14]}.. — stopping scanner!"
                     )
             else:
                 logger.info(
