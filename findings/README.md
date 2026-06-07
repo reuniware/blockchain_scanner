@@ -45,19 +45,20 @@ Deux scanners dédiés BSC pour l'analyse de blocs et de déploiements :
 
 Utilisent `bsc-dataseed1.binance.org` (RPC public gratuit) et l'API Etherscan V2 (chainid=56).
 
-### Pool Scanner — Mode --all (07/06/2026)
+### Pool Scanner — Mode --all + --audit-local (07/06/2026)
 
-Premier scan exhaustif de TOUS les pools via `python pool_scanner.py --all` :
+Scan exhaustif de TOUS les pools avec Hardhat fork systématique via `python pool_scanner.py --all --audit-local` :
 
 | Métrique | Valeur |
 |:---|---|
 | Pools trouvés | **136** |
 | Pools scannés | **126** |
 | Avec findings | **126** |
-| INTERESSANTS | **43** (Velodrome/Optimism surtout) |
-| Faux positifs | **60** (QuickSwap/Polygon — clones UniswapV2Pair) |
+| INTERESSANTS | **43** (Velodrome/Optimism) |
+| Faux positifs skipés Hardhat | **60** (QuickSwap/Polygon — clones UniswapV2Pair) |
+| Hardhat audits lancés | **0** (Hardhat non installé sur cette machine) |
 
-**Top pools INTERESSANTS :**
+**Top pools INTERESSANTS (en attente d'audit Hardhat) :**
 
 | Pool | DEX | Chaîne | TVL | Findings | Exploitables |
 |:---|---|:---:|:---:|:---:|:---:|
@@ -68,7 +69,8 @@ Premier scan exhaustif de TOUS les pools via `python pool_scanner.py --all` :
 | USD?0-USDC | Velodrome | Optimism | **$567k** | 12 | **10** |
 | VELO-USDC | Velodrome | Optimism | **$470k** | 8 | **8** |
 
-> Tous les pools Velodrome ont comme finding principal `Delegatecall to Variable Address` + Reentrancy. Les pools QuickSwap sont des clones UniswapV2Pair standard (faux positifs).
+> **Top finding récurrent** : Delegatecall to Variable Address (CRITICAL) + Reentrancy + Flash Loan Susceptibility + Unprotected Initializer. Tous les pools Velodrome partagent le même pattern.
+> **Pour auditer avec Hardhat** : `python pool_scanner.py --all --audit-local --chains optimism` (nécessite Hardhat installé).
 
 ### Résultats Pool Scanner (session précédente)
 

@@ -123,6 +123,12 @@ python main.py --chains ethereum -j transactions.json --format both
 
 # Enable debug logs
 python main.py --chains ethereum -v
+
+# Pool scanner: exhaustif + Hardhat systematique
+python pool_scanner.py --all --audit-local
+
+# Pool scanner: BSC uniquement
+python pool_scanner.py --all --chains bsc --min-tvl 50000
 ```
 
 ## Supported Chains
