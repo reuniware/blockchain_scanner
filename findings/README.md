@@ -6,56 +6,103 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 | Statut | Nombre |
 |:---|---:|
-| Contrats scannés | ~60 |
-| Contrats vérifiés analysés | 20+ |
-| DEX non-bluechip analysés | 5 |
-| Nouveaux déploiements (non vérifiés) | 40+ |
-| Findings totaux | **28** |
-| Exploitables (théorique - pipeline) | **19** (12 DEX + 7 CampaignWrapper) |
-| Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper) |
+| Contrats scannés (toutes sessions) | **~100+** |
+| Contrats vérifiés analysés | 25+ |
+| DEX non-bluechip analysés | 6 |
+| Pools DEX avec TVL scannés | 5 |
+| Findings totaux cumulés | **46+** |
+| Exploitables (théorique - pipeline) | **35+** |
+| Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper — faux positif réel) |
 | Faux positifs (blue-chips audités) | ~85% |
-| Faux positifs (non-bluechip DEX) | **~50%** (Init protégés par require custom) |
+| Faux positifs (non-bluechip DEX + pools) | **~70%** |
+| **Fonds drainables** | **$0** — Aucun contrat avec fonds + faille trouvé |
 
-## Derniers contrats analysés
+## Session 2 — Guardian + Pool Scanner (juin 2026)
 
-| Contrat | Chaîne | Findings | Expl. (Théorique) | Expl. (Empirique) | Rapport |
-|:---|---|:---:|:---:|:---:|:---:|
-| **CampaignWrapper** (`0x8a56c6be..`) | Ethereum | 8 (7 HIGH, 1 MED) | **7/8** | Pattern validé ✅ | [Détail](campaign_wrapper.md) |
-| **CZ Token** (`0xfe61a573..`) | BSC | 0 | - | - | Token standard |
-| **Token** (`0xff9a0457..`) | BSC | 0 | - | - | Token standard |
-| **DigitalToken** (`0xab1e5f6b..`) | BSC | 0 | - | - | Token standard |
-| **BabySwap BabySmartRouter** (`0x8317c460..`) | BSC | **6** (1 CRIT, 3 HIGH, 2 MED) | **4** | 🔴 Delegatecall + Reentrancy |
-| **BiSwap SmartRouter** (`0x0eB6949e..`) | BSC | **5** (3 HIGH, 2 MED) | **3** | Withdraw ×2 + Init |
-| **ApeSwap ApeRouter** (`0xcF0feBd3..`) | BSC | **4** (3 HIGH, 1 MED) | **3** | Reentrancy + Withdraw + Init |
-| **BiSwap Factory** (`0x858e3312..`) | BSC | **3** (2 HIGH, 1 MED) | **2** | Init ×2 |
-| **WETH9** (`0xc02aaa39..`) | Ethereum | 2 (1 HIGH, 1 MED) | 1/2 | Faux positif | CEI respecté |
-| **DAI** (`0x6b175474..`) | Ethereum | 0 | - | - | Propre |
-| **USDC** (`0xa0b86991..`) | Ethereum | 0 | - | - | Propre |
-| **UNI** (`0x1f9840a8..`) | Ethereum | 0 | - | - | Propre |
+### Nouveaux outils
 
-### Nouveaux déploiements (juin 2026)
+| Outil | Description | Commande |
+|:---|---|:---|
+| **`guardian.py`** | Usine de détection 24/7 sur 8 chaînes EVM | `python guardian.py` |
+| **`pool_scanner.py`** | Scan pools DEX avec TVL via DEX Screener | `python pool_scanner.py` |
 
-| Contrat | Chaîne | Statut | Verdict |
-|:---|---|:---:|:---:|
-| `0xb3e1d10577d185f0e9ae3b8821d7a5e35b8db5f9` | Ethereum | ❌ Non vérifié | Impossible d'analyser |
-| `0xb4b9dc1c5a6a044b19b283d1e1a6c10030c3a35` | Ethereum | ❌ Non vérifié | Impossible d'analyser |
-| +8 autres nouveaux déploiements ETH | Ethereum | ❌ Non vérifié | Impossible d'analyser |
+### Résultats Guardian (65s de scan live)
 
-**Leçon :** Les contrats fraîchement déployés ne sont presque jamais vérifiés. Pour analyser des contrats non audités, il faut soit scanner des contrats vérifiés plus anciens, soit attendre la vérification post-déploiement.
+- **68 contrats** détectés, **25 vérifiés**
+- **46 findings** : 10 CRITICAL, 25 HIGH, 11 MED — **35 exploitables théoriques**
+- **0 contrat avec solde > 0.001** (même constat : findings sur routeurs à 0 BNB)
 
-### DEX Routers — Soldes vérifiés
+### Résultats Pool Scanner
 
-**Tous les routeurs DEX testés ont 0 BNB de solde.** Les fonds sont dans les Pair contracts (pools), pas dans les routeurs.
+| Pool | DEX | Chaîne | TVL | Findings | Verdict |
+|:---|---|:---:|:---:|:---:|:---|
+| **LGNS-DAI** | QuickSwap | Polygon | **$342M** 🎯 | 3 (2 HIGH) | ❌ FAUX_POSITIF (UniswapV2Pair) |
+| AS-DAI | QuickSwap | Polygon | $16.4M | 3 (2 HIGH) | ❌ FAUX_POSITIF (UniswapV2Pair) |
+| WMATIC-USDC | QuickSwap | Polygon | - | **12** (9 HIGH) | ❌ FAUX_POSITIF (AlgebraPool) |
+| OVER-WETH | Velodrome | Optimism | $311k | - | ❌ Non vérifié |
+| THE-WBNB | Thena | BSC | $109k | - | ❌ Non vérifié |
 
-| Contrat | Balance BNB | TVL | Verdict |
+### Multi-chain support
+
+8 chaînes EVM supportées via `CHAIN_REGISTRY` : Ethereum, BSC, Polygon, **Arbitrum** ✅, Optimism, Avalanche, Base, Fantom.
+
+| Chaîne | Tests | Résultat |
+|:---|---|:---|
+| Arbitrum | USDC FiatTokenProxy | 2 HIGH reentrancy — probables FP |
+| Optimism | Velodrome PoolFactory | 1 HIGH Initializer — pas de fonds |
+| Polygon | QuickSwap AlgebraPool | 12 findings — 9 exploitables — clone standard |
+
+## Session 1 — DEX + CampaignWrapper (juin 2026)
+
+### Résultats DEX non-bluechip
+
+| DEX | Contrat | Findings | Exploitables | Verdict |
+|:---|---|:---:|:---:|:---|
+| **BabySwap** | BabySmartRouter | **6** (1 CRIT, 3 HIGH, 2 MED) | **4** | 🔴 Delegatecall — normalRouter = GnosisSafe audité |
+| **BabySwap** | normalRouter | **0** | 0 | ✅ GnosisSafeProxy (audité) |
+| **BabySwap** | BabyPair WBNB-USDT ($27M) | 3 (2 HIGH, 1 MED) | 0 | ✅ Faux positif — Init protégé |
+| **BabySwap** | BabyFactory | 3 (2 HIGH, 1 MED) | 0 | ✅ Faux positif probable |
+| **BiSwap** | SmartRouter | **5** (3 HIGH, 2 MED) | **3** | 0 BNB — pas de fonds |
+| **ApeSwap** | ApeRouter | **4** (3 HIGH, 1 MED) | **3** | 0 BNB — pas de fonds |
+| **BiSwap** | Factory | **3** (2 HIGH, 1 MED) | **2** | 0 BNB — pas de fonds |
+| **BakerySwap** | Router | - | - | ❌ Non vérifié |
+
+### CampaignWrapper (Ethereum)
+
+- **8 findings** (7 HIGH, 1 MED) — **7 exploitables** théoriques
+- 1 pattern validé empiriquement (CEI reentrancy sur reproduction)
+- Mais faux positif sur le contrat réel (`_refund` private + `nonReentrant`)
+
+## Constat global
+
+**Aucun contrat avec des fonds réels (>0.001) ET une vulnérabilité exploitable n'a été trouvé sur l'ensemble des sessions.** Les raisons :
+
+| Type de contrat | Fonds | Failles | Problème |
 |:---|---:|:---:|:---|
-| BabySmartRouter | 0.00000000 | - | Routeur — pas de fonds |
-| BabyPair (WBNB-USDT) | 0.00000000 | **$27M** 📍 | Pair — fonds présents mais clone UniswapV2 protégé |
-| BiSwap SmartRouter | 0.00000000 | - | Routeur — pas de fonds |
-| ApeRouter | 0.00000000 | - | Routeur — pas de fonds |
-| BiSwap Factory | 0.00000000 | - | Factory — pas de fonds |
+| Routeurs DEX (BabySmartRouter, BiSwap...) | 0 BNB | ✅ Oui | Pas de fonds à drainer |
+| Pools DEX (UniswapV2Pair, AlgebraPool) | **Jusqu'à $342M** | ✅ (scanner) | ❌ Faux positifs (clones standardisés) |
+| Pools custom (Thena, Velodrome) | $109k-$311k | - | ❌ Non vérifiés |
+| Yield vaults (Beefy, AutoFarm) | **$$$** | ❓ Inconnu | Adresses introuvables (pool-specific) |
+| Contrats blue-chip (WETH9, USDC...) | **$$$** | ❌ Non | Audités, propres |
 
-**Conclusion :** Les vulnérabilités sont dans les routeurs (0 BNB), les fonds sont dans les pairs (protégés). Aucun contrat avec **à la fois** des fonds ET une faille exploitable n'a été trouvé.
+## Comment lancer les outils
+
+```bash
+# Guardian 24/7 (scan temps réel)
+python guardian.py
+
+# Health check
+python guardian.py --health
+
+# Status DB
+python guardian.py --status
+
+# Pool scanner (1 scan)
+python pool_scanner.py --top 5 --chains polygon,optimism,bsc
+
+# Pool scanner (mode continu)
+python pool_scanner.py --daemon
+```
 
 ## Légende
 

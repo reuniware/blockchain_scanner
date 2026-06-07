@@ -97,26 +97,86 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 *3 vérifiés (BEP-20 tokens, 0 findings) + 27 non vérifiés* — voir détails dans la section précédente.
 
 
-## Statistiques globales
+## Session 2 — Guardian 24/7 + Multi-chain + Pool Scanner
+
+### Nouveaux outils construits
+
+| Outil | Description |
+|:---|---|
+| **`guardian.py`** | Usine de détection 24/7 — tourne en continu, ne s'arrête jamais |
+| **`pool_scanner.py`** | Scan automatique des pools DEX avec TVL via DEX Screener API |
+| **`run_guardian.sh`** | Script de lancement tmux (Unix) |
+| **`run_guardian.bat`** | Script de lancement (Windows) |
+
+### Multi-chain support (8 chaînes EVM)
+
+Via `CHAIN_REGISTRY` dans `exploit_pipeline.py` : Ethereum, BSC, Polygon, Arbitrum, Optimism, Avalanche, Base, Fantom.
+
+### Guardian — Résultats du scan live (65s sur 6 blockchains)
 
 | Métrique | Valeur |
 |:---|---:|
-| Total contrats scannés | ~60 |
-| Contrats vérifiés avec findings | 5 (WETH9, CampaignWrapper, **BabySwap**, **BiSwap**, **ApeSwap**) |
-| Contrats vérifiés sans findings | 5 (3 tokens BSC + DAI + USDC + UNI) |
-| Contrats non vérifiés | 10 (ETH) + 27 (BSC) + 1 DEX (BakerySwap) = 38 |
-| DEX non-bluechip analysés | **5** (4 vérifiés, 1 non vérifié) |
-| Findings totaux | **28** |
-| Exploitables (théoriques) | **12** (DEX, cette session) + **7** (CampaignWrapper) = **19 total** |
-| Exploitables (empiriques) | ✅ 1 pattern validé (CEI reentrancy CampaignWrapper — mais faux positif sur le contrat réel) |
-| Taux de faux positifs (blue-chips) | ~85% |
-| Taux de faux positifs (non-bluechip DEX) | **~60%** (Init protégés, normalRouter = GnosisSafe) |
+| Contrats détectés | **68** |
+| Dont vérifiés | **25** |
+| Findings totaux | **46** (10 CRITICAL, 25 HIGH, 11 MED) |
+| Exploitables (théoriques) | **35** |
+| Tests Hardhat | 0 (aucun contrat avec solde > 0.001) |
+
+### Pools DEX scannés via DEX Screener + Pool Scanner
+
+| DEX | Pool | Chaîne | TVL | Findings | Expl. | Verdict |
+|:---|---|:---:|:---:|:---:|:---:|:---|
+| **QuickSwap** | LGNS-DAI | Polygon | **$342M** 🎯 | **3** (2 HIGH, 1 MED) | **2** | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
+| **QuickSwap** | AS-DAI | Polygon | $16.4M | 3 (2 HIGH, 1 MED) | 2 | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
+| **Velodrome** | OVER-WETH | Optimism | $311k | - | - | Non vérifié (proxy 46 bytes) |
+| **Thena** | THE-WBNB | BSC | $109k | - | - | Non vérifié |
+| **QuickSwap** | WMATIC-USDC | Polygon | $? | **12** (9 HIGH, 3 MED) | **9** | ❌ FAUX_POSITIF (AlgebraPool standard) |
+
+### Contrats analysés sur Arbitrum
+
+| Contrat | Adresse | Findings | Exploitables | Notes |
+|:---|---|:---:|:---:|:---|
+| **USDC (FiatTokenProxy)** | `0xaf88d065..5831` | **2 HIGH** | **2** | Reentrancy — probables faux positifs (proxy pattern) |
+| Autres contrats Arbitrum | - | 0 | 0 | Tokens standards |
+
+### Contrats analysés sur Optimism
+
+| Contrat | Adresse | Findings | Exploitables | Notes |
+|:---|---|:---:|:---:|:---|
+| **Velodrome PoolFactory** | `0xF1046053..FF5a` | **1 HIGH** (Init) | **1** | Factory contract — pas de fonds |
+
+### Santé du système
+
+```bash
+# Vérifier que le Guardian tourne
+python guardian.py --health
+
+# Voir les stats de la DB
+python guardian.py --status
+
+# Scanner les pools DEX
+python pool_scanner.py --top 5 --chains polygon,optimism,bsc
+```
+
+## Statistiques globales cumulées
+
+| Métrique | Valeur |
+|:---|---:|
+| Total contrats scannés (toutes sessions) | **~100+** |
+| Contrats vérifiés avec findings | 10+ (WETH9, CampaignWrapper, BabySwap, BiSwap, ApeSwap, USDC Arbitrum, Velodrome, AlgebraPool...) |
+| DEX non-bluechip analysés | **6** (5 vérifiés + 1 non vérifié) |
+| Pools DEX avec TVL scannés | **5** (QuickSwap ×2, Thena, Velodrome, QuickSwap Algebra) |
+| Findings totaux cumulés | **46+** (hors redondances) |
+| Exploitables (théoriques) | **35+** |
+| Taux de faux positifs global | **~70%** |
 | **Fonds drainables** | **$0** — Aucun contrat avec fonds + faille trouvé |
 
-## Méthodologie
+## Méthodologie (mise à jour)
 
-1. **Détection** : Scanner live des blocs (Ethereum Infura) ou scan RPC direct
-2. **Vérification** : Appel API Etherscan V2 pour vérifier le code source
-3. **Analyse** : `analysis/vulnerability_scanner.py` — 10 patterns de vulnérabilités
-4. **Validation** : `exploit_pipeline.py` — validation théorique (version Solidity, unchecked, ACL)
-5. **Confirmation** : Tests Hardhat locaux pour les patterns validés
+1. **Détection temps réel** : `guardian.py` scanne 8 blockchains en continu via WebSocket/RPC
+2. **Scan pools DEX** : `pool_scanner.py` interroge DEX Screener API pour trouver les pools avec TVL
+3. **Vérification** : Appel API Etherscan V2 (1 clé pour toutes les chaînes)
+4. **Analyse** : `analysis/vulnerability_scanner.py` — 10 patterns de vulnérabilités
+5. **Validation** : `exploit_pipeline.py` — validation théorique (Solidity, unchecked, ACL)
+6. **Classification** : Pools standard (UniswapV2Pair, AlgebraPool) marqués FAUX_POSITIF
+7. **Health check** : `guardian.py --health` — vérifie PID, DB, logs en continu
