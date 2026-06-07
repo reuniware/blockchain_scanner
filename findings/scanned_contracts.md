@@ -62,12 +62,15 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 | DEX | Contrat | Solidity | Source | Findings | Exploitables | Détail |
 |:---|:---|---:|:---:|:---:|:---:|:---|
 | **BabySwap** | BabySmartRouter (`0x8317c460..32`) | `^0.7.4` | 107k | **6** (1 CRIT, 3 HIGH, 2 MED) | **4** | 🔴 Delegatecall + Reentrancy + Withdraw + Init |
+| **BabySwap** | BabyBaseRouter/normalRouter (`0x3256a13d..F1E`) | - | ❌ **Non vérifié** | - | - | Cible du delegatecall — code non vérifié |
+| **BabySwap** | BabyPair WBNB-USDT (`0x04580ce6..3f`) | `^0.7.4` | 30k | **3** (2 HIGH, 1 MED) | 0 | ✅ **Faux positif** — Init protégé par `require(factory)` |
+| **BabySwap** | BabyFactory (`0x86407bea..da`) | - | 34k | **3** (2 HIGH, 1 MED) | 0 | ✅ **Faux positif probable** — Init protégé |
 | **BiSwap** | SmartRouter (`0x0eB6949e..EF`) | `0.8.16` | 103k | **5** (3 HIGH, 2 MED) | **3** | Withdraw ×2 + Initializer |
 | **ApeSwap** | ApeRouter (`0xcF0feBd3..b7`) | - | 36k | **4** (3 HIGH, 1 MED) | **3** | Reentrancy + Withdraw + Init |
 | **BiSwap** | Factory (`0x858e3312..ee`) | - | 23k | **3** (2 HIGH, 1 MED) | **2** | Initializer ×2 |
 | **BakerySwap** | Router (`0xCDe540d7..0F`) | - | ❌ Non vérifié | - | - | Impossible d'analyser |
 
-**Résultat :** 4/5 DEX vérifiés ont des vulnérabilités. BabySmartRouter est le plus critique (Delegatecall en ^0.7.4).
+**Résultat :** 4/5 DEX vérifiés ont des vulnérabilités. BabySmartRouter est le plus critique (Delegatecall en ^0.7.4). **MAIS** les Pair contracts (avec $27M+) sont protégés malgré les findings du scanner. Les seuls vrais exploitables sont les routeurs (qui ont 0 BNB).
 
 **⚠️ Vérification des soldes :** Routes et Factories ont **0 BNB** de solde. Les fonds sont dans les Pair contracts (pools de liquidité), pas dans les routeurs.
 
@@ -98,7 +101,7 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 | Exploitables (théoriques) | **12** (DEX, cette session) + **7** (CampaignWrapper) = **19 total** |
 | Exploitables (empiriques) | ✅ 1 pattern validé (CEI reentrancy CampaignWrapper) |
 | Taux de faux positifs (blue-chips) | ~85% |
-| Taux de faux positifs (non-bluechip DEX) | **~0% (à valider sur Hardhat)** |
+| Taux de faux positifs (non-bluechip DEX) | **~50% (Init protégés par require custom)** |
 
 ## Méthodologie
 

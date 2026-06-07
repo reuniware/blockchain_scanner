@@ -14,7 +14,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | Exploitables (théorique - pipeline) | **19** (12 DEX + 7 CampaignWrapper) |
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper) |
 | Faux positifs (blue-chips audités) | ~85% |
-| Faux positifs (non-bluechip DEX) | ~0% (à valider) |
+| Faux positifs (non-bluechip DEX) | **~50%** (Init protégés par require custom) |
 
 ## Derniers contrats analysés
 
@@ -45,14 +45,17 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 ### DEX Routers — Soldes vérifiés
 
-**Tous les routeurs DEX testés ont 0 BNB de solde.** Les fonds sont dans les Pair contracts (pools), pas dans les routeurs. La prochaine cible : Pair contracts et protocoles qui détiennent de la liquidité.
+**Tous les routeurs DEX testés ont 0 BNB de solde.** Les fonds sont dans les Pair contracts (pools), pas dans les routeurs.
 
-| Contrat | Balance BNB | Verdict |
-|:---|---|:---|
-| BabySmartRouter | 0.00000000 | Routeur — pas de fonds |
-| BiSwap SmartRouter | 0.00000000 | Routeur — pas de fonds |
-| ApeRouter | 0.00000000 | Routeur — pas de fonds |
-| BiSwap Factory | 0.00000000 | Factory — pas de fonds |
+| Contrat | Balance BNB | TVL | Verdict |
+|:---|---:|:---:|:---|
+| BabySmartRouter | 0.00000000 | - | Routeur — pas de fonds |
+| BabyPair (WBNB-USDT) | 0.00000000 | **$27M** 📍 | Pair — fonds présents mais clone UniswapV2 protégé |
+| BiSwap SmartRouter | 0.00000000 | - | Routeur — pas de fonds |
+| ApeRouter | 0.00000000 | - | Routeur — pas de fonds |
+| BiSwap Factory | 0.00000000 | - | Factory — pas de fonds |
+
+**Conclusion :** Les vulnérabilités sont dans les routeurs (0 BNB), les fonds sont dans les pairs (protégés). Aucun contrat avec **à la fois** des fonds ET une faille exploitable n'a été trouvé.
 
 ## Légende
 
