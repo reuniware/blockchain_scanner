@@ -13,6 +13,7 @@ from scanner.solana_scanner import SolanaScanner
 from filters.filters import TransactionFilter
 from output.display import DisplayManager
 from verify import SourceCodeVerifier
+from analysis.vulnerability_scanner import analyze_contract, VulnerabilityFinding
 
 logger = logging.getLogger("scanner.orchestrator")
 
@@ -46,6 +47,10 @@ class ScannerOrchestrator:
 
         # Cache of contract verification lookups already queued or in progress
         self._verifying: set[str] = set()
+
+        # Cache of vulnerability scan results to avoid re-scanning
+        self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}
+        self._scanning_vulns: set[str] = set()
 
     def _create_scanner(
         self, chain_key: str, chain_cfg: dict
@@ -222,10 +227,70 @@ class ScannerOrchestrator:
                 if self.display:
                     await self.display.show_verification(event)
 
+                # If verified, scan for vulnerabilities
+                if verified:
+                    asyncio.create_task(
+                        self._scan_vulnerabilities(event)
+                    )
+
         except Exception as e:
             logger.debug(f"[verify] Error verifying {addr_key}: {e}")
         finally:
             self._verifying.discard(addr_key)
+
+    async def _scan_vulnerabilities(self, event: TransactionEvent) -> None:
+        """Asynchronously scan a verified contract's source code
+        for security vulnerabilities.
+
+        Results are cached so repeated transfers to the same contract
+        only trigger the scan once.
+        """
+        if not event.contract_address or not event.chain_id:
+            return
+
+        addr_key = f"{event.chain_id}:{event.contract_address.lower()}"
+
+        # Skip if already scanned or currently scanning
+        if addr_key in self._vuln_cache or addr_key in self._scanning_vulns:
+            return
+
+        self._scanning_vulns.add(addr_key)
+
+        try:
+            # Fetch the full source code
+            source_code = await self.verifier.get_source_code(
+                event.contract_address, event.chain_id
+            )
+
+            if not source_code:
+                logger.debug(f"[vuln] No source code available for {addr_key}")
+                return
+
+            # Analyze the source code for vulnerabilities
+            findings = analyze_contract(source_code)
+            self._vuln_cache[addr_key] = findings
+
+            if findings:
+                # Display vulnerability warnings
+                logger.info(
+                    f"[vuln] {event.contract_address[:10]}.. "
+                    f"-> {len(findings)} vulnerability(ies) found"
+                )
+
+                if self.display:
+                    await self.display.show_vulnerabilities(
+                        event, findings
+                    )
+            else:
+                logger.info(
+                    f"[vuln] {event.contract_address[:10]}.. "
+                    f"-> No vulnerabilities detected"
+                )
+
+        except Exception as e:
+            logger.debug(f"[vuln] Error scanning {addr_key}: {e}")
+        finally:
+            self._scanning_vulns.discard(addr_key)
 
     def get_all_stats(self) -> dict[str, Any]:
         """Get aggregated stats from all scanners."""

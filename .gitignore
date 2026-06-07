@@ -1,22 +1,29 @@
 # Python
 __pycache__/
-*.py[cod]
-*.so
+*.pyc
+*.pyo
 *.egg-info/
 dist/
 build/
 
+# Temp files from testing
+*.txt
+
 # IDE
 .vscode/
 .idea/
-
-# Config with secrets
-config.yaml
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Output
-transactions.json
-*.log
+# Node/exploit
+exploit/node_modules/
+exploit/artifacts/
+exploit/cache/
+exploit/typechain-types/
+
+# Config with secrets (keep template, not actual keys)
+# config.yaml

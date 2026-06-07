@@ -1,0 +1,132 @@
+# =============================================================================
+# Multi-Chain Blockchain Transaction Scanner - Configuration
+# =============================================================================
+# Aucune cle API requise ! Tous les endpoints sont publics et gratuits.
+# (via PublicNode.com pour les EVM/Solana, et mempool.space pour Bitcoin)
+#
+# Les noeuds publics sont rate-limites. Pour un usage intensif en production,
+# remplacez par vos cles Alchemy, QuickNode ou Infura.
+#
+# Pour activer le scan du mempool (transactions en attente), il faut
+# un endpoint payant (Alchemy/QuickNode). Sur les noeuds publics,
+# seuls les blocks et les events sont disponibles.
+
+# --- Global settings ---
+global:
+  log_level: "INFO"           # DEBUG, INFO, WARNING, ERROR
+  output_format: "rich"      # rich, json, both
+  json_output_file: "transactions.json"
+  max_pending_txs: 100
+
+  # --- Block explorer API key (optional) ---
+  # Pour verifier si le code source des contrats est verifie sur les block explorers.
+  # Une SEULE cle API Etherscan V2 fonctionne pour TOUTES les chaines
+  # (Ethereum, BSC, Polygon, Arbitrum, et 60+ autres chaines).
+  # Obtenez votre cle gratuite : https://etherscan.io/myapikey
+  # Sans cle API : fonctionne mais 1 requete/seconde max.
+  # Avec cle API : ~5 requetes/seconde, toutes chaines confondues.
+  explorer_api_key: "47JTF3MC7RJ24NSZGTIXNT84KFBQDHWY8E"  # Votre cle Etherscan V2 unique (toutes chaines)
+
+# --- Chain-specific configurations ---
+chains:
+
+  # --- EVM Chain 1: Ethereum ------------------------------------------------
+  ethereum:
+    enabled: true
+    rpc_ws: "wss://mainnet.infura.io/ws/v3/420dca4972c44ff9b72c95c4ac7a0cd1"
+    # HTTP endpoint with secret (required because "Require API Key Secret" is enabled)
+    rpc_http: "https://mainnet.infura.io/v3/420dca4972c44ff9b72c95c4ac7a0cd1?secret=uqUxfGjCY7MYDzeWE2gW%2FvK%2B5zCrsOYRyRnHz3gIlHODehPUb2kY4w"
+    name: "Ethereum"
+    currency: "ETH"
+    chain_id: 1
+    track_mempool: false      # Requires paid endpoint (Alchemy/QuickNode)
+    track_blocks: true        # New blocks in real-time
+    filters:
+      min_value_eth: 0.01
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 2: Polygon -------------------------------------------------
+  polygon:
+    enabled: true
+    rpc_ws: "wss://polygon-bor-rpc.publicnode.com"
+    rpc_http: "https://polygon-bor-rpc.publicnode.com"
+    name: "Polygon"
+    currency: "MATIC"
+    chain_id: 137
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 1.0
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 3: BSC -----------------------------------------------------
+  bsc:
+    enabled: true
+    rpc_ws: "wss://bsc.publicnode.com"
+    rpc_http: "https://bsc-dataseed1.binance.org"
+    name: "Binance Smart Chain"
+    currency: "BNB"
+    chain_id: 56
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 4: Arbitrum ------------------------------------------------
+  arbitrum:
+    enabled: true
+    rpc_ws: "wss://arbitrum-one-rpc.publicnode.com"
+    rpc_http: "https://arbitrum-one-rpc.publicnode.com"
+    name: "Arbitrum"
+    currency: "ETH"
+    chain_id: 42161
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- Solana ---------------------------------------------------------------
+  solana:
+    enabled: true
+    rpc_ws: "wss://solana-rpc.publicnode.com"
+    rpc_http: "https://solana-rpc.publicnode.com"
+    name: "Solana"
+    currency: "SOL"
+    track_transactions: true
+    filters:
+      min_value_sol: 0.1
+      tracked_accounts: []
+      tracked_programs:
+        - "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+
+  # --- Bitcoin --------------------------------------------------------------
+  bitcoin:
+    enabled: true
+    api_url: "https://mempool.space/api"
+    ws_url: "wss://mempool.space/api/v1/ws"
+    name: "Bitcoin"
+    currency: "BTC"
+    track_mempool: true
+    track_blocks: true
+    filters:
+      min_value_btc: 0.001
+      max_value_btc: null
+      tracked_addresses: []

@@ -300,6 +300,80 @@ class DisplayManager:
                 f"   [dim]> Contract {c_short}: source {status}[/]"
             )
 
+    async def show_vulnerabilities(
+        self,
+        event: TransactionEvent,
+        findings: list,
+    ) -> None:
+        """Display vulnerability scan results for a verified contract."""
+        if self.format in ("rich", "both") and self.console:
+            c_short = ""
+            if event.contract_address:
+                c_addr = event.contract_address
+                c_short = f"{c_addr[:10]}..{c_addr[-4:]}" if len(c_addr) > 14 else c_addr
+
+            severity_colors = {
+                "CRITICAL": "bold red",
+                "HIGH": "bold yellow",
+                "MEDIUM": "yellow",
+                "LOW": "cyan",
+                "INFO": "dim",
+            }
+
+            severity_icons = {
+                "CRITICAL": "[!CRITICAL!]",
+                "HIGH": "[!HIGH!]",
+                "MEDIUM": "[WARN]",
+                "LOW": "[note]",
+                "INFO": "[info]",
+            }
+
+            # Count by severity
+            crit = sum(1 for f in findings if f.severity == "CRITICAL")
+            high = sum(1 for f in findings if f.severity == "HIGH")
+            med = sum(1 for f in findings if f.severity == "MEDIUM")
+
+            # Summary line
+            summary_parts = []
+            if crit:
+                summary_parts.append(f"[bold red]{crit} critical[/]")
+            if high:
+                summary_parts.append(f"[bold yellow]{high} high[/]")
+            if med:
+                summary_parts.append(f"[yellow]{med} medium[/]")
+            summary = ", ".join(summary_parts) if summary_parts else "No issues"
+
+            self.console.print(
+                f"   [bold]>> Security Scan:[/] {c_short} "
+                f"({len(findings)} finding(s): {summary})"
+            )
+
+            # Show each finding (limit to top 5 most severe)
+            for finding in findings[:5]:
+                color = severity_colors.get(finding.severity, "dim")
+                icon = severity_icons.get(finding.severity, "[?]")
+                lines_str = ""
+                if finding.line_numbers:
+                    lines_str = f" (lines: {', '.join(str(n) for n in finding.line_numbers[:5])})"
+
+                self.console.print(
+                    f"   {icon} [{color}]{finding.name}[/]{lines_str}"
+                )
+                self.console.print(
+                    f"       [dim]{finding.description[:200]}[/]"
+                )
+
+            if len(findings) > 5:
+                self.console.print(
+                    f"   [dim]... and {len(findings) - 5} more finding(s)[/]"
+                )
+
+            # Triple beep for critical findings
+            if crit > 0:
+                _beep(force=True)
+                _beep(force=True)
+                _beep(force=True)
+
     async def _write_json(self, event: TransactionEvent) -> None:
         """Write event to JSON file."""
         try:

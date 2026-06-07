@@ -201,6 +201,58 @@ class SourceCodeVerifier:
             return f"{web_url}/address/{address}#code"
         return None
 
+    async def get_source_code(
+        self, address: str, chain_id: int
+    ) -> Optional[str]:
+        """Get the full Solidity source code of a verified contract.
+
+        Args:
+            address: The contract address.
+            chain_id: The EVM chain ID.
+
+        Returns:
+            The raw source code string, or None if not available/verified.
+        """
+        info = await self.get_contract_info(address, chain_id)
+        if not info:
+            return None
+
+        source = info.get("SourceCode", "")
+        if not source or not source.strip():
+            return None
+
+        # Etherscan wraps JSON-format sources in {{...}} or {...}
+        # Multi-file contracts have JSON-structured source code
+        if source.startswith("{") and source.endswith("}"):
+            try:
+                import json
+                parsed = json.loads(source)
+                # Standard JSON input format
+                if isinstance(parsed, dict):
+                    if "sources" in parsed:
+                        # Flatten all source files
+                        all_sources = []
+                        for file_path, file_data in parsed["sources"].items():
+                            content = file_data.get("content", "")
+                            if content:
+                                all_sources.append(f"// File: {file_path}\n{content}")
+                        return "\n\n".join(all_sources)
+                    elif "language" in parsed:
+                        # Standard JSON metadata
+                        sources_dict = parsed.get("sources", {})
+                        all_sources = []
+                        for file_path, file_data in sources_dict.items():
+                            content = file_data.get("content", "")
+                            if content:
+                                all_sources.append(f"// File: {file_path}\n{content}")
+                        return "\n\n".join(all_sources)
+                    # Plain JSON source
+                    return source
+            except (json.JSONDecodeError, Exception):
+                pass
+
+        return source
+
     async def close(self) -> None:
         """Close the HTTP client."""
         if self._http:
