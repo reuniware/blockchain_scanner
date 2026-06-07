@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -39,6 +40,9 @@ RPC_URLS = {
     8453: "https://mainnet.base.org",
     250: "https://rpc.ftm.tools",
 }
+
+# Cross-platform npx command
+_NPX = "npx.cmd" if platform.system() == "Windows" else "npx"
 
 CHAIN_NAMES = {
     1: "ethereum", 56: "bsc", 137: "polygon", 42161: "arbitrum",
@@ -142,7 +146,7 @@ class HardhatForkTester:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "npx", "hardhat", "run", "scripts/test_fork_exploit.js",
+                _NPX, "hardhat", "run", "scripts/test_fork_exploit.js",
                 "--network", "hardhat",
                 cwd=self.exploit_dir,
                 env=env,
@@ -194,7 +198,7 @@ class HardhatForkTester:
     async def _check_hardhat(self) -> bool:
         try:
             proc = await asyncio.create_subprocess_exec(
-                "npx", "hardhat", "--version",
+                _NPX, "hardhat", "--version",
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
@@ -222,7 +226,7 @@ class HardhatForkTester:
     async def _compile_contracts(self) -> bool:
         try:
             proc = await asyncio.create_subprocess_exec(
-                "npx", "hardhat", "compile",
+                _NPX, "hardhat", "compile",
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
