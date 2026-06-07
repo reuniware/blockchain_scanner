@@ -1,0 +1,28 @@
+
+# Config with secrets (keep template, not actual keys)
+# IDE
+# Node/exploit
+# OS
+# Python
+# Temp files from testing
+# config.yaml
+*.egg-info/
+*.pyc
+*.pyo
+*.swo
+*.swp
+*.txt
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+__pycache__/
+build/
+dist/
+exploit/artifacts/
+exploit/cache/
+exploit/node_modules/
+exploit/typechain-types/
+guardian_data.db
+guardian_exploits_found.txt
+guardian_output.log

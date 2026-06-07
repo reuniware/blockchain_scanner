@@ -220,28 +220,70 @@ async def main_async(args: argparse.Namespace) -> None:
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, shutdown)
     except (NotImplementedError, AttributeError):
-        # Windows or restricted environments — use polling loop instead
         pass
 
     try:
         # Start scanning
         await orchestrator.start()
 
-        # Wait for shutdown — poll in a loop so KeyboardInterrupt can fire
-        while not stop_event.is_set():
-            try:
-                await asyncio.wait_for(
-                    asyncio.shield(stop_event.wait()), timeout=0.5
+        # Wait for either manual shutdown or vulnerability auto-stop.
+        # Python 3.12+ requires explicit Task objects (not raw coroutines).
+        stop_task = asyncio.create_task(stop_event.wait())
+        vuln_task = asyncio.create_task(orchestrator.vulnerability_found_event.wait())
+        done, pending = await asyncio.wait(
+            [stop_task, vuln_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        # Cancel pending waiters
+        for task in pending:
+            task.cancel()
+
+        # If auto-stopped by a vulnerability, show details and validate
+        if orchestrator.vulnerability_found_event.is_set():
+            vuln = orchestrator.found_vulnerability
+            addr = orchestrator.last_vuln_address
+            chain_id = orchestrator.last_vuln_chain_id
+            chain_names = {1: "ethereum", 56: "bsc", 137: "polygon"}
+            chain_name = chain_names.get(chain_id, "ethereum")
+            print(f"\n{'=' * 60}")
+            print(f"  [!] VULNERABILITE DETECTEE — Arret automatique")
+            print(f"  [!] {vuln.name} [{vuln.severity}]")
+            print(f"  [!] Contrat: {addr}")
+            print(f"  [!] Chaine: {chain_name}")
+            print(f"{'=' * 60}")
+
+            # Stop the orchestrator first to free WebSocket/HTTP resources
+            await orchestrator.stop()
+
+            # Then launch exploit pipeline to validate the finding
+            if addr:
+                api_key = global_cfg.get("explorer_api_key", "")
+                print(f"\n[!] Lancement du pipeline d'exploitation sur {addr[:14]}..")
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                pipeline_script = os.path.join(script_dir, "exploit_pipeline.py")
+                proc = await asyncio.create_subprocess_exec(
+                    sys.executable, pipeline_script,
+                    "--address", addr,
+                    "--chain", chain_name,
+                    "--api-key", api_key,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
                 )
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                break
+                stdout, _ = await proc.communicate()
+                print(stdout.decode("utf-8", errors="replace"))
+
+            # Return early (finally block runs to print vuln info)
+            return
 
     except KeyboardInterrupt:
         print("\n\n[!] Interrupted by user...")
     finally:
         await orchestrator.stop()
+        if orchestrator.found_vulnerability:
+            print(f"\n[VULN] Trouvee: {orchestrator.found_vulnerability.name} [{orchestrator.found_vulnerability.severity}]")
+            print(f"[VULN] Lines: {orchestrator.found_vulnerability.line_numbers}")
+            print(f"[VULN] {orchestrator.found_vulnerability.description[:150]}...")
         print("\n[DONE] Scanner stopped. Goodbye!")
 
 

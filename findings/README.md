@@ -73,17 +73,72 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - 1 pattern validé empiriquement (CEI reentrancy sur reproduction)
 - Mais faux positif sur le contrat réel (`_refund` private + `nonReentrant`)
 
-## Constat global
+## Session 3 — Validation locale concrète avec fonds réels (07/06/2026)
 
-**Aucun contrat avec des fonds réels (>0.001) ET une vulnérabilité exploitable n'a été trouvé sur l'ensemble des sessions.** Les raisons :
+Pour la première fois, des contrats réels AVEC FONDS ont été copiés et testés localement.
 
-| Type de contrat | Fonds | Failles | Problème |
-|:---|---:|:---:|:---|
-| Routeurs DEX (BabySmartRouter, BiSwap...) | 0 BNB | ✅ Oui | Pas de fonds à drainer |
-| Pools DEX (UniswapV2Pair, AlgebraPool) | **Jusqu'à $342M** | ✅ (scanner) | ❌ Faux positifs (clones standardisés) |
-| Pools custom (Thena, Velodrome) | $109k-$311k | - | ❌ Non vérifiés |
-| Yield vaults (Beefy, AutoFarm) | **$$$** | ❓ Inconnu | Adresses introuvables (pool-specific) |
-| Contrats blue-chip (WETH9, USDC...) | **$$$** | ❌ Non | Audités, propres |
+### Cibles identifiées (depuis la DB Guardian, 913 contrats)
+
+| # | Contrat | Chaîne | Balance | Findings | Exploitables |
+|:---|---|:---:|:---:|:---:|:---:|
+| 1 | Lido stETH (AppProxyUpgradeable) | Ethereum | **262.45 ETH** (~$500k) | 3 | 2 (Delegatecall + Init) |
+| 2 | PrismHook | Ethereum | **13.14 ETH** (~$25k) | 4 | 3 (Reentrancy + 2× Init) |
+| 3 | AIDoge | Arbitrum | **2.34 ETH** (~$4.5k) | 8 | **7** (Delegatecall + Reentrancy + Withdraw) |
+
+### Tests fork Hardhat réalisés
+
+#### 1. Lido stETH — Non testé (blue-chip audité)
+- Proxy EIP-1967 connu, audité par plusieurs firmes
+- `delegatecall` = volontaire (pattern proxy), `initialize()` protégé par le proxy
+- **Verdict : ❌ Non testé — faux positif quasi-certain**
+
+#### 2. PrismHook — Testé sur fork Ethereum ✅
+| Test | Résultat | Détail |
+|:---|---|:---|
+| `initialize()` | ❌ Échoué | Fonction inconnue (mauvais sélecteur) |
+| `initialize(address)` | ❌ Échoué | Fonction inconnue |
+| `initializeOwner(address)` (Solady) | ❌ Échoué | Fonction inconnue |
+| Reentrancy via exploit contract | ❌ Bloqué | `ReentrancyGuard` actif dans le code source |
+| **Drain de fonds** | ❌ **0 ETH** | Balance passée de 12→13 ETH (l'exploit a envoyé des fonds) |
+
+**Verdict : ❌ NON EXPLOITABLE** — ReentrancyGuard bloque la réentrance, les initializers sont soit absents soit protégés.
+
+#### 3. AIDoge — Testé via eth_call direct (Hardhat ne fork pas Arbitrum) ✅
+| Test | Résultat | Détail |
+|:---|---|:---|
+| `owner()` | ✅ OK | Retourne 0x0 (owner brûlé ou différent) |
+| `totalSupply()` | ✅ OK | 210M tokens |
+| `initialize(address)` | ❌ REVERT | Protégé (quel que soit l'appelant) |
+| `initialize()` | ❌ REVERT | Protégé |
+| `withdraw(uint256)` | ❌ REVERT | Protégé |
+| `withdrawAll()` | ❌ REVERT | Protégé |
+| `delegatecallToTarget(bytes)` | ❌ REVERT | Protégé |
+| **Drain de fonds** | ❌ **0 ETH** | Toutes les fonctions revertent |
+
+**Verdict : ❌ NON EXPLOITABLE** — Les findings du scanner (7/8) sont des faux positifs : les fonctions ont des access controls fonctionnels.
+
+### Bilan des validations locales
+
+| Contrat | Fonds | Findings | Test local | Résultat |
+|:---|---|:---:|:---|---:|
+| Lido stETH | 262 ETH | 2 exploitables | Pas testé (blue-chip) | ❌ Faux positif probable |
+| PrismHook | 13 ETH | 3 exploitables | ✅ Hardhat fork | ❌ **NON exploitable** |
+| AIDoge | 2.34 ETH | 7 exploitables | ✅ RPC direct | ❌ **NON exploitable** |
+| **TOTAL** | **277 ETH** | **12** | **2 tests fork** | **0 confirmé** |
+
+## Constat global final
+
+**Aucun contrat avec des fonds réels ET une vulnérabilité exploitable n'a été trouvé après 3 sessions de scan.** Les scanners produisent des faux positifs sur :
+
+| Type de contrat | Fonds max trouvés | Findings scanner | Test local | Raison du faux positif |
+|:---|---:|:---:|:---|---:|
+| Routeurs DEX (BabySmartRouter...) | 0 BNB | ✅ Réelles | Non testé (pas de fonds) | Pas de fonds à drainer |
+| Pools DEX (UniswapV2Pair) | $342M TVL | ✅ Patterns | ❌ Faux positifs | Clones standardisés audités |
+| Contrats custom (PrismHook, AIDoge) | 15 ETH | ✅ 10 exploitables | ✅ **Fork/RPC** | Access controls + ReentrancyGuard |
+| Blue-chips (Lido stETH) | 262 ETH | ✅ 2 | Pas testé | Proxy patterns audités |
+| Yield vaults (Beefy, AutoFarm) | $$$ | ❓ | Non trouvés | Pool-specific |
+
+**Conclusion : le scanner détecte des patterns de code mais ne comprend pas le contexte** (modifiers, héritage, proxy patterns, ReentrancyGuard). Les 301 tests Hardhat automatisés du Guardian ont tous échoué car Hardhat n'est pas installé globalement — mais les tests fork manuels (PrismHook, AIDoge) confirment que les findings étaient des faux positifs.
 
 ## Comment lancer les outils
 

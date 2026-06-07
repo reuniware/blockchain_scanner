@@ -2,12 +2,46 @@
 
 Tous les contrats analysés par le scanner de vulnérabilités, classés par chaîne.
 
+## Session 3 — Validation fork Hardhat + RPC (07/06/2026)
+
+Pour la première fois, des contrats réels AVEC FONDS ont été testés localement.
+
+### Contrats testés
+
+| Contrat | Chaîne | Fonds | Findings | Test | Résultat |
+|:---|---|:---:|:---:|:---|---:|
+| **Lido stETH** (AppProxyUpgradeable) | Ethereum | 262.45 ETH | 3 (Delegatecall, Init) | Non testé (blue-chip) | ❌ Faux positif probable |
+| **PrismHook** | Ethereum | 13.14 ETH | 4 (Reentrancy + 2× Init) | ✅ Hardhat fork | ❌ **Non exploitable** |
+| **AIDoge** | Arbitrum | 2.34 ETH | 8 (Delegatecall, Reentrancy ×3, Withdraw ×3) | ✅ RPC direct | ❌ **Non exploitable** |
+
+### Détails tests
+
+**PrismHook** (Hardhat fork Ethereum) :
+- `initialize()` / `initialize(address)` / `initializeOwner(address)` → toutes inconnues ou révert
+- Reentrancy → bloqué par `ReentrancyGuard` (vérifié dans le code source)
+- Balance : 12 → 13 ETH (augmentée, pas drainée)
+
+**AIDoge** (eth_call direct sur Arbitrum) :
+- `owner()` → 0x0 (owner brûlé ou fonction absente)
+- `initialize(address)` / `initialize()` → REVERT (protégé)
+- `withdraw()` / `withdrawAll()` → REVERT (protégé)
+- `delegatecallToTarget()` → REVERT (protégé)
+
+### Bilan des validations
+
+| Session | Contrats scannés | Tests fork | Confirmés |
+|:---|:---:|:---:|:---:|
+| 1 (DEX + Campaign) | 25+ | 5 (CampaignVulnerable) | 1 pattern (faux positif réel) |
+| 2 (Guardian + Pool) | 68+ | 139 (automatisés, Hardhat absent) | 0 |
+| 3 (Validation fork) | 3 (DB: 913 contrats totaux) | **2 fork + 1 RPC** | **0** |
+| **Total** | **~1000+** (DB Guardian) | **144** | **0 exploit réel** |
+
 ---
 
 ## Ethereum (Chain ID: 1)
 
 | Date | Contrat | Type | Findings | Exploitables | Notes |
-|:---|---|:---:|:---:|:---:|:---|
+|:---|:---|---:|:---:|:---|
 | Juin 2026 | **CampaignWrapper** (`0x8a56c6be..06bea`) | Complexe | **8** (7 HIGH, 1 MED) | **7** | Reentrancy + TX Origin + Unprotected Init |
 | Juin 2026 | **WETH9** (`0xc02aaa39..6cc2`) | Token | 2 (1 HIGH, 1 MED) | 0 | Faux positif withdraw (CEI + .transfer) |
 | Juin 2026 | **USDC** (`0xa0b86991..eb48`) | Token | 0 | 0 | Blue-chip audité |
@@ -20,7 +54,7 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 ### Autres contrats vérifiés (0 findings)
 
 | Adresse | Nom |
-|:---|---:|
+|:---|---|
 | `0xef0ced5d..d78` | Non vérifié |
 | `0x7bf9a821..f68` | Non vérifié |
 | `0xa373fbac..95b` | Non vérifié |
@@ -29,7 +63,7 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 ### Nouveaux déploiements (RPC scan 100 blocs) — Tous non vérifiés
 
 | Adresse | Txs | Verdict |
-|:---|---|:---:|
+|:---|---|:---|
 | `0xb3e1d10577d185f0e9ae3b8821d7a5e35b8db5f9` | 3 txs | ❌ Non vérifié — impossible d'analyser |
 | `0xb4b9dc1c5a6a044b19b283d1e1a6c10030c3a35` | 2 txs | ❌ Non vérifié — impossible d'analyser |
 | `0x0263d4c2b6037d5644b63d3e4fe36469e99f917f` | 2 txs | ❌ Non vérifié |
@@ -44,13 +78,14 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 
 **Leçon :** Les nouveaux déploiements sont rarement vérifiés immédiatement. Il faut soit scanner des contrats plus anciens (vérifiés), soit attendre que les nouveaux contrats soient vérifiés par leurs créateurs.
 
+---
 
 ## Binance Smart Chain (Chain ID: 56)
 
 ### Session précédente (scan scanner live)
 
 | Date | Contrat | Type | Findings | Exploitables | Notes |
-|:---|---|:---:|:---:|:---:|:---|
+|:---|:---|---:|:---:|:---|
 | Juin 2026 | **Token** (`0xff9a0457..ed4c`) | BEP-20 | 0 | 0 | Token standard |
 | Juin 2026 | **CZ** (`0xfe61a573..2a5`) | BEP-20 | 0 | 0 | Token standard |
 | Juin 2026 | `0xcc4881fa..082` | - | - | - | Non vérifié |
@@ -60,9 +95,9 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 ### DEX non-bluechip (scan ciblé via Etherscan/research web)
 
 | DEX | Contrat | Solidity | Source | Findings | Exploitables | Détail |
-|:---|:---|---:|:---:|:---:|:---:|:---|
+|:---|---|---|:---:|:---:|:---:|
 | **BabySwap** | BabySmartRouter (`0x8317c460..32`) | `^0.7.4` | 107k | **6** (1 CRIT, 3 HIGH, 2 MED) | **4** | 🔴 Delegatecall + Reentrancy + Withdraw + Init |
-| **BabySwap** | normalRouter (`0xddcc3d5f..30d`) ✅ = **GnosisSafeProxy** | - | 2k | **0** | 0 | 🔍 Cible du delegatecall — Gnosis Safe audité, 0 vuln |
+| **BabySwap** | normalRouter (`0xddcc3d5f..30d`) = GnosisSafeProxy | - | 2k | **0** | 0 | Cible du delegatecall — Gnosis Safe audité |
 | **BabySwap** | BabyPair WBNB-USDT (`0x04580ce6..3f`) | `^0.7.4` | 30k | **3** (2 HIGH, 1 MED) | 0 | ✅ **Faux positif** — Init protégé par `require(factory)` |
 | **BabySwap** | BabyPair #1 pool (`0xbb305bde..da2`) | - | 30k | **3** (2 HIGH, 1 MED) | 0 | ✅ Même pattern BabyPair — Init protégé |
 | **BabySwap** | BabyPair #2 pool (`0x7acafdf9..bf5`) | - | 30k | **3** (2 HIGH, 1 MED) | 0 | ✅ Même pattern BabyPair — Init protégé |
@@ -84,7 +119,7 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 **⚠️ Vérification des soldes :** Routes et Factories ont **0 BNB** de solde. Les fonds sont dans les Pair contracts (pools de liquidité), pas dans les routeurs.
 
 | Contrat | Balance BNB | Txs | Verdict |
-|:---|---|:---:|:---|
+|:---|---:|:---:|:---|
 | BabySmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
 | ApeRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
 | BiSwap SmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
@@ -96,6 +131,7 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 
 *3 vérifiés (BEP-20 tokens, 0 findings) + 27 non vérifiés* — voir détails dans la section précédente.
 
+---
 
 ## Session 2 — Guardian 24/7 + Multi-chain + Pool Scanner
 
@@ -115,7 +151,7 @@ Via `CHAIN_REGISTRY` dans `exploit_pipeline.py` : Ethereum, BSC, Polygon, Arbitr
 ### Guardian — Résultats du scan live (65s sur 6 blockchains)
 
 | Métrique | Valeur |
-|:---|---:|
+|:---|---|
 | Contrats détectés | **68** |
 | Dont vérifiés | **25** |
 | Findings totaux | **46** (10 CRITICAL, 25 HIGH, 11 MED) |
@@ -125,7 +161,7 @@ Via `CHAIN_REGISTRY` dans `exploit_pipeline.py` : Ethereum, BSC, Polygon, Arbitr
 ### Pools DEX scannés via DEX Screener + Pool Scanner
 
 | DEX | Pool | Chaîne | TVL | Findings | Expl. | Verdict |
-|:---|---|:---:|:---:|:---:|:---:|:---|
+|:---|---|---|:---:|:---:|:---:|:---|
 | **QuickSwap** | LGNS-DAI | Polygon | **$342M** 🎯 | **3** (2 HIGH, 1 MED) | **2** | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
 | **QuickSwap** | AS-DAI | Polygon | $16.4M | 3 (2 HIGH, 1 MED) | 2 | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
 | **Velodrome** | OVER-WETH | Optimism | $311k | - | - | Non vérifié (proxy 46 bytes) |
@@ -135,14 +171,14 @@ Via `CHAIN_REGISTRY` dans `exploit_pipeline.py` : Ethereum, BSC, Polygon, Arbitr
 ### Contrats analysés sur Arbitrum
 
 | Contrat | Adresse | Findings | Exploitables | Notes |
-|:---|---|:---:|:---:|:---|
+|:---|---|---|:---:|:---|
 | **USDC (FiatTokenProxy)** | `0xaf88d065..5831` | **2 HIGH** | **2** | Reentrancy — probables faux positifs (proxy pattern) |
 | Autres contrats Arbitrum | - | 0 | 0 | Tokens standards |
 
 ### Contrats analysés sur Optimism
 
 | Contrat | Adresse | Findings | Exploitables | Notes |
-|:---|---|:---:|:---:|:---|
+|:---|---|---|:---:|:---|
 | **Velodrome PoolFactory** | `0xF1046053..FF5a` | **1 HIGH** (Init) | **1** | Factory contract — pas de fonds |
 
 ### Santé du système
@@ -158,11 +194,13 @@ python guardian.py --status
 python pool_scanner.py --top 5 --chains polygon,optimism,bsc
 ```
 
+---
+
 ## Statistiques globales cumulées
 
 | Métrique | Valeur |
-|:---|---:|
-| Total contrats scannés (toutes sessions) | **~100+** |
+|:---|---|
+| Total contrats scannés (toutes sessions) | **~1000+** (DB Guardian) |
 | Contrats vérifiés avec findings | 10+ (WETH9, CampaignWrapper, BabySwap, BiSwap, ApeSwap, USDC Arbitrum, Velodrome, AlgebraPool...) |
 | DEX non-bluechip analysés | **6** (5 vérifiés + 1 non vérifié) |
 | Pools DEX avec TVL scannés | **5** (QuickSwap ×2, Thena, Velodrome, QuickSwap Algebra) |
@@ -170,6 +208,8 @@ python pool_scanner.py --top 5 --chains polygon,optimism,bsc
 | Exploitables (théoriques) | **35+** |
 | Taux de faux positifs global | **~70%** |
 | **Fonds drainables** | **$0** — Aucun contrat avec fonds + faille trouvé |
+
+---
 
 ## Méthodologie (mise à jour)
 

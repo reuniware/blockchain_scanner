@@ -242,6 +242,16 @@ class EVMScanner(BaseScanner):
                 )
                 self._tasks.append(task)
 
+        # Also check for new contract deployments in this block
+        # Newly deployed contracts are the most likely to have vulnerabilities
+        task = asyncio.create_task(
+            self._check_new_contracts(block_num)
+        )
+        task.add_done_callback(
+            lambda t: self._tasks.remove(t) if t in self._tasks else None
+        )
+        self._tasks.append(task)
+
     async def _fetch_logs_http(self, from_block: int, to_block: int) -> None:
         """Fetch event logs via HTTP RPC and filter for Transfer events client-side.
 
@@ -349,6 +359,101 @@ class EVMScanner(BaseScanner):
                     continue
                 self._logs_not_supported = True
                 logger.debug(f"[{self.name}] eth_getLogs unavailable: {e}")
+
+    async def _check_new_contracts(self, block_number: int) -> None:
+        """Check a block for newly deployed contracts.
+
+        Fetches the block with full transaction objects, finds transactions
+        where 'to' is None (contract creation), fetches receipts to get the
+        deployed contract address, and emits a 'contract_deploy' event.
+
+        Newly deployed contracts are the most likely to have vulnerabilities
+        because they haven't been audited yet.
+        """
+        if not self.w3 or not self.rpc_http:
+            return
+
+        try:
+            # Use raw JSON-RPC to avoid web3.py formatting overhead
+            raw_resp = await self.w3.provider.make_request(
+                "eth_getBlockByNumber",
+                [hex(block_number), True],  # True = include full tx objects
+            )
+            if raw_resp.get("error"):
+                return
+
+            block = raw_resp.get("result")
+            if not block:
+                return
+
+            txs = block.get("transactions", [])
+            if not txs:
+                return
+
+            # Find contract creation transactions (to is None)
+            deploy_txs = [tx for tx in txs if tx.get("to") is None]
+            if not deploy_txs:
+                return
+
+            logger.info(
+                f"[{self.name}] Found {len(deploy_txs)} contract deployment(s) in block #{block_number}"
+            )
+
+            # Fetch receipts for each deployment to get the contract address
+            for tx in deploy_txs:
+                try:
+                    receipt_resp = await self.w3.provider.make_request(
+                        "eth_getTransactionReceipt",
+                        [tx["hash"]],
+                    )
+                    if receipt_resp.get("error"):
+                        continue
+
+                    receipt = receipt_resp.get("result")
+                    if not receipt:
+                        continue
+
+                    contract_address = receipt.get("contractAddress")
+                    if not contract_address:
+                        continue
+
+                    # Check if this is a user-deployed contract (not a factory)
+                    # Factory contracts deploy many contracts; we only care about
+                    # contracts deployed directly by EOA wallets
+                    tx_from = tx.get("from", "")
+                    tx_input = tx.get("input", "")
+
+                    logger.info(
+                        f"[{self.name}] New contract deployed at {contract_address[:14]}.. "
+                        f"by {tx_from[:14]}.. (block #{block_number})"
+                    )
+
+                    event = TransactionEvent(
+                        chain=self.name,
+                        chain_id=self.chain_id,
+                        tx_hash=tx["hash"],
+                        block_number=block_number,
+                        block_hash=block.get("hash", ""),
+                        from_address=tx_from,
+                        to_address=None,
+                        value=None,  # No ETH value in deployment; skip value filter
+                        value_currency=self.currency,
+                        event_type="contract_deploy",
+                        contract_address=contract_address,
+                        data={
+                            "input_size": len(tx_input) // 2 if tx_input else 0,
+                            "deployer": tx_from,
+                        },
+                    )
+                    await self.emit_async(event)
+
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Error fetching receipt: {e}")
+                    await asyncio.sleep(0.1)  # Rate limit
+                    continue
+
+        except Exception as e:
+            logger.debug(f"[{self.name}] Error checking contract deployments: {e}")
 
     async def _disconnect(self) -> None:
         """Close the HTTP client on disconnect."""

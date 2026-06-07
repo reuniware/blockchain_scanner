@@ -1,0 +1,55 @@
+{
+  "scan_timestamp": "2026-06-07T15:48:27.820969",
+  "total_scanned": 1,
+  "interesting": [],
+  "results": [
+    {
+      "address": "0x882df4B0fB50a229C3B4124EB18c759911485bFb",
+      "chain": "Polygon",
+      "chain_id": 137,
+      "dex": "quickswap",
+      "pair": "LGNS-DAI",
+      "tvl_usd": 342514414.39,
+      "contract_name": "UniswapV2Pair",
+      "source_length": 20801,
+      "is_standard_clone": true,
+      "total_findings": 3,
+      "critical": 0,
+      "high": 2,
+      "medium": 1,
+      "exploitable": 2,
+      "findings": [
+        {
+          "name": "Unprotected Initializer",
+          "severity": "HIGH",
+          "lines": [
+            53
+          ],
+          "exploitable": true,
+          "notes": "Function without access control -- verify manually"
+        },
+        {
+          "name": "Unprotected Initializer",
+          "severity": "HIGH",
+          "lines": [
+            361
+          ],
+          "exploitable": true,
+          "notes": "Function without access control -- verify manually"
+        },
+        {
+          "name": "Unchecked External Call",
+          "severity": "MEDIUM",
+          "lines": [
+            340
+          ],
+          "exploitable": false,
+          "notes": "Unchecked call = silent failure, not active theft"
+        }
+      ],
+      "dex_url": "https://dexscreener.com/polygon/0x882df4B0fB50a229C3B4124EB18c759911485bFb",
+      "scanned_at": "2026-06-07T15:48:26.809534",
+      "verdict": "FAUX_POSITIF_PROBABLE (clone standard)"
+    }
+  ]
+}
