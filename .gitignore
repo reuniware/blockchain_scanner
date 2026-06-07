@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Config with secrets
+config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output
+transactions.json
+*.log

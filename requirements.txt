@@ -1,0 +1,23 @@
+# Multi-Chain Blockchain Transaction Scanner
+# Install: pip install -r requirements.txt
+
+# EVM Chains (Ethereum, Polygon, BSC, Arbitrum, etc.)
+web3>=7.0.0
+
+# Solana
+solana>=0.34.0
+solders>=0.21.0
+
+# Bitcoin - via mempool.space API (no local node needed)
+
+# Async WebSocket (fallback / raw connections)
+websockets>=12.0
+
+# Terminal UI
+rich>=13.0.0
+
+# Configuration
+pyyaml>=6.0
+
+# HTTP requests
+httpx>=0.27.0
