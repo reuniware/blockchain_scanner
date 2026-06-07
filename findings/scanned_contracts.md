@@ -69,6 +69,17 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 
 **Résultat :** 4/5 DEX vérifiés ont des vulnérabilités. BabySmartRouter est le plus critique (Delegatecall en ^0.7.4).
 
+**⚠️ Vérification des soldes :** Routes et Factories ont **0 BNB** de solde. Les fonds sont dans les Pair contracts (pools de liquidité), pas dans les routeurs.
+
+| Contrat | Balance BNB | Txs | Verdict |
+|:---|---|:---:|:---|
+| BabySmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
+| ApeRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
+| BiSwap SmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
+| BiSwap Factory | 0.00000000 | 3452 | 🪹 Factory — ne detient pas de fonds |
+
+**Leçon :** Les Routeurs et Factories DEX ne détiennent pas de fonds. Pour exploiter une faille, il faut cibler les **Pair contracts** (pools) ou d'autres protocoles qui **détiennent de la liquidité** (yield aggregators, vaults, lending).
+
 ### Nouveaux déploiements (RPC scan 500 blocs)
 
 *3 vérifiés (BEP-20 tokens, 0 findings) + 27 non vérifiés* — voir détails dans la section précédente.
@@ -88,10 +99,6 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 | Exploitables (empiriques) | ✅ 1 pattern validé (CEI reentrancy CampaignWrapper) |
 | Taux de faux positifs (blue-chips) | ~85% |
 | Taux de faux positifs (non-bluechip DEX) | **~0% (à valider sur Hardhat)** |
-| Exploitables (théoriques) | 8 |
-| Exploitables (empiriques) | ✅ Reentrancy CEI validée |
-| Taux de faux positifs (audités) | ~85% |
-| Taux de faux positifs (non audités) | ~0% (pas encore testé) |
 
 ## Méthodologie
 

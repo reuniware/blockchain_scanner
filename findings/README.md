@@ -43,6 +43,17 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 **Leçon :** Les contrats fraîchement déployés ne sont presque jamais vérifiés. Pour analyser des contrats non audités, il faut soit scanner des contrats vérifiés plus anciens, soit attendre la vérification post-déploiement.
 
+### DEX Routers — Soldes vérifiés
+
+**Tous les routeurs DEX testés ont 0 BNB de solde.** Les fonds sont dans les Pair contracts (pools), pas dans les routeurs. La prochaine cible : Pair contracts et protocoles qui détiennent de la liquidité.
+
+| Contrat | Balance BNB | Verdict |
+|:---|---|:---|
+| BabySmartRouter | 0.00000000 | Routeur — pas de fonds |
+| BiSwap SmartRouter | 0.00000000 | Routeur — pas de fonds |
+| ApeRouter | 0.00000000 | Routeur — pas de fonds |
+| BiSwap Factory | 0.00000000 | Factory — pas de fonds |
+
 ## Légende
 
 - **Expl. (Théorique)** = Marqué exploitable par `exploit_pipeline.py` (analyse statique)
