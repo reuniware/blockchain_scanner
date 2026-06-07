@@ -55,22 +55,24 @@ Scan exhaustif de TOUS les pools avec Hardhat fork systématique via `python poo
 | Pools scannés | **126** |
 | Avec findings | **126** |
 | INTERESSANTS | **43** (Velodrome/Optimism) |
-| Faux positifs skipés Hardhat | **60** (QuickSwap/Polygon — clones UniswapV2Pair) |
-| Hardhat audits lancés | **0** (Hardhat non installé sur cette machine) |
+| Faux positifs skipés Hardhat | **60** (QuickSwap/Polygon — clones) |
+| **Hardhat testés** | **66** ✅ |
+| Hardhat confirmés | **0** (tous NOT exploitables — balance = 0) |
 
-**Top pools INTERESSANTS (en attente d'audit Hardhat) :**
+**Résultat de l'audit :** Tous les 66 contrats testés sur Hardhat fork sont **NOT exploitables** car leur balance native est de **0**. Les pools DEX ont leur TVL en tokens (pas en ETH/BNB natif sur le contrat lui-même). Les findings (Delegatecall, Reentrancy, etc.) sont des vrais patterns mais sans fonds natifs à drainer, ils ne sont pas exploitables.
 
-| Pool | DEX | Chaîne | TVL | Findings | Exploitables |
-|:---|---|:---:|:---:|:---:|:---:|
-| alETH-WETH | Velodrome | Optimism | **$2.1M** | 8 | **8** |
-| alUSD-USDC | Velodrome | Optimism | **$1.6M** | 8 | **8** |
-| msETH-WETH | Velodrome | Optimism | **$1.5M** | 8 | **8** |
-| msUSD-USDC | Velodrome | Optimism | **$994k** | 8 | **8** |
-| USD?0-USDC | Velodrome | Optimism | **$567k** | 12 | **10** |
-| VELO-USDC | Velodrome | Optimism | **$470k** | 8 | **8** |
+**Top pools INTERESSANTS audités :**
 
-> **Top finding récurrent** : Delegatecall to Variable Address (CRITICAL) + Reentrancy + Flash Loan Susceptibility + Unprotected Initializer. Tous les pools Velodrome partagent le même pattern.
-> **Pour auditer avec Hardhat** : `python pool_scanner.py --all --audit-local --chains optimism` (nécessite Hardhat installé).
+| Pool | DEX | Chaîne | TVL | Findings | Verdict Hardhat |
+|:---|---|:---:|:---:|:---:|:---|
+| alETH-WETH | Velodrome | Optimism | $2.1M | 8 | ❌ Balance 0 |
+| alUSD-USDC | Velodrome | Optimism | $1.6M | 8 | ❌ Balance 0 |
+| msETH-WETH | Velodrome | Optimism | $1.5M | 8 | ❌ Balance 0 |
+| msUSD-USDC | Velodrome | Optimism | $994k | 8 | ❌ Balance 0 |
+| RCH-crvUSD | QuickSwap | Polygon | $54k | 21 | ❌ Balance 0 |
+| ASF-WETH | Velodrome | Optimism | $27k | 2 | ❌ Balance 0 |
+
+> **Conclusion :** Le pipeline --all --audit-local fonctionne de bout en bout. Aucun contrat avec balance native > 0 ET faille exploitable trouvé. Les 66 audits Hardhat confirment que les pools DEX, bien qu'ayant des patterns de vulnérabilités dans leur code, n'ont pas de fonds natifs drainables.
 
 ### Résultats Pool Scanner (session précédente)
 
