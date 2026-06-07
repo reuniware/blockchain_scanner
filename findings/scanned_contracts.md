@@ -168,6 +168,35 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 
 **Leçon :** Les nouveaux déploiements sont rarement vérifiés immédiatement. Il faut soit scanner des contrats plus anciens (vérifiés), soit attendre que les nouveaux contrats soient vérifiés par leurs créateurs.
 
+### Session Guardian BSC temps réel (07/06/2026)
+
+Lancement de `python guardian.py --chains bsc` — scan temps réel des transactions BSC :
+
+| Métrique | Valeur |
+|:---|---|
+| Durée | ~5 minutes |
+| Contrats détectés (non vérifiés) | 2 |
+| Contrats vérifiés analysés | 3 |
+| Contrat avec findings | **1** (28 findings) |
+
+**Contrat critique trouvé :** `0x1906c1d6..ae07` — **28 findings** (27 HIGH, 1 MEDIUM)
+- Potential Reentrancy (No CEI Pattern)
+- Unprotected Withdraw/Claim Function
+- Unprotected Initializer (× multiples)
+- Balance : à vérifier
+
+**Scan 500 blocs BSC (scan_bsc_500.py) :**
+
+| Métrique | Valeur |
+|:---|---|
+| Blocs scannés | 500 (#102897786 → #102898286) |
+| Contrats trouvés | 7 |
+| Vérifiés | 1 (échec fetch source) |
+| Non vérifiés | 6 |
+| Exploitables | 0 |
+
+> **Constats BSC :** 1) Très peu de nouveaux contrats sont vérifiés immédiatement (1/7), 2) Les contrats déjà déployés et vérifiés (comme 0x1906c1d6) peuvent avoir des findings exploitables, 3) La surveillance temps réel via Guardian est efficace pour détecter ces contrats au fil des transactions.
+
 ---
 
 ## Binance Smart Chain (Chain ID: 56)
