@@ -163,7 +163,7 @@ python pool_scanner.py --all --chains bsc --min-tvl 50000
 - Results cached in memory to avoid redundant API calls
 
 ### Solidity Vulnerability Scanner (NEW)
-Analyzes verified smart contract source code for **20 types of security vulnerabilities**:
+Analyzes verified smart contract source code for **25 types of security vulnerabilities**:
 
 | Vulnerability | Severity | Description |
 |:---|---:|:---|
@@ -187,6 +187,11 @@ Analyzes verified smart contract source code for **20 types of security vulnerab
 | Storage Collision | HIGH | Upgradeable contract without __gap |
 | Timestamp Manipulation | MEDIUM | block.timestamp in critical logic |
 | Ownership Renouncement | MEDIUM | renounceOwnership without recovery |
+| UUPS Unprotected Upgrade | CRITICAL | upgradeToAndCall/_authorizeUpgrade without access control — anyone can replace implementation |
+| Missing _disableInitializers | HIGH | Upgradeable contract without constructor lock — implementation hijackable |
+| Single-Step Ownership | MEDIUM | transferOwnership without acceptOwnership two-step — typo loses control |
+| Flash Loan Without Fee | MEDIUM | flashLoan/flashMint with zero fee — free price manipulation |
+| Missing Pause on Critical | LOW | Pausable contract without whenNotPaused on transfer/withdraw/swap |
 
 Results appear automatically when a verified contract is detected:
 ```
@@ -379,7 +384,7 @@ blockchain_scanner/
     orchestrator.py          # Scanner lifecycle + vulnerability scan integration
   analysis/
     __init__.py              # Analysis package
-    vulnerability_scanner.py # Solidity vulnerability scanner (20 patterns)
+    vulnerability_scanner.py # Solidity vulnerability scanner (25 patterns, including OpenZeppelin-derived checks)
   filters/
     filters.py               # Transaction filters
   output/
