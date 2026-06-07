@@ -6,7 +6,9 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 | Statut | Nombre |
 |:---|---:|
-| Contrats scannés | ~15 |
+| Contrats scannés | ~25 |
+| Contrats vérifiés analysés | 15 |
+| Nouveaux déploiements (non vérifiés) | 10 |
 | Haute sévérité trouvées | 10 |
 | Exploitables (théorique - pipeline) | 8 |
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy) |
@@ -23,6 +25,16 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | **DAI** (`0x6b175474..`) | Ethereum | 0 | - | - | Propre |
 | **USDC** (`0xa0b86991..`) | Ethereum | 0 | - | - | Propre |
 | **UNI** (`0x1f9840a8..`) | Ethereum | 0 | - | - | Propre |
+
+### Nouveaux déploiements (juin 2026)
+
+| Contrat | Chaîne | Statut | Verdict |
+|:---|---|:---:|:---:|
+| `0xb3e1d10577d185f0e9ae3b8821d7a5e35b8db5f9` | Ethereum | ❌ Non vérifié | Impossible d'analyser |
+| `0xb4b9dc1c5a6a044b19b283d1e1a6c10030c3a35` | Ethereum | ❌ Non vérifié | Impossible d'analyser |
+| +8 autres nouveaux déploiements ETH | Ethereum | ❌ Non vérifié | Impossible d'analyser |
+
+**Leçon :** Les contrats fraîchement déployés ne sont presque jamais vérifiés. Pour analyser des contrats non audités, il faut soit scanner des contrats vérifiés plus anciens, soit attendre la vérification post-déploiement.
 
 ## Légende
 

@@ -206,3 +206,14 @@ Always validate findings manually. Pipeline gives theoretical analysis (Solidity
 - Check passes every time during reentrancy because state hasn't been updated yet
 
 **Fix for >=0.8 reentrancy:** Use ReentrancyGuard modifier, NOT just relying on underflow protection.
+
+### Challenge: Nouveaux déploiements non vérifiés
+
+Lors du scan des 100 derniers blocs Ethereum, **10 contrats sur 10** étaient non vérifiés sur Etherscan. Le pipeline ne peut pas analyser de code source sans vérification.
+
+**Pourquoi les nouveaux déploiements ne sont pas vérifiés :**
+- Les créateurs doivent explicitement soumettre le code source à Etherscan après le déploiement
+- Beaucoup de déploiements sont des tests, des bots, ou des contrats éphémères
+- Certains créateurs évitent volontairement la vérification
+
+**Solution :** Scanner des contrats plus anciens (au moins quelques heures/jours) qui ont eu le temps d'être vérifiés, ou utiliser une base de données comme Dune Analytics pour trouver des contrats vérifiés non-bluechip.
