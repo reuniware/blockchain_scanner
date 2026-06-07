@@ -946,12 +946,127 @@ class Guardian:
         """Export a full report."""
         self.print_status()
 
+    @staticmethod
+    def check_health():
+        """Health check for 24/7 monitoring.
+
+        Checks:
+        - PID file exists and process is alive
+        - Database exists and has recent activity
+        - Log file has recent writes
+
+        Returns exit code 0 if healthy, 1 otherwise.
+        """
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        pid_file = os.path.join(base_dir, "guardian.pid")
+        db_file = os.path.join(base_dir, "guardian_data.db")
+        log_file = os.path.join(base_dir, "guardian_output.log")
+
+        issues = []
+        healthy = True
+
+        print(f"\n{'='*60}")
+        print("  GUARDIAN — HEALTH CHECK")
+        print(f"{'='*60}")
+
+        # 1. Check PID file and process
+        print("\n  [1/3] Process...")
+        if os.path.exists(pid_file):
+            with open(pid_file) as f:
+                pid = f.read().strip()
+            if pid and pid.isdigit():
+                pid_int = int(pid)
+                alive = False
+                try:
+                    if sys.platform == "win32":
+                        import subprocess
+                        r = subprocess.run(["tasklist", "/FI", f"PID eq {pid_int}"],
+                                          capture_output=True, text=True, timeout=5)
+                        alive = "python" in r.stdout.lower()
+                    else:
+                        # Unix/macOS: kill with signal 0 checks if process exists
+                        os.kill(pid_int, 0)
+                        alive = True
+                except (OSError, subprocess.TimeoutExpired):
+                    alive = False
+                if alive:
+                    print(f"     [OK] PID {pid_int} - actif")
+                else:
+                    print(f"     [DEAD] PID {pid_int} - introuvable")
+                    issues.append("Process mort")
+                    healthy = False
+            else:
+                print(f"     [FAIL] PID invalide: {pid}")
+                issues.append("PID invalide")
+                healthy = False
+        else:
+            print("     [WARN] Aucun PID (pas de processus enregistre)")
+            issues.append("Pas de PID")
+
+        # 2. Check database
+        print("\n  [2/3] Base de donnees...")
+        if os.path.exists(db_file):
+            size_kb = os.path.getsize(db_file) / 1024
+            mtime = datetime.fromtimestamp(os.path.getmtime(db_file))
+            age_mins = (datetime.now() - mtime).total_seconds() / 60
+            print(f"     [OK] DB: {size_kb:.0f} KB, derniere modif: {mtime:%H:%M:%S} ({age_mins:.0f} min)")
+            if age_mins > 5:
+                print(f"     [WARN] DB pas modifiee depuis {age_mins:.0f} min")
+            if age_mins > 15:
+                issues.append(f"DB inactive ({age_mins:.0f} min)")
+                healthy = False
+            # Check for recent entries
+            try:
+                conn = sqlite3.connect(db_file)
+                cur = conn.execute("SELECT MAX(timestamp) FROM scan_log")
+                last_log = cur.fetchone()[0]
+                if last_log:
+                    last_time = datetime.fromisoformat(last_log)
+                    log_age = (datetime.utcnow() - last_time).total_seconds() / 60
+                    cnt = conn.execute("SELECT COUNT(*) FROM contracts").fetchone()[0]
+                    print(f"     [OK] {cnt} contrats, dernier log: {last_time:%H:%M:%S} ({log_age:.0f} min)")
+                conn.close()
+            except Exception as e:
+                print(f"     [WARN] Erreur lecture DB: {e}")
+        else:
+            print(f"     [WARN] DB introuvable")
+            issues.append("DB absente")
+
+        # 3. Check log file
+        print("\n  [3/3] Logs...")
+        if os.path.exists(log_file):
+            mtime = datetime.fromtimestamp(os.path.getmtime(log_file))
+            age_mins = (datetime.now() - mtime).total_seconds() / 60
+            size_kb = os.path.getsize(log_file) / 1024
+            print(f"     [OK] Log: {size_kb:.0f} KB, derniere ecriture: {mtime:%H:%M:%S} ({age_mins:.0f} min)")
+            if age_mins > 5:
+                print(f"     [WARN] Pas d'ecriture depuis {age_mins:.0f} min")
+                if age_mins > 15:
+                    issues.append(f"Log inactif ({age_mins:.0f} min)")
+                    healthy = False
+        else:
+            print("     [WARN] Log introuvable")
+
+        print(f"\n{'='*60}")
+        if healthy:
+            print("  [OK] GUARDIAN: HEALTHY")
+        else:
+            print(f"  [FAIL] GUARDIAN: ISSUES ({len(issues)})")
+            for i, issue in enumerate(issues, 1):
+                print(f"     {i}. {issue}")
+        print(f"{'='*60}\n")
+
+        return 0 if healthy else 1
+
 
 # ---------------------------------------------------------------------------
 # CLI Entry Point
 # ---------------------------------------------------------------------------
 
 async def main_async(args):
+    if args.health:
+        sys.exit(Guardian.check_health())
+
     guardian = Guardian(config_path=args.config)
 
     if args.status:
@@ -969,10 +1084,14 @@ async def main_async(args):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Guardian — Usine de detection automatisee")
+    parser = argparse.ArgumentParser(
+        description="Guardian — Usine de detection automatisee 24/7"
+    )
     parser.add_argument("--config", "-c", default="config.yaml", help="Config file")
     parser.add_argument("--status", action="store_true", help="Show database status")
     parser.add_argument("--report", action="store_true", help="Export report")
+    parser.add_argument("--health", action="store_true",
+                        help="Health check (process, DB, logs)")
     args = parser.parse_args()
 
     try:
