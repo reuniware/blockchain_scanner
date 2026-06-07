@@ -26,3 +26,4 @@ exploit/typechain-types/
 guardian_data.db
 guardian_exploits_found.txt
 guardian_output.log
+pool_scan_results.json
