@@ -242,8 +242,22 @@ class EVMScanner(BaseScanner):
                 )
                 self._tasks.append(task)
 
+        # Also scan transactions in this block to find existing contracts
+        # Extract unique 'to' addresses from transaction objects
+        txs = block.get("transactions", [])
+        if txs:
+            seen_addrs = set()
+            tx_count = 0
+            for tx in txs:
+                to_addr = tx.get("to")
+                if to_addr and to_addr not in seen_addrs:
+                    seen_addrs.add(to_addr)
+                    tx_count += 1
+                    await self._handle_transaction(dict(tx))
+                    if tx_count >= 50:
+                        break
+
         # Also check for new contract deployments in this block
-        # Newly deployed contracts are the most likely to have vulnerabilities
         task = asyncio.create_task(
             self._check_new_contracts(block_num)
         )
@@ -375,7 +389,7 @@ class EVMScanner(BaseScanner):
 
         try:
             # Use raw JSON-RPC to avoid web3.py formatting overhead
-            raw_resp = await self.w3.provider.make_request(
+            raw_resp = await self._rpc_call(
                 "eth_getBlockByNumber",
                 [hex(block_number), True],  # True = include full tx objects
             )
@@ -402,7 +416,7 @@ class EVMScanner(BaseScanner):
             # Fetch receipts for each deployment to get the contract address
             for tx in deploy_txs:
                 try:
-                    receipt_resp = await self.w3.provider.make_request(
+                    receipt_resp = await self._rpc_call(
                         "eth_getTransactionReceipt",
                         [tx["hash"]],
                     )
@@ -465,26 +479,45 @@ class EVMScanner(BaseScanner):
             self._http_client = None
         await super()._disconnect()
 
+    async def _rpc_call(self, method: str, params: list) -> dict:
+        """Make an RPC call, preferring HTTP for BSC (fast Binance dataseed).
+        
+        BSC's PublicNode WebSocket is slow and times out, but the HTTP
+        Binance dataseed (bsc-dataseed1.binance.org) is fast and reliable.
+        """
+        # BSC: always use HTTP (Binance dataseed is fast, WebSocket times out)
+        if self.chain_id == 56 and self.rpc_http:
+            try:
+                client = await self._get_http_client()
+                payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": hash(method + str(params)) & 0xFFFF}
+                resp = await client.post(self.rpc_http, json=payload, timeout=15.0)
+                data = resp.json()
+                return data
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.HTTPStatusError, asyncio.TimeoutError):
+                pass  # Fall through to WebSocket
+        
+        # Default: use WebSocket
+        return await self.w3.provider.make_request(method, params)
+
     async def _poll_blocks(self) -> None:
-        """Fallback: poll for new blocks using raw RPC calls.
+        """Fallback: poll for new blocks using RPC calls.
 
         Uses raw JSON-RPC instead of web3.py's typed get_block() to avoid
         formatting issues with non-standard block data (e.g. BSC's extraData).
+        BSC uses HTTP RPC (Binance dataseed) for speed.
         """
         if not self.w3:
             return
 
         # Init last_block to current block to avoid re-scanning history
-        init_resp = await self.w3.provider.make_request("eth_blockNumber", [])
+        init_resp = await self._rpc_call("eth_blockNumber", [])
         last_block = int(init_resp["result"], 16) if not init_resp.get("error") else 0
         logger.info(f"[{self.name}] Starting block polling at #{last_block}")
 
         while self._running:
             try:
                 # Use raw JSON-RPC call to avoid web3.py formatter issues
-                resp = await self.w3.provider.make_request(
-                    "eth_blockNumber", []
-                )
+                resp = await self._rpc_call("eth_blockNumber", [])
                 if resp.get("error"):
                     logger.warning(f"[{self.name}] RPC error: {resp['error']}")
                     await asyncio.sleep(15)
@@ -495,9 +528,9 @@ class EVMScanner(BaseScanner):
                 if block_num > last_block:
                     for i in range(last_block + 1, block_num + 1):
                         try:
-                            raw_resp = await self.w3.provider.make_request(
+                            raw_resp = await self._rpc_call(
                                 "eth_getBlockByNumber",
-                                [hex(i), False],
+                                [hex(i), True],  # True = include full tx objects
                             )
                             if raw_resp.get("error"):
                                 continue
@@ -506,6 +539,7 @@ class EVMScanner(BaseScanner):
                             if not block:
                                 continue
 
+                            txs = block.get("transactions", [])
                             event = TransactionEvent(
                                 chain=self.name,
                                 chain_id=self.chain_id,
@@ -514,12 +548,40 @@ class EVMScanner(BaseScanner):
                                 event_type="block",
                                 data={
                                     "timestamp": block.get("timestamp"),
-                                    "tx_count": len(block.get("transactions", [])),
+                                    "tx_count": len(txs),
                                     "gas_used": block.get("gasUsed"),
                                     "gas_limit": block.get("gasLimit"),
                                 },
                             )
                             await self.emit_async(event)
+
+                            # Extract unique contract addresses from transaction 'to' fields
+                            # This finds already-deployed contracts being interacted with
+                            seen_addrs = set()
+                            tx_count = 0
+                            for tx in txs:
+                                to_addr = tx.get("to")
+                                if to_addr and to_addr not in seen_addrs:
+                                    seen_addrs.add(to_addr)
+                                    tx_count += 1
+                                    await self._handle_transaction(dict(tx))
+                                    if tx_count >= 50:  # Cap per block to avoid overload
+                                        break
+
+                            if seen_addrs:
+                                logger.debug(
+                                    f"[{self.name}] Block #{i}: {len(txs)} txs, "
+                                    f"{len(seen_addrs)} unique contracts"
+                                )
+
+                            # Also check for new contract deployments in this block
+                            task = asyncio.create_task(
+                                self._check_new_contracts(i)
+                            )
+                            task.add_done_callback(
+                                lambda t: self._tasks.remove(t) if t in self._tasks else None
+                            )
+                            self._tasks.append(task)
 
                         except Exception as e:
                             logger.debug(

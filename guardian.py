@@ -804,13 +804,20 @@ class Guardian:
             elif found_exploitable:
                 logger.info(f"[HARDHAT] Skipping validation: balance = {contract.bnb_balance:.4f} (< 0.001)")
 
-    async def start(self):
-        """Start the guardian — runs forever until interrupted."""
+    async def start(self, target_chains: list[str] | None = None):
+        """Start the guardian — runs forever until interrupted.
+        
+        Args:
+            target_chains: Optional list of chain keys to scan (e.g. ['bsc']).
+                           If None, all enabled chains in config are used.
+        """
         logger.info("=" * 60)
         logger.info("  GUARDIAN — Usine de detection automatisee 24/7")
         logger.info("=" * 60)
         logger.info(f"  Base de donnees: {self.db.db_path}")
         logger.info(f"  Demarrage: {datetime.utcnow().isoformat()}")
+        if target_chains:
+            logger.info(f"  Chaines ciblees: {', '.join(target_chains)}")
         logger.info("=" * 60)
 
         self.stats["started_at"] = datetime.utcnow().isoformat()
@@ -820,9 +827,12 @@ class Guardian:
         self.db.connect()
         self.db.log_event("START", "all", "Guardian started")
 
-        # Enable all chains
+        # Enable only targeted chains (or all if not specified)
         for chain_key in self.config.get("chains", {}):
-            self.config["chains"][chain_key]["enabled"] = True
+            if target_chains:
+                self.config["chains"][chain_key]["enabled"] = (chain_key in target_chains)
+            else:
+                self.config["chains"][chain_key]["enabled"] = True
 
         # Create orchestrator with clean callbacks (NO auto-stop, NO hacky overrides)
         self.orchestrator = ScannerOrchestrator(
@@ -1076,8 +1086,13 @@ async def main_async(args):
         guardian.print_report()
         return
 
+    # Parse target chains if specified
+    target_chains = None
+    if args.chains:
+        target_chains = [c.strip().lower() for c in args.chains.split(",") if c.strip()]
+
     try:
-        await guardian.start()
+        await guardian.start(target_chains=target_chains)
     except KeyboardInterrupt:
         await guardian.stop()
 
@@ -1092,6 +1107,8 @@ def main():
     parser.add_argument("--report", action="store_true", help="Export report")
     parser.add_argument("--health", action="store_true",
                         help="Health check (process, DB, logs)")
+    parser.add_argument("--chains", default=None,
+                        help="Comma-separated list of chains to scan (default: all enabled in config)")
     args = parser.parse_args()
 
     try:

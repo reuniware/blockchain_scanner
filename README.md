@@ -49,8 +49,23 @@ python main.py
 | Option | Description |
 |:---|---:|
 | `--address ADDR` / `-a` | Contract address to analyze |
-| `--chain CHAIN` / `-c` | Chain: `ethereum`, `bsc`, `polygon` (default: bsc) |
+| `--chain CHAIN` / `-c` | Chain: `ethereum`, `bsc`, `polygon`, `arbitrum` (default: bsc) |
 | `--api-key KEY` / `-k` | Etherscan API V2 key |
+
+### Guardian (24/7 scanner)
+
+| Command | Description |
+|:---|:---|
+| `python guardian.py` | Start the 24/7 guardian scanner |
+| `python guardian.py --status` | Show DB stats (contracts, findings, balance) |
+| `python guardian.py --health` | Check if guardian process is running |
+
+### Fork tester
+
+| Command | Description |
+|:---|:---|
+| `python hardhat_fork_tester.py --target 0x... --chain arbitrum` | Test exploits on a forked contract |
+| `cd exploit && npx hardhat run scripts/test_fork_exploit.js --network hardhat <address> <rpc> <funding>` | Manual fork test |
 
 ### Examples
 
@@ -103,7 +118,7 @@ python main.py --chains ethereum -v
 - Results cached in memory to avoid redundant API calls
 
 ### Solidity Vulnerability Scanner (NEW)
-Analyzes verified smart contract source code for **10 types of security vulnerabilities**:
+Analyzes verified smart contract source code for **20 types of security vulnerabilities**:
 
 | Vulnerability | Severity | Description |
 |:---|---:|:---|
@@ -117,6 +132,16 @@ Analyzes verified smart contract source code for **10 types of security vulnerab
 | Integer Overflow | MEDIUM | Arithmetic without SafeMath (pre-0.8) |
 | Gas Loop | MEDIUM | Unbounded loop over dynamic array |
 | Arbitrary transferFrom | MEDIUM | User-controlled 'from' without allowance |
+| Flash Loan Susceptibility | HIGH | DEX swap without access control — flash loan vector |
+| Oracle Manipulation | HIGH | Spot price (getReserves) instead of TWAP |
+| Missing Slippage / Deadline | HIGH | Zero slippage or no deadline — sandwich/MEV attacks |
+| Force-Fed ETH | MEDIUM | address(this).balance manipulatable via selfdestruct |
+| ERC20 Return Unchecked | MEDIUM | transfer() return value not checked (USDT/BNB) |
+| Signature Replay | HIGH | ecrecover without chainId/nonce |
+| Rounding Error | MEDIUM | Division before multiplication — precision loss |
+| Storage Collision | HIGH | Upgradeable contract without __gap |
+| Timestamp Manipulation | MEDIUM | block.timestamp in critical logic |
+| Ownership Renouncement | MEDIUM | renounceOwnership without recovery |
 
 Results appear automatically when a verified contract is detected:
 ```
@@ -166,6 +191,16 @@ npx hardhat run scripts/test_cei_reentrancy.js --network hardhat
 - Shows that non-arithmetic state (hasClaimed flag) CAN be bypassed by reentrancy
 - Validates 5 rounds of recursive claim draining 5 ETH
 
+#### 3. Universal exploit framework (20 attack types)
+```bash
+cd exploit
+npx hardhat compile
+npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc-url 0.05
+```
+- `UniversalExploit.sol` — single contract testing 18/20 vulnerability types
+- `test_fork_exploit.js` — fork → impersonate → deploy → attack → verify
+- `hardhat_fork_tester.py` — Python orchestrator for automated fork testing
+
 ### Key discovery: Solidity >=0.8 blocks underflow reentrancy but NOT CEI reentrancy
 
 **Underflow reentrancy (classic DAO style):** BLOCKED in >=0.8
@@ -176,6 +211,21 @@ npx hardhat run scripts/test_cei_reentrancy.js --network hardhat
 - `!hasClaimed[user]` is not arithmetic — can be bypassed by reentrancy
 - The state update happens AFTER the external call, so the check passes multiple times
 - Each recursive call drains another full refund amount
+
+### Guardian 24/7 Stats (as of 07/06/2026)
+
+| Metric | Value |
+|:---|---|
+| Contracts in DB | **2 340** |
+| Verified contracts | **463** |
+| Total findings | **1 307** |
+| Exploitable (pipeline) | **857** |
+| Contracts with balance > 0 | **19** (264.74 total native) |
+| Hardhat fork tests | **853** (all failed — automated testing not configured) |
+| Confirmed exploits | **0** |
+| Pending Hardhat tests | **4** |
+
+> **Key finding:** 100% of contracts with balance > 0 are ERC20 memecoins protected by OpenZeppelin `Ownable`. All critical functions are behind `onlyOwner` — the scanner detects code patterns but doesn't understand access control context.
 
 ### Bitcoin mempool tracking
 - Connects to mempool.space WebSocket for real-time unconfirmed transactions
@@ -265,9 +315,12 @@ pip install -r requirements.txt
 ```
 blockchain_scanner/
   main.py                    # CLI entry point
+  guardian.py                # 24/7 scanner + SQLite DB
   config.yaml                # Configuration (chains, filters, API keys)
   verify.py                  # Contract source code verification (Etherscan V2)
-  exploit_pipeline.py        # NEW: Automated vulnerability validation pipeline
+  exploit_pipeline.py        # Automated vulnerability validation pipeline
+  hardhat_fork_tester.py     # Standalone fork testing framework
+  pool_scanner.py            # DEX pool scanner via DEX Screener API
   requirements.txt           # Python dependencies
   .gitignore                 # Git ignore rules
   README.md                  # This file
@@ -278,8 +331,8 @@ blockchain_scanner/
     solana_scanner.py        # Solana
     orchestrator.py          # Scanner lifecycle + vulnerability scan integration
   analysis/
-    __init__.py              # NEW: Analysis package
-    vulnerability_scanner.py # NEW: Solidity vulnerability scanner (10 patterns)
+    __init__.py              # Analysis package
+    vulnerability_scanner.py # Solidity vulnerability scanner (20 patterns)
   filters/
     filters.py               # Transaction filters
   output/
@@ -291,11 +344,15 @@ blockchain_scanner/
       ExploitV2.sol          # Debug version with configurable recursion
       CampaignVulnerable.sol # Reproduces CampaignWrapper pattern (CEI bool flag)
       CampaignExploit.sol    # CEI reentrancy exploit with guard-rail
+      UniversalExploit.sol   # Universal exploit testing 18/20 attack types
+      PrismReentrancyExploit.sol # PrismHook-specific reentrancy exploit
+      AIDogeExploit.sol      # AIDoge-specific exploit contract
     scripts/
       deploy_and_exploit.js   # Classic underflow reentrancy demo
       test_simple_withdraw.js # Basic sanity check
       test_campaign_reentrancy.js  # CampaignWrapper CEI validation
       test_cei_reentrancy.js       # Combined validation suite
+      test_fork_exploit.js    # Universal fork exploitation script
     hardhat.config.js         # Hardhat config (Solidity 0.8.20)
     package.json
     .gitignore

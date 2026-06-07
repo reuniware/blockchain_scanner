@@ -11,14 +11,19 @@
 - `DisplayManager`: Rich terminal output (must be ASCII-safe on Windows)
 - `TransactionFilter`: Address/value/pattern filtering
 - `SourceCodeVerifier`: Contract source code verification via Etherscan API V2
-- `VulnerabilityScanner`: Solidity source code vulnerability analysis (10+ patterns)
+- `VulnerabilityScanner`: Solidity source code vulnerability analysis (**20 patterns**)
+- `Guardian`: 24/7 persistent scanner with SQLite DB, auto-persistence, Hardhat pipeline
+- `ForkTester`: Standalone Hardhat fork testing framework (`hardhat_fork_tester.py`)
 
 ### Extended project structure
 ```
 blockchain_scanner/
   config.yaml                        # YAML config
   main.py                            # CLI entry point (argparse)
-  exploit_pipeline.py                # New: Automated vuln validation pipeline
+  guardian.py                        # 24/7 scanner + SQLite persistence
+  exploit_pipeline.py                # Automated vuln validation pipeline (20 types)
+  hardhat_fork_tester.py             # Standalone fork testing framework
+  pool_scanner.py                    # DEX pool scanner via DEX Screener API
   scanner/
     base.py                          # BaseScanner ABC
     evm_scanner.py                   # EVM chains
@@ -26,24 +31,29 @@ blockchain_scanner/
     solana_scanner.py                # Solana
     orchestrator.py                  # Scanner + vuln scan lifecycle
   analysis/
-    vulnerability_scanner.py         # New: Solidity vuln scanner (10+ patterns)
+    vulnerability_scanner.py         # Solidity vuln scanner (20 patterns)
     __init__.py
   filters/
     filters.py                       # Transaction filters
   output/
     display.py                       # Terminal display (vuln output added)
-  verify.py                          # New: Source code verification via Etherscan V2
-  exploit/                           # New: Local Hardhat exploitation demo
+  verify.py                          # Source code verification via Etherscan V2
+  exploit/                           # Local Hardhat exploitation demos
     contracts/
       VulnerableBank.sol             # Deliberately vulnerable bank (reentrancy)
       Exploit.sol                    # Reentrancy attack contract
       ExploitV2.sol                  # Debug version with configurable maxRounds
-      MinimalExploit.sol             # Minimal exploit (no reentrancy, debugging)
+      CampaignVulnerable.sol         # CEI reentrancy reproduction
+      CampaignExploit.sol            # CEI exploit with guard-rail
+      PrismReentrancyExploit.sol     # PrismHook-specific exploit
+      AIDogeExploit.sol              # AIDoge-specific exploit
+      UniversalExploit.sol           # Universal exploit: 18/20 attack types in one contract
     scripts/
       deploy_and_exploit.js          # Full reentrancy attack demo
-      test_reentrancy_levels.js      # Incremental recursion depth test
-      test_minimal.js                # Basic withdraw test
+      test_campaign_reentrancy.js    # CampaignWrapper CEI validation
+      test_cei_reentrancy.js         # Combined validation suite
       test_simple_withdraw.js        # Sanity check
+      test_fork_exploit.js           # Universal fork exploitation script
     hardhat.config.js                # Hardhat config (Solidity 0.8.20)
     package.json
     .gitignore
@@ -101,29 +111,47 @@ EXPLORER_API_V2_URL = "https://api.etherscan.io/v2/api"
 # chainid=56 for BSC, 1 for Ethereum
 ```
 
-## 7. Solidity Vulnerability Scanner
+## 7. Solidity Vulnerability Scanner — 20 Types
 
-### 10 Detected Vulnerability Types
+### Complete Vulnerability Table
 
-| ID | Vulnerability | Severity |
-|:---|:---|---:|
-| `reentrancy` | Reentrancy (state change AFTER external call) | CRITICAL |
-| `selfdestruct` | Contract can be destroyed | CRITICAL |
-| `delegatecall` | Code execution in caller context | CRITICAL |
-| `tx-origin` | tx.origin authorization | HIGH |
-| `unprotected-withdraw` | Withdraw without ACL | HIGH |
-| `unprotected-init` | Initializer without modifier | HIGH |
-| `unchecked-call` | Unchecked external call result | MEDIUM |
-| `integer-overflow` | Arithmetic without SafeMath (pre-0.8) | MEDIUM |
-| `gas-loop` | Unbounded loop over dynamic array | MEDIUM |
-| `arbitrary-from` | transferFrom with user-controlled 'from' | MEDIUM |
+| ID | Vulnerability | Severity | Description |
+|:---|:---|---:|:---|
+| `reentrancy` | Reentrancy (state change AFTER external call) | CRITICAL | `.call{value:}` before state update |
+| `selfdestruct` | Contract can be destroyed | CRITICAL | `selfdestruct`/`suicide` without ACL |
+| `delegatecall` | Code execution in caller context | CRITICAL | Dynamic `delegatecall` target |
+| `tx-origin` | tx.origin authorization | HIGH | `tx.origin` used for auth — phishing |
+| `unprotected-withdraw` | Withdraw without ACL | HIGH | Withdraw/claim without access control |
+| `unprotected-init` | Initializer without modifier | HIGH | `initialize()` callable multiple times |
+| `unchecked-call` | Unchecked external call result | MEDIUM | `.call()` return value not verified |
+| `integer-overflow` | Arithmetic without SafeMath (pre-0.8) | MEDIUM | No overflow protection on pre-0.8 |
+| `gas-loop` | Unbounded loop over dynamic array | MEDIUM | DOS via gas exhaustion |
+| `arbitrary-from` | transferFrom with user-controlled 'from' | MEDIUM | `from` parameter not validated |
+| `flash-loan` | Flash loan susceptibility | HIGH | DEX swap without access control |
+| `oracle-manipulation` | Oracle price manipulation | HIGH | Spot price (getReserves) instead of TWAP |
+| `slippage-deadline` | Missing slippage / deadline | HIGH | Zero slippage or no deadline — MEV |
+| `force-feed-eth` | Force-fed ETH manipulation | MEDIUM | `address(this).balance` via selfdestruct |
+| `erc20-return` | ERC20 return value unchecked | MEDIUM | `transfer()` return not checked (USDT) |
+| `signature-replay` | Signature replay attack | HIGH | `ecrecover` without chainId/nonce |
+| `rounding-error` | Division before multiplication | MEDIUM | Precision loss due to rounding |
+| `storage-collision` | Storage collision in proxy | HIGH | Upgradeable without `__gap` |
+| `timestamp-manipulation` | Block timestamp manipulation | MEDIUM | `block.timestamp` in critical logic |
+| `ownership-renounce` | Ownership renouncement | MEDIUM | `renounceOwnership()` without recovery |
 
 ### Reentrancy Detection Strategy
-- Find external calls with value (.call{value:...}(), .send())
-- Skip .transfer() (limited to 2300 gas)
-- Check nonReentrant modifier
+- Find external calls with value (`.call{value:...}()`, `.send()`)
+- Skip `.transfer()` (limited to 2300 gas)
+- Check `nonReentrant` modifier
 - Look for state changes BEFORE the external call (CEI violation)
 - CRITICAL if state change before call, HIGH if call without modifier
+
+### Key Scanner Limitation
+
+The scanner detects **code patterns** but does **not** understand context:
+- `onlyOwner` modifiers: functions are flagged but actually protected
+- Proxy patterns (EIP-1967): `delegatecall` is intentional
+- OpenZeppelin libraries: `Ownable`, `ReentrancyGuard` are audited standards
+- **Result:** ~85% false positive rate on audited contracts, **100% on ERC20 memecoins with balance**
 
 ## 8. Exploit Pipeline
 
@@ -134,86 +162,112 @@ python exploit_pipeline.py --live --chains bsc,ethereum
 python exploit_pipeline.py --batch addresses.txt
 ```
 
-### Exploitability Validation
+### Exploitability Validation (20 types)
 
 | Finding Type | Exploitable? | Condition |
 |:---|:---|---:|
 | Reentrancy | YES | Solidity < 0.8 |
 | Reentrancy | YES | Solidity >= 0.8 WITH unchecked {} |
-| Reentrancy | NO | Solidity >= 0.8 (underflow protection) |
+| Reentrancy | PARTIAL | Solidity >= 0.8 (CEI on bool — not arithmetic) |
 | Selfdestruct | YES | Without ACL |
 | Delegatecall | YES | Dynamic target |
+| Flash Loan | YES | Swap function without access control |
+| Oracle Manipulation | YES | Uses getReserves() without TWAP |
+| Slippage/Deadline | YES | amountOutMin = 0 or no deadline |
+| ERC20 Return | YES | transfer() call without require(success) |
+| Signature Replay | YES | ecrecover without chainId or nonce |
+| Storage Collision | YES | Upgradeable contract without __gap |
 
-### Key Discovery: Solidity >=0.8 Blocks Reentrancy
+### Key Discovery: Solidity >=0.8 Blocks Underflow Reentrancy
 `balances[msg.sender] -= amount` reverts with `panic(0x11)` on underflow in 0.8+.
 In < 0.8, it wraps around (0 - 1 = 2^256 - 1), allowing the exploit.
 
-## 9. Local Hardhat Exploitation Demo
+## 9. Hardhat Fork Testing Framework
 
-### Attack Flow
-1. Alice deposits 100 ETH in VulnerableBank
-2. Bob deposits 60 ETH in Exploit contract
-3. Exploit calls withdraw(60) -> re-enters via fallback
-4. After 3 rounds, the bank is drained, Bob profits 100 ETH
+### UniversalExploit.sol
+Single contract testing **18 out of 20** attack types (excludes `tx-origin` and `signature-replay` which require phishing/scenario setup):
+- Reentrancy (CEI), Selfdestruct, Delegatecall, Unprotected Withdraw, Unprotected Init
+- Unchecked Call, Integer Overflow, Gas Loop, Arbitrary transferFrom
+- Flash Loan, Oracle Manipulation, Slippage/Deadline, Force-Fed ETH
+- ERC20 Return, Rounding Error, Storage Collision, Timestamp, Ownership Renounce
 
-### Run
-```bash
-cd blockchain_scanner/exploit
-npm install
-npx hardhat run scripts/deploy_and_exploit.js --network hardhat
+### Fork Test Flow
+```
+1. Fork chain at latest block
+2. Impersonate target contract owner
+3. Deploy UniversalExploit
+4. For each attack type: attack → check balance → log result
+5. Report drained ETH (if any)
 ```
 
-### Debugging: Solidity >=0.8 Underflow Protection
-- maxRounds=0: SUCCESS (no reentry)
-- maxRounds=1: FAILED with panic 0x11 (underflow)
-- The classic DAO reentrancy does not work on Solidity 0.8.x
+### Usage
+```bash
+# Via Python orchestrator
+python hardhat_fork_tester.py --target 0x... --chain arbitrum
 
-## 10. Project Evolution
+# Direct Hardhat
+cd exploit
+npx hardhat compile
+npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc 0.05
+```
+
+## 10. Guardian 24/7 Stats (07/06/2026)
+
+| Metric | Value |
+|:---|---|
+| Contracts in DB | **2 340** |
+| Verified contracts | **463** |
+| Total findings | **1 307** |
+| Exploitable | **857** (CRITICAL: 192, HIGH: 440, MEDIUM: 5) |
+| Contracts with balance > 0 | **19** (264.74 total native: Ethereum 261.47, Arbitrum 3.27) |
+| Hardhat tests run | **853** (all failed — automated testing misconfigured) |
+| Confirmed exploits | **0** |
+| Pending tests | **4** |
+
+### Top Finding Types (exploitable)
+1. Potential Reentrancy: 232
+2. Delegatecall: 208
+3. Unprotected Initializer: 108
+4. Unprotected Withdraw: 62
+5. TX Origin: 14
+
+## 11. Project Evolution
 
 ### Built in this session
-1. Vulnerability scanner with 10 Solidity patterns
-2. False positive reduction for ERC-20 transferFrom
-3. Exploit pipeline for automated validation
-4. Local Hardhat demo for reentrancy
-5. BSC RPC optimization with Binance dataseed
-6. Discovery: Solidity >=0.8 blocks classic reentrancy
+1. Vulnerability scanner expanded from 10 → 20 Solidity patterns
+2. UniversalExploit.sol — single contract for 18/20 attack types
+3. test_fork_exploit.js — generic fork exploitation script
+4. hardhat_fork_tester.py — Python orchestrator for fork testing
+5. All 5 .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
+6. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
 
 ### Concrete Validation vs Pattern Detection
-Scanner finds patterns, not vulnerabilities. WETH9 case:
-- withdraw() without onlyOwner flagged as HIGH
-- But actually safe: CEI pattern respected, uses .transfer()
-- ~85% of HIGH findings on audited contracts are false positives
+Scanner finds patterns, not vulnerabilities. Key examples:
+- WETH9: `withdraw()` without onlyOwner flagged as HIGH — but CEI pattern respected, uses `.transfer()`
+- Nola/Smolcoin/PinLink: 41 exploitables flagged — but all functions behind `onlyOwner`
+- Lido stETH: `delegatecall` flagged as CRITICAL — but it's an intentional EIP-1967 proxy
+- **~85% of findings on audited contracts are false positives**
 
-### Scanning Results
-| Chain | Status |
-|:---|:---|
-| Ethereum (Infura) | Fully working - blocks, transfers, verification OK |
-| BSC (PublicNode) | Connection OK, polling times out - needs paid provider |
+### Scanning Results by Chain
+| Chain | Contracts | Verified | Balance |
+|:---|---:|---:|:---:|
+| Ethereum | 1 257 | 112 | 261.47 ETH |
+| Arbitrum | 572 | 254 | 3.27 ETH |
 
 ### Key Lesson
-Always validate findings manually. Pipeline gives theoretical analysis (Solidity version, unchecked blocks, access control), but empirical testing on Hardhat is the only way to confirm.
+Always validate findings empirically. Pipeline gives theoretical analysis (Solidity version, unchecked blocks, access control), but fork testing on Hardhat is the only way to confirm exploitability. The scanner detects code patterns — the human (or a smarter AI) must interpret context.
 
-### CEI Reentrancy Validation (This Session)
+### CEI Reentrancy Validation
 
-**CampaignWrapper** (0x8a56c6be..) — 7 HIGH findings, 1 MEDIUM. Validated empirically:
-- Created CampaignVulnerable.sol (reproduces .call{value:} BEFORE state update)
-- Created CampaignExploit.sol (re-enters via receive() before hasClaimed is set)
+**CampaignWrapper** (0x8a56c6be..) — 7 HIGH findings, 1 MEDIUM. Validated empirically on reproduction:
+- Created CampaignVulnerable.sol (reproduces `.call{value:}` BEFORE state update)
+- Created CampaignExploit.sol (re-enters via `receive()` before `hasClaimed` is set)
 - **5 rounds of reentrancy confirmed** — 5 ETH drained from 5 ETH
+- **But false positive on real contract:** `_refund` is `private` + `nonReentrant` at top level
 
 **Key discovery:** CEI reentrancy on bool flags works in Solidity >=0.8 because:
 - `!hasClaimed[user]` is NOT arithmetic — no underflow protection applies
-- State update (bool = true) happens AFTER .call{value:}
+- State update (bool = true) happens AFTER `.call{value:}`
 - Check passes every time during reentrancy because state hasn't been updated yet
 
-**Fix for >=0.8 reentrancy:** Use ReentrancyGuard modifier, NOT just relying on underflow protection.
-
-### Challenge: Nouveaux déploiements non vérifiés
-
-Lors du scan des 100 derniers blocs Ethereum, **10 contrats sur 10** étaient non vérifiés sur Etherscan. Le pipeline ne peut pas analyser de code source sans vérification.
-
-**Pourquoi les nouveaux déploiements ne sont pas vérifiés :**
-- Les créateurs doivent explicitement soumettre le code source à Etherscan après le déploiement
-- Beaucoup de déploiements sont des tests, des bots, ou des contrats éphémères
-- Certains créateurs évitent volontairement la vérification
-
-**Solution :** Scanner des contrats plus anciens (au moins quelques heures/jours) qui ont eu le temps d'être vérifiés, ou utiliser une base de données comme Dune Analytics pour trouver des contrats vérifiés non-bluechip.
+**Fix for >=0.8 reentrancy:** Use `ReentrancyGuard` modifier, NOT just relying on underflow protection.

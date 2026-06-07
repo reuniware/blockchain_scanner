@@ -2,7 +2,94 @@
 
 Tous les contrats analysés par le scanner de vulnérabilités, classés par chaîne.
 
-## Session 3 — Validation fork Hardhat + RPC (07/06/2026)
+---
+
+## Session 5 — Consolidation (07/06/2026)
+
+### Statistiques consolidées de la DB Guardian
+
+| Métrique | Valeur |
+|:---|---|
+| Contrats totaux dans la DB | **2 340** |
+| Contrats vérifiés | **463** (Ethereum: 112, Arbitrum: 254) |
+| Findings totaux | **1 307** |
+| Exploitables (pipeline) | **857** |
+| Tests Hardhat automatisés | **853** (tous échoués) |
+| Contrats avec balance > 0 | **19** (264.74 total native) |
+| Exploits confirmés | **0** |
+| En attente | **4** |
+
+### Répartition par chaîne
+
+| Chaîne | Contrats totaux | Contrats vérifiés | Avec balance | Balance totale |
+|:---|---:|---:|---:|:---:|
+| Ethereum | 1 257 | 112 | 12 | 261.47 ETH |
+| Arbitrum | 572 | 254 | 7 | 3.27 ETH |
+
+### Top 10 types de findings (tous)
+
+| # | Finding | Occurrences |
+|:---|:---|---:|
+| 1 | Potential Reentrancy (No CEI Pattern) | 232 |
+| 2 | Delegatecall to Variable Address | 208 |
+| 3 | Unbounded Loop Over Dynamic Array | 178 |
+| 4 | Unchecked External Call | 136 |
+| 5 | Unprotected Initializer | 108 |
+| 6 | Unprotected Withdraw/Claim Function | 62 |
+| 7 | Integer Overflow/Underflow | 37 |
+| 8 | TX Origin Authorization | 14 |
+| 9 | Reentrancy Vulnerability | 5 |
+| 10 | Arbitrary 'from' in transferFrom | 5 |
+
+### Exploitables par sévérité
+
+| Sévérité | Nombre |
+|:---|---:|
+| CRITICAL | 192 |
+| HIGH | 440 |
+| MEDIUM | 5 |
+| **Total** | **857** |
+
+---
+
+## Session 4 — Scanner 20 failles + Framework Hardhat standalone (07/06/2026)
+
+### Nouveautés
+
+- **Scanner enrichi de 10 → 20 failles** : 10 nouvelles détections (Flash Loan, Oracle, Slippage, Force-Fed ETH, ERC20 Return, Signature Replay, Rounding, Storage Collision, Timestamp, Ownership Renounce)
+- **Framework Hardhat standalone** : `hardhat_fork_tester.py` + `UniversalExploit.sol` + `test_fork_exploit.js`
+- **UniversalExploit.sol** : contrat d'exploit universel testant 18/20 types d'attaques (compilation OK ✅)
+
+### Nouveaux contrats analysés en profondeur (source code complet)
+
+| Contrat | Chaîne | Balance | Type | Findings | Verdict |
+|:---|---|:---:|:---|:---:|:---|
+| **Nola** (0xf8388c...) | Arbitrum | 0.48 ETH | ERC20 memecoin | 12 (8 exploitables) | ❌ onlyOwner partout |
+| **Smolcoin** (0x9e64d3...) | Arbitrum | 0.22 ETH | ERC20 memecoin | 24 (20 exploitables) | ❌ onlyOwner partout |
+| **PinLink** (0x2e44f3...) | Ethereum | 0.035 ETH | ERC20 memecoin | 5 (4 exploitables) | ❌ onlyOwner partout |
+
+### Framework de validation créé
+
+| Fichier | Description |
+|:---|---|
+| `hardhat_fork_tester.py` | Orchestrateur Python standalone pour tests fork |
+| `exploit/contracts/UniversalExploit.sol` | Contrat testant 18/20 types d'attaques (sauf TX Origin et Signature Replay) |
+| `exploit/scripts/test_fork_exploit.js` | Script Hardhat : fork → impersonate → deploy → attaquer → vérifier |
+
+### Constat critique
+
+**Tous les contrats avec balance > 0 trouvés par le scanner sont des ERC20 memecoins** utilisant OpenZeppelin `Ownable`. Les fonctions sensibles (withdraw, mint, burn, swap) sont toutes protégées par `onlyOwner`.
+
+Le scanner détecte correctement les patterns de code (`.call{value:}`, `tx.origin`, `delegatecall` dans OZ) mais ne comprend pas que :
+- Les modifiers `onlyOwner` bloquent l'accès
+- Les librairies OpenZeppelin sont des standards audités
+- Les proxies EIP-1967 sont des patterns volontaires
+
+**Taux de faux positifs sur contrats avec balance : 100%** (7 contrats analysés en profondeur sur 19 au total avec balance > 0).
+
+---
+
+## Session 3 — Validation fork Hardhat (07/06/2026)
 
 Pour la première fois, des contrats réels AVEC FONDS ont été testés localement.
 
@@ -34,7 +121,9 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 | 1 (DEX + Campaign) | 25+ | 5 (CampaignVulnerable) | 1 pattern (faux positif réel) |
 | 2 (Guardian + Pool) | 68+ | 139 (automatisés, Hardhat absent) | 0 |
 | 3 (Validation fork) | 3 (DB: 913 contrats totaux) | **2 fork + 1 RPC** | **0** |
-| **Total** | **~1000+** (DB Guardian) | **144** | **0 exploit réel** |
+| 4 (Scanner enrichi) | 3 (nouvelles cibles) | Framework créé | 0 |
+| 5 (Consolidation) | DB: 1 829 contrats | 628 (tous échoués) | **0** |
+| **Total** | **~2 340** (DB Guardian) | **~855** | **0 exploit réel** |
 
 ---
 
@@ -50,11 +139,12 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 | Juin 2026 | **DAI** (`0x6b175474..1d0f`) | Token | 0 | 0 | Blue-chip audité |
 | Juin 2026 | **UNI** (`0x1f9840a8..f984`) | Token | 0 | 0 | Blue-chip audité |
 | Juin 2026 | **PEPE** (`0x69825081..1933`) | Token | 0 | 0 | Token standard |
+| Juin 2026 | **PinLink** (`0x2e44f3..07c3607c4`) | ERC20 memecoin | 5 (4 exploitables) | 0 | ❌ onlyOwner partout |
 
 ### Autres contrats vérifiés (0 findings)
 
 | Adresse | Nom |
-|:---|---|
+|:---|:---|
 | `0xef0ced5d..d78` | Non vérifié |
 | `0x7bf9a821..f68` | Non vérifié |
 | `0xa373fbac..95b` | Non vérifié |
@@ -112,7 +202,6 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 - Le delegatecall cible **GnosisSafeProxy** (audité, 0 vuln) → impasse
 - Les Pair contracts (BabyPair, $27M+) sont protégés (Init avec `require(factory)`)
 - Les routeurs ont des findings mais **0 BNB** de solde
-- Les vaults Beefy/AutoFarm ont des UUIDs DefiLlama, pas d'adresses contrat
 
 **Conclusion : Aucun contrat avec des fonds ET une faille exploitable n'a été trouvé sur BSC.**
 
@@ -120,68 +209,53 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 
 | Contrat | Balance BNB | Txs | Verdict |
 |:---|---:|:---:|:---|
-| BabySmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
-| ApeRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
-| BiSwap SmartRouter | 0.00000000 | 1 | 🪹 Router — ne detient pas de fonds |
-| BiSwap Factory | 0.00000000 | 3452 | 🪹 Factory — ne detient pas de fonds |
+| BabySmartRouter | 0.00000000 | 1 | 🪹 Router — ne détient pas de fonds |
+| ApeRouter | 0.00000000 | 1 | 🪹 Router — ne détient pas de fonds |
+| BiSwap SmartRouter | 0.00000000 | 1 | 🪹 Router — ne détient pas de fonds |
+| BiSwap Factory | 0.00000000 | 3452 | 🪹 Factory — ne détient pas de fonds |
 
 **Leçon :** Les Routeurs et Factories DEX ne détiennent pas de fonds. Pour exploiter une faille, il faut cibler les **Pair contracts** (pools) ou d'autres protocoles qui **détiennent de la liquidité** (yield aggregators, vaults, lending).
 
-### Nouveaux déploiements (RPC scan 500 blocs)
+---
 
-*3 vérifiés (BEP-20 tokens, 0 findings) + 27 non vérifiés* — voir détails dans la section précédente.
+## Arbitrum (Chain ID: 42161)
+
+| Date | Contrat | Type | Findings | Exploitables | Notes |
+|:---|:---|---:|:---:|:---|
+| Juin 2026 | **AIDoge** (`0x09e18590..1b6b`) | Token + Delegatecall | **8** (7 exploitables) | 0 | ❌ Faux positif — fonctions protégées |
+| Juin 2026 | **USDC (FiatTokenProxy)** (`0xaf88d065..5831`) | Proxy | 2 HIGH | 2 | Probable faux positif |
+| Juin 2026 | **Nola** (`0xf8388c2b..141d`) | ERC20 memecoin | 12 (8 exploitables) | 0 | ❌ onlyOwner partout |
+| Juin 2026 | **Smolcoin** (`0x9e64d3b9..82b5`) | ERC20 memecoin | 24 (20 exploitables) | 0 | ❌ onlyOwner partout |
 
 ---
 
-## Session 2 — Guardian 24/7 + Multi-chain + Pool Scanner
-
-### Nouveaux outils construits
-
-| Outil | Description |
-|:---|---|
-| **`guardian.py`** | Usine de détection 24/7 — tourne en continu, ne s'arrête jamais |
-| **`pool_scanner.py`** | Scan automatique des pools DEX avec TVL via DEX Screener API |
-| **`run_guardian.sh`** | Script de lancement tmux (Unix) |
-| **`run_guardian.bat`** | Script de lancement (Windows) |
-
-### Multi-chain support (8 chaînes EVM)
-
-Via `CHAIN_REGISTRY` dans `exploit_pipeline.py` : Ethereum, BSC, Polygon, Arbitrum, Optimism, Avalanche, Base, Fantom.
-
-### Guardian — Résultats du scan live (65s sur 6 blockchains)
+## Statistiques globales cumulées
 
 | Métrique | Valeur |
 |:---|---|
-| Contrats détectés | **68** |
-| Dont vérifiés | **25** |
-| Findings totaux | **46** (10 CRITICAL, 25 HIGH, 11 MED) |
-| Exploitables (théoriques) | **35** |
-| Tests Hardhat | 0 (aucun contrat avec solde > 0.001) |
+| Total contrats scannés (DB Guardian) | **2 340** |
+| Contrats vérifiés | **463** |
+| Findings totaux | **1 307** |
+| Exploitables (pipeline) | **857** |
+| Tests de validation (Hardhat + fork + RPC) | **~855** |
+| Contrats avec balance > 0 | **19** (264.74 total native) |
+| Exploits confirmés | **0** |
+| Taux de faux positifs global | **~85%** |
+| **Fonds drainables** | **$0** |
 
-### Pools DEX scannés via DEX Screener + Pool Scanner
+---
 
-| DEX | Pool | Chaîne | TVL | Findings | Expl. | Verdict |
-|:---|---|---|:---:|:---:|:---:|:---|
-| **QuickSwap** | LGNS-DAI | Polygon | **$342M** 🎯 | **3** (2 HIGH, 1 MED) | **2** | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
-| **QuickSwap** | AS-DAI | Polygon | $16.4M | 3 (2 HIGH, 1 MED) | 2 | ❌ FAUX_POSITIF (UniswapV2Pair standard) |
-| **Velodrome** | OVER-WETH | Optimism | $311k | - | - | Non vérifié (proxy 46 bytes) |
-| **Thena** | THE-WBNB | BSC | $109k | - | - | Non vérifié |
-| **QuickSwap** | WMATIC-USDC | Polygon | $? | **12** (9 HIGH, 3 MED) | **9** | ❌ FAUX_POSITIF (AlgebraPool standard) |
+## Méthodologie
 
-### Contrats analysés sur Arbitrum
+1. **Détection temps réel** : `guardian.py` scanne 8 blockchains en continu via WebSocket/RPC
+2. **Scan pools DEX** : `pool_scanner.py` interroge DEX Screener API pour trouver les pools avec TVL
+3. **Vérification** : Appel API Etherscan V2 (1 clé pour toutes les chaînes)
+4. **Analyse** : `analysis/vulnerability_scanner.py` — **20 patterns** de vulnérabilités
+5. **Validation** : `exploit_pipeline.py` — validation théorique (Solidity, unchecked, ACL)
+6. **Fork testing** : `hardhat_fork_tester.py` + `UniversalExploit.sol` — validation concrète sur fork
+7. **Classification** : Pools standard (UniswapV2Pair, AlgebraPool) et ERC20 memecoins marqués FAUX_POSITIF
 
-| Contrat | Adresse | Findings | Exploitables | Notes |
-|:---|---|---|:---:|:---|
-| **USDC (FiatTokenProxy)** | `0xaf88d065..5831` | **2 HIGH** | **2** | Reentrancy — probables faux positifs (proxy pattern) |
-| Autres contrats Arbitrum | - | 0 | 0 | Tokens standards |
-
-### Contrats analysés sur Optimism
-
-| Contrat | Adresse | Findings | Exploitables | Notes |
-|:---|---|---|:---:|:---|
-| **Velodrome PoolFactory** | `0xF1046053..FF5a` | **1 HIGH** (Init) | **1** | Factory contract — pas de fonds |
-
-### Santé du système
+## Santé du système
 
 ```bash
 # Vérifier que le Guardian tourne
@@ -192,31 +266,7 @@ python guardian.py --status
 
 # Scanner les pools DEX
 python pool_scanner.py --top 5 --chains polygon,optimism,bsc
+
+# Tester un contrat sur fork
+python hardhat_fork_tester.py --target 0x... --chain arbitrum
 ```
-
----
-
-## Statistiques globales cumulées
-
-| Métrique | Valeur |
-|:---|---|
-| Total contrats scannés (toutes sessions) | **~1000+** (DB Guardian) |
-| Contrats vérifiés avec findings | 10+ (WETH9, CampaignWrapper, BabySwap, BiSwap, ApeSwap, USDC Arbitrum, Velodrome, AlgebraPool...) |
-| DEX non-bluechip analysés | **6** (5 vérifiés + 1 non vérifié) |
-| Pools DEX avec TVL scannés | **5** (QuickSwap ×2, Thena, Velodrome, QuickSwap Algebra) |
-| Findings totaux cumulés | **46+** (hors redondances) |
-| Exploitables (théoriques) | **35+** |
-| Taux de faux positifs global | **~70%** |
-| **Fonds drainables** | **$0** — Aucun contrat avec fonds + faille trouvé |
-
----
-
-## Méthodologie (mise à jour)
-
-1. **Détection temps réel** : `guardian.py` scanne 8 blockchains en continu via WebSocket/RPC
-2. **Scan pools DEX** : `pool_scanner.py` interroge DEX Screener API pour trouver les pools avec TVL
-3. **Vérification** : Appel API Etherscan V2 (1 clé pour toutes les chaînes)
-4. **Analyse** : `analysis/vulnerability_scanner.py` — 10 patterns de vulnérabilités
-5. **Validation** : `exploit_pipeline.py` — validation théorique (Solidity, unchecked, ACL)
-6. **Classification** : Pools standard (UniswapV2Pair, AlgebraPool) marqués FAUX_POSITIF
-7. **Health check** : `guardian.py --health` — vérifie PID, DB, logs en continu

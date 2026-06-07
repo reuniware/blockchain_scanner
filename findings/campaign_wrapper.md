@@ -10,6 +10,7 @@
 | Solidity | `^0.8.20` |
 | Scan | Automatique via `exploit_pipeline.py` |
 | Date | Juin 2026 |
+| Dernière mise à jour | 07/06/2026 |
 
 ## Résultat du scan
 
@@ -25,25 +26,25 @@
 ### 1. 🔴 Reentrancy (pas de pattern CEI) — Ligne 5
 
 **Sévérité :** HIGH
-**Exploitable :** Oui (pattern validé)
+**Exploitable :** Oui (pattern validé en reproduction locale)
 
 Le contrat utilise un appel `.call{value:}` bas niveau dans la fonction `_refund` (ligne 253 du fichier combiné) **sans** protection `nonReentrant`. La mise à jour d'état a lieu après l'appel externe, ce qui permet à un attaquant de re-entrer via `receive()` et de drainer les fonds.
 
-**Validation empirique :** ✅ Réussie — 5 rounds de reentrancy, 4 ETH drainés sur 5.
+**Validation empirique :** ✅ Réussie — 5 rounds de reentrancy, 4 ETH drainés sur 5 (sur reproduction `CampaignVulnerable.sol`).
 
-**Note importante :** Le contrat utilise `ReentrancyGuard` sur `launchCampaign` mais pas sur `_refund`. La vulnérabilité réelle dépend du contexte d'appel de `_refund`.
+**⚠️ Contrat réel :** Faux positif — la fonction `_refund` est `private` et le contrat utilise `ReentrancyGuard` au niveau supérieur. La vulnérabilité n'est pas exploitable sur le contrat on-chain.
 
 ### 2-4. 🔴 TX Origin Authorization (×3) — Lignes 5, 47, 134
 
 **Sévérité :** HIGH
-**Exploitable :** Oui
+**Exploitable :** Oui (théorique)
 
 `tx.origin` est utilisé pour l'autorisation à plusieurs endroits, ce qui expose à des attaques de phishing où un contrat malveillant appelle cette fonction et `tx.origin` pointe vers la victime.
 
 ### 5-7. 🔴 Unprotected Initializer (×3) — Lignes 80, 119, 140
 
 **Sévérité :** HIGH
-**Exploitable :** Oui
+**Exploitable :** Oui (théorique)
 
 Des fonctions d'initialisation sont appelables sans le modificateur `initializer`, ce qui permet à un attaquant de les appeler plusieurs fois et de prendre le contrôle du contrat.
 
@@ -88,6 +89,7 @@ Le contrat utilise `^0.8.20`. La protection contre l'underflow intégrée à Sol
 - `exploit/contracts/CampaignExploit.sol` — Contrat d'exploit avec garde-fou
 - `exploit/scripts/test_campaign_reentrancy.js` — Script de test dédié
 - `exploit/scripts/test_cei_reentrancy.js` — Test combiné des 2 patterns
+- `exploit/contracts/UniversalExploit.sol` — Framework universel couvrant 20 types d'attaques
 
 ## Recommandations
 
