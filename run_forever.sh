@@ -2,20 +2,18 @@
 # =============================================================================
 # GUARDIAN — Relance infinie (Unix/macOS)
 # =============================================================================
-# Lance guardian.py sur BSC+ETH et le relance automatiquement s'il s'arrête.
-# Loggue tout dans guardian_output.log avec timestamps.
+# Lance guardian.py sur BSC+ETH et le relance automatiquement.
+# Loggue tout dans guardian_output.log + findings/scanned_contracts.md
+# JAMAIS de git push (mode autonome offline)
 #
-# Usage:
-#     chmod +x run_forever.sh
-#     ./run_forever.sh
-#
-# Pour arrêter : Ctrl+C deux fois (une pour guardian, une pour le script)
+# Usage:    chmod +x run_forever.sh && ./run_forever.sh
+# Stop:     Ctrl+C deux fois
 # =============================================================================
 
 cd "$(dirname "$0")"
 
 LOG_FILE="guardian_output.log"
-RESTART_DELAY=10  # secondes avant de relancer
+RESTART_DELAY=10
 MAX_RESTARTS=99999
 restart_count=0
 
@@ -23,12 +21,13 @@ echo "================================================================" | tee -a
 echo "  GUARDIAN — FOREVER MODE (BSC + ETH)" | tee -a "$LOG_FILE"
 echo "  Démarré: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOG_FILE"
 echo "  Log: $LOG_FILE" | tee -a "$LOG_FILE"
-echo "  Redémarrage automatique après $RESTART_DELAY sec si crash" | tee -a "$LOG_FILE"
+echo "  Redémarrage automatique. Mode: NO PUSH." | tee -a "$LOG_FILE"
 echo "================================================================" | tee -a "$LOG_FILE"
 
 cleanup() {
     echo "" | tee -a "$LOG_FILE"
-    echo "[$(date '+%H:%M:%S')] ARRÊT — $restart_count redémarrages effectués" | tee -a "$LOG_FILE"
+    echo "[$(date '+%H:%M:%S')] ARRÊT — $restart_count restart(s)" | tee -a "$LOG_FILE"
+    python dump_results.py "STOPPED_after_${restart_count}_restarts" 2>&1 | tee -a "$LOG_FILE"
     exit 0
 }
 trap cleanup SIGINT SIGTERM
@@ -36,23 +35,18 @@ trap cleanup SIGINT SIGTERM
 while [ $restart_count -lt $MAX_RESTARTS ]; do
     restart_count=$((restart_count + 1))
     echo "" | tee -a "$LOG_FILE"
-    echo "[$(date '+%H:%M:%S')] LANCEMENT #$restart_count" | tee -a "$LOG_FILE"
-    echo "----------------------------------------" | tee -a "$LOG_FILE"
+    echo "[$(date '+%H:%M:%S')] === LANCEMENT #$restart_count ===" | tee -a "$LOG_FILE"
 
-    # Run guardian with explicit chains (ETH+BSC only)
     python guardian.py --chains ethereum,bsc 2>&1 | tee -a "$LOG_FILE"
 
-    EXIT_CODE=$?
-    echo "[$(date '+%H:%M:%S')] Guardian arrêté (exit=$EXIT_CODE)" | tee -a "$LOG_FILE"
+    EXIT_CODE=${PIPESTATUS[0]}
+    echo "[$(date '+%H:%M:%S')] Guardian stopped (exit=$EXIT_CODE)" | tee -a "$LOG_FILE"
 
-    # Quick commit of any new results before restart
-    git add -A 2>/dev/null
-    git commit -m "Auto: results after restart #$restart_count (exit=$EXIT_CODE)" 2>/dev/null
-    git push origin master 2>/dev/null
+    # Dump current results to findings/scanned_contracts.md
+    python dump_results.py "restart_${restart_count}" 2>&1 | tee -a "$LOG_FILE"
 
-    # Pause before restarting
-    echo "[$(date '+%H:%M:%S')] Redémarrage dans ${RESTART_DELAY}s..." | tee -a "$LOG_FILE"
+    echo "[$(date '+%H:%M:%S')] Restart in ${RESTART_DELAY}s..." | tee -a "$LOG_FILE"
     sleep $RESTART_DELAY
 done
 
-echo "[$(date '+%H:%M:%S')] MAX_RESTARTS atteint ($MAX_RESTARTS). Arrêt." | tee -a "$LOG_FILE"
+echo "[$(date '+%H:%M:%S')] MAX_RESTARTS reached ($MAX_RESTARTS)." | tee -a "$LOG_FILE"

@@ -29,7 +29,6 @@ import signal
 import sqlite3
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Optional
@@ -388,7 +387,7 @@ class HardhatValidator:
             )
 
     def _generate_hardhat_script(self, target_addr: str, exploit_file: str,
-                                  rpc_url: str, finding_type: str) -> str:
+                                  rpc_url: str, finding_type: str, contract_name: str = "Exploit") -> str:
         """Generate a Hardhat JavaScript test script that:
         1. Forks the chain
         2. Deploys the exploit
@@ -416,7 +415,7 @@ async function main() {{
     console.log("Target balance before:", BigInt(beforeBal).toString());
 
     // Deploy exploit
-    const Exploit = await hre.ethers.getContractFactory("Exploit");
+    const Exploit = await hre.ethers.getContractFactory("{contract_name}");
     const exploit = await Exploit.deploy(targetAddr);
     await exploit.waitForDeployment();
     console.log("Exploit deployed at:", await exploit.getAddress());
@@ -463,6 +462,7 @@ main().catch(e => {{
         try:
             proc = await asyncio.create_subprocess_exec(
                 _NPX, "hardhat", "--version",
+                cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -473,6 +473,8 @@ main().catch(e => {{
 
     async def validate_finding(self, finding: dict) -> tuple[bool, str]:
         """Try to validate an exploitable finding on Hardhat fork.
+
+        Uses the existing exploit/ directory (already has deps, CommonJS config).
 
         Returns:
             (confirmed: bool, evidence: str)
@@ -490,10 +492,10 @@ main().catch(e => {{
             f"Testing started at {datetime.utcnow().isoformat()}"
         )
 
-        # Step 1: Check Hardhat availability
+        # Step 1: Check Hardhat availability (in exploit/ dir with existing deps)
         hardhat_ok = await self._check_hardhat_available()
         if not hardhat_ok:
-            evidence = "Hardhat not installed. Run: npm install -g hardhat"
+            evidence = "Hardhat not available in exploit/ directory"
             self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", evidence)
             return False, evidence
 
@@ -504,71 +506,51 @@ main().catch(e => {{
             self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", evidence)
             return False, evidence
 
-        # Step 3: Create temp exploit project
-        work_dir = os.path.join(tempfile.gettempdir(), f"guardian_exploit_{contract_addr[:10]}")
-        os.makedirs(work_dir, exist_ok=True)
+        # Step 3: Write exploit contract to existing exploit/ directory
+        contracts_dir = os.path.join(self.exploit_dir, "contracts")
+        scripts_dir = os.path.join(self.exploit_dir, "scripts")
+        os.makedirs(contracts_dir, exist_ok=True)
+        os.makedirs(scripts_dir, exist_ok=True)
+
+        exploit_file = os.path.join(contracts_dir, "GuardianExploit.sol")
+        test_file = os.path.join(scripts_dir, "guardian_test.js")
 
         try:
             # Write exploit contract
             exploit_sol = self._generate_exploit_contract(contract_addr, finding_name, finding_type)
-            exploit_file = os.path.join(work_dir, "Exploit.sol")
+            # Extract contract name from source for Hardhat compilation
+            contract_name_match = re.search(r"contract\s+(\w+)", exploit_sol)
+            contract_name = contract_name_match.group(1) if contract_name_match else "Exploit"
             with open(exploit_file, "w") as f:
                 f.write(exploit_sol)
 
-            # Write Hardhat test script
-            test_js = self._generate_hardhat_script(contract_addr, exploit_file, rpc_url, finding_type)
-            test_file = os.path.join(work_dir, "test_exploit.js")
+            # Write test script (CommonJS — exploit/ is not ESM)
+            test_js = self._generate_hardhat_script(
+                contract_addr, exploit_file, rpc_url, finding_type, contract_name
+            )
             with open(test_file, "w") as f:
                 f.write(test_js)
 
-            # Write minimal hardhat.config.js if not exists
-            hh_config = os.path.join(work_dir, "hardhat.config.js")
-            if not os.path.exists(hh_config):
-                with open(hh_config, "w") as f:
-                    f.write("""
-module.exports = {
-    solidity: "0.8.20",
-    networks: {
-        hardhat: {
-            forking: {
-                enabled: false,  // We'll set it in the test
-            }
-        }
-    }
-};
-""")
-
-            # Write package.json if not exists
-            pkg_json = os.path.join(work_dir, "package.json")
-            if not os.path.exists(pkg_json):
-                with open(pkg_json, "w") as f:
-                    json.dump({
-                        "name": f"guardian-test-{contract_addr[:10]}",
-                        "scripts": {"test": "npx hardhat run test_exploit.js"},
-                        "devDependencies": {
-                            "hardhat": "^2.19.0",
-                            "@nomicfoundation/hardhat-ethers": "^3.0.0",
-                            "ethers": "^6.0.0"
-                        }
-                    }, f, indent=2)
-
-            # Step 4: Install dependencies (skip if node_modules exists)
-            node_modules = os.path.join(work_dir, "node_modules")
-            if not os.path.exists(node_modules):
-                logger.info(f"[HARDHAT] Installing deps in {work_dir[:50]}...")
-                install_proc = await asyncio.create_subprocess_exec(
-                    _NPM, "install", "--no-audit", "--no-fund",
-                    cwd=work_dir,
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                await install_proc.wait()
+            # Step 4: Compile exploit contract (use existing node_modules)
+            logger.info(f"[HARDHAT] Compiling exploit for {contract_addr[:14]}..")
+            compile_proc = await asyncio.create_subprocess_exec(
+                _NPX, "hardhat", "compile",
+                cwd=self.exploit_dir,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await asyncio.wait_for(compile_proc.communicate(), timeout=60)
+            if compile_proc.returncode != 0:
+                err = stderr.decode("utf-8", errors="replace")[:500] if stderr else "compilation failed"
+                evidence = f"Hardhat compilation error: {err}"
+                self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", evidence)
+                return False, evidence
 
             # Step 5: Run the exploit test
             logger.info(f"[HARDHAT] Running exploit test for {contract_addr[:14]}..")
             test_proc = await asyncio.create_subprocess_exec(
-                _NPX, "hardhat", "run", "test_exploit.js",
-                cwd=work_dir,
+                _NPX, "hardhat", "run", "scripts/guardian_test.js",
+                cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -591,7 +573,6 @@ module.exports = {
                 )
                 return False, evidence
             else:
-                # Unknown result - might have errored
                 error_msg = f"Unexpected Hardhat output: {output[:500]}"
                 logger.warning(f"[HARDHAT] {error_msg}")
                 self.db.update_hardhat_result(
@@ -609,12 +590,13 @@ module.exports = {
             self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", error_msg)
             return False, error_msg
         finally:
-            # Cleanup temp files
-            try:
-                import shutil
-                shutil.rmtree(work_dir, ignore_errors=True)
-            except Exception:
-                pass
+            # Cleanup generated files from exploit/ directory
+            for f in [exploit_file, test_file]:
+                try:
+                    if os.path.exists(f):
+                        os.remove(f)
+                except Exception:
+                    pass
 
     async def validate_all_pending(self) -> list[dict]:
         """Validate all pending exploitable findings (runs sequentially)."""
