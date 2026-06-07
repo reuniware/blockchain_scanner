@@ -6,9 +6,16 @@ Recupere les pools les plus liquides via DEX Screener API,
 les filtre (ignore les clones UniswapV2Pair standardises),
 et les scanne avec exploit_pipeline pour trouver des failles.
 
+Modes:
+    --all          Scan TOUS les pools sans filtre TVL ni limite
+    --min-tvl X    Ne scanner que les pools avec TVL >= X USD
+    --audit-local  Lance un test Hardhat fork sur chaque contrat scanne
+
 Usage:
     python pool_scanner.py                          # Scan des pools top 5 par DEX
-    python pool_scanner.py --all                    # Scan tous les pools trouves
+    python pool_scanner.py --all                    # Scan absolument TOUS les pools
+    python pool_scanner.py --all --audit-local      # Tous les pools + Hardhat systematique
+    python pool_scanner.py --min-tvl 1000000        # Seules les pools > $1M TVL
     python pool_scanner.py --chains bsc,polygon     # Chaines specifiques
     python pool_scanner.py --daemon                 # Mode boucle (toutes les 30min)
 """
@@ -27,6 +34,7 @@ from typing import Any, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from exploit_pipeline import ExploitPipeline, CHAIN_REGISTRY
+from hardhat_fork_tester import HardhatForkTester
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,11 +117,26 @@ class DEXScreenerAPI:
         await self._http.aclose()
 
     async def get_top_pools(self, dex_name: str, dex_config: dict,
-                            limit: int = 10) -> list[PoolInfo]:
-        """Get top N pools by TVL for a DEX protocol."""
+                            limit: int = 10, all_pools: bool = False,
+                            user_min_tvl: float = 0) -> list[PoolInfo]:
+        """Get pools for a DEX protocol.
+
+        Args:
+            dex_name: DEX protocol name
+            dex_config: Configuration dict with chain_id, dex_chain, min_tvl
+            limit: Max pools to return (ignored if all_pools=True)
+            all_pools: If True, return ALL pools (no TVL filter, no limit)
+            user_min_tvl: Override DEX-specific min_tvl with user value
+        """
         dex_chain = dex_config["dex_chain"]
         chain_id = dex_config["chain_id"]
-        min_tvl = dex_config["min_tvl"]
+        # Determine TVL threshold
+        if all_pools:
+            min_tvl = 0  # No filter
+        elif user_min_tvl > 0:
+            min_tvl = user_min_tvl
+        else:
+            min_tvl = dex_config["min_tvl"]
 
         pairs = await self.search_pools(dex_name, chain_filter=dex_chain)
 
@@ -139,6 +162,8 @@ class DEXScreenerAPI:
                 ))
 
         valid_pools.sort(key=lambda p: p.tvl_usd, reverse=True)
+        if all_pools:
+            return valid_pools  # Return ALL pools, no limit
         return valid_pools[:limit]
 
 
@@ -248,10 +273,23 @@ class PoolScanner:
         self.db = db  # Optional guardian DB
         self.dex_api = DEXScreenerAPI()
         self.analyzer = PoolAnalyzer(api_key=api_key)
+        self._hardhat_tester = None  # Lazy init
+        self._hardhat_available = None
 
     async def scan_all(self, top_n: int = 5,
-                       chain_filter: Optional[list[str]] = None) -> list[dict]:
-        """Scan top N pools from each target DEX."""
+                       chain_filter: Optional[list[str]] = None,
+                       all_pools: bool = False,
+                       min_tvl: float = 0,
+                       audit_local: bool = False) -> list[dict]:
+        """Scan pools from each target DEX.
+
+        Args:
+            top_n: Max pools per DEX (ignored if all_pools=True)
+            chain_filter: Optional list of chain names to scan
+            all_pools: Scan ALL pools without TVL filter or limit
+            min_tvl: User-specified minimum TVL in USD
+            audit_local: Run Hardhat fork test on each contract after scan
+        """
         all_results = []
         total_pools = 0
 
@@ -264,7 +302,10 @@ class PoolScanner:
             logger.info(f"  {dex_name.upper()} sur {dex_chain}")
             logger.info(f"{'='*60}")
 
-            pools = await self.dex_api.get_top_pools(dex_name, dex_config, limit=top_n)
+            pools = await self.dex_api.get_top_pools(
+                dex_name, dex_config, limit=top_n,
+                all_pools=all_pools, user_min_tvl=min_tvl
+            )
             if not pools:
                 logger.info(f"  Aucun pool trouve (min TVL: ${dex_config['min_tvl']:,})")
                 continue
@@ -281,6 +322,21 @@ class PoolScanner:
                 result = await self.analyzer.analyze_pool(pool)
                 if result:
                     all_results.append(result)
+
+                    # LIVE FEEDBACK: print result immediately (ASCII-safe)
+                    verdict = result.get("verdict", "?")
+                    fcount = result["total_findings"]
+                    exploitable = result["exploitable"]
+                    pair_name = f"{pool.token0}-{pool.token1}"
+                    tvl_str = f"${pool.tvl_usd:,.0f}" if pool.tvl_usd > 0 else "$0"
+                    # Encode to ASCII for Windows cp1252 safety
+                    live_line = f"  [LIVE] {pair_name:20s} | {tvl_str:>12s} | " \
+                                f"{fcount:>3d} findings | {exploitable:>3d} exploitables | {verdict}"
+                    print(live_line.encode('ascii', errors='replace').decode('ascii'), flush=True)
+
+                    # Hardhat local audit (systematic)
+                    if audit_local and exploitable > 0:
+                        await self._audit_hardhat(pool, result)
 
                 # Small delay between scans to avoid rate limiting
                 await asyncio.sleep(1)
@@ -317,11 +373,81 @@ class PoolScanner:
             "scan_timestamp": datetime.utcnow().isoformat(),
             "total_scanned": len(results),
             "interesting": [r for r in results if r["verdict"].startswith("INTERESSANT")],
+            "hardhat_tested": [r for r in results if r.get("hardhat_confirmed") is not None],
+            "hardhat_confirmed": [r for r in results if r.get("hardhat_confirmed")],
             "results": results,
         }
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), path), "w") as f:
             json.dump(output, f, indent=2, default=str)
         logger.info(f"[SAVE] {len(results)} resultats dans {path}")
+
+    async def _audit_hardhat(self, pool: PoolInfo, pipeline_result: dict):
+        """Run systematic Hardhat fork test on a scanned pool.
+
+        Skips standard clones (false positives) and contracts with 0 balance.
+        Prints live feedback.
+        """
+        # Skip known false positives
+        verdict = pipeline_result.get("verdict", "")
+        if "FAUX_POSITIF" in verdict:
+            print(f"  [HARDHAT] SKIP: faux positif standard ({verdict})", flush=True)
+            return
+
+        # Lazy-init Hardhat tester
+        if self._hardhat_tester is None:
+            print(f"  [HARDHAT] Initializing Hardhat fork tester...", flush=True)
+            self._hardhat_tester = HardhatForkTester(api_key=self.api_key)
+            # Check availability once
+            self._hardhat_available = await self._hardhat_tester._check_hardhat()
+            if not self._hardhat_available:
+                print(f"  [HARDHAT] NOT AVAILABLE — install Hardhat: npm install -g hardhat", flush=True)
+                return
+            # Pre-compile contracts
+            print(f"  [HARDHAT] Pre-compiling exploit contracts...", flush=True)
+            ok = await self._hardhat_tester._compile_contracts()
+            if not ok:
+                print(f"  [HARDHAT] Compilation FAILED — skipping all audits", flush=True)
+                self._hardhat_available = False
+                return
+            print(f"  [HARDHAT] Ready.", flush=True)
+
+        if not self._hardhat_available:
+            return
+
+        pair_name = f"{pool.token0}-{pool.token1}"
+        # ASCII-safe pair name
+        pair_name_ascii = pair_name.encode('ascii', errors='replace').decode('ascii')
+        print(f"\n{'~' * 50}", flush=True)
+        print(f"  [HARDHAT AUDIT] {pair_name_ascii} | ${pool.tvl_usd:,.0f} | "
+              f"{pipeline_result['exploitable']} exploitables", flush=True)
+        print(f"  [HARDHAT] Forking {pool.chain_name} at latest block...", flush=True)
+
+        try:
+            result = await asyncio.wait_for(
+                self._hardhat_tester.test_contract(pool.address, pool.chain_id),
+                timeout=240
+            )
+
+            if result.confirmed:
+                print(f"  [!!!] HARDHAT EXPLOIT CONFIRMED: {result.drained:.6f} native drained!", flush=True)
+                print(f"  [!!!] EVIDENCE: {result.evidence[:300]}", flush=True)
+                pipeline_result["hardhat_confirmed"] = True
+                pipeline_result["hardhat_drained"] = result.drained
+                pipeline_result["hardhat_evidence"] = result.evidence[:1000]
+            else:
+                drain_info = f" (drained {result.drained:.6f})" if result.drained > 0 else ""
+                print(f"  [HARDHAT] NOT exploitable{drain_info}: {result.evidence[:120]}", flush=True)
+                pipeline_result["hardhat_confirmed"] = False
+                pipeline_result["hardhat_evidence"] = result.evidence[:500]
+
+        except asyncio.TimeoutError:
+            print(f"  [HARDHAT] TIMEOUT after 240s", flush=True)
+            pipeline_result["hardhat_confirmed"] = False
+            pipeline_result["hardhat_evidence"] = "Timeout"
+        except Exception as e:
+            print(f"  [HARDHAT] Error: {e}", flush=True)
+            pipeline_result["hardhat_confirmed"] = False
+            pipeline_result["hardhat_evidence"] = str(e)[:200]
 
     async def close(self):
         await self.analyzer.close()
@@ -339,11 +465,19 @@ async def main_async(args):
         logger.info("[DAEMON] Mode boucle 30min demarre")
         try:
             while True:
-                results = await scanner.scan_all(top_n=args.top)
+                results = await scanner.scan_all(
+                    top_n=0 if args.all else args.top,
+                    all_pools=args.all,
+                    min_tvl=args.min_tvl,
+                    audit_local=args.audit_local,
+                )
                 scanner.save_results(results)
                 if results:
                     interesting = [r for r in results if r["verdict"].startswith("INTERESSANT")]
-                    if interesting:
+                    hardhat_ok = [r for r in results if r.get("hardhat_confirmed")]
+                    if hardhat_ok:
+                        logger.critical(f"[!!!] {len(hardhat_ok)} EXPLOIT(S) CONFIRME(S) PAR HARDHAT !")
+                    elif interesting:
                         logger.critical(f"[!!!] {len(interesting)} pool(s) interessant(s) trouve(s)!")
                 logger.info(f"[DAEMON] Prochain scan dans 30min...")
                 await asyncio.sleep(1800)  # 30 minutes
@@ -353,8 +487,25 @@ async def main_async(args):
             logger.info("[DAEMON] Interrompu par utilisateur")
     else:
         chain_filter = args.chains.split(",") if args.chains else None
-        results = await scanner.scan_all(top_n=args.top, chain_filter=chain_filter)
+        results = await scanner.scan_all(
+            top_n=0 if args.all else args.top,
+            chain_filter=chain_filter,
+            all_pools=args.all,
+            min_tvl=args.min_tvl,
+            audit_local=args.audit_local,
+        )
         scanner.save_results(results)
+
+        # Final Hardhat summary
+        if args.audit_local:
+            hardhat_ok = [r for r in results if r.get("hardhat_confirmed")]
+            hardhat_no = [r for r in results if r.get("hardhat_confirmed") is False]
+            if hardhat_ok:
+                logger.critical(f"\n[!!!] {len(hardhat_ok)} EXPLOIT(S) CONFIRME(S) PAR HARDHAT !")
+                for r in hardhat_ok:
+                    logger.critical(f"  {r['pair']}: {r.get('hardhat_drained', 0):.6f} drained")
+            if hardhat_no:
+                logger.info(f"[HARDHAT] {len(hardhat_no)} contracts tested — NOT exploitable")
 
     await scanner.close()
 
@@ -365,7 +516,13 @@ def main():
         description="Pool Scanner — Trouve et scanne les pools DEX avec TVL"
     )
     parser.add_argument("--top", "-n", type=int, default=5,
-                        help="Nombre de pools par DEX (defaut: 5)")
+                        help="Nombre de pools par DEX (defaut: 5, ignore avec --all)")
+    parser.add_argument("--all", "-a", action="store_true",
+                        help="Scan ABSOLUMENT TOUS les pools (pas de filtre TVL, pas de limite)")
+    parser.add_argument("--min-tvl", "-t", type=float, default=0,
+                        help="TVL minimum en USD (ex: --min-tvl 1000000 pour $1M+)")
+    parser.add_argument("--audit-local", "-l", action="store_true",
+                        help="Lancer un test Hardhat fork systematique sur CHAQUE contrat scanne")
     parser.add_argument("--chains", "-c", default=None,
                         help="Chaines (ex: polygon,optimism,bsc)")
     parser.add_argument("--daemon", "-d", action="store_true",
