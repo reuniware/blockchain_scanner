@@ -94,8 +94,17 @@ Scan DEX pools with TVL via DEX Screener API. Supports BSC (PancakeSwap, Thena),
 | Command | Description |
 |:---|:---|
 | `python pool_scanner.py` | Scan top 5 pools per DEX across all chains |
+| `python pool_scanner.py --all` | **Scan ALL pools** — no TVL filter, no limit |
+| `python pool_scanner.py --all --audit-local` | All pools + systematic Hardhat fork test on each |
+| `python pool_scanner.py --min-tvl 1000000` | Only pools with TVL >= $1M |
 | `python pool_scanner.py --chains bsc` | Scan BSC pools only (PancakeSwap, Thena) |
 | `python pool_scanner.py --daemon` | Continuous mode — re-scan every 30 minutes |
+
+**New modes:**
+- `--all` / `-a` : Scan EVERY pool returned by DEX Screener (no TVL filter, no count limit)
+- `--min-tvl X` / `-t X` : Only scan pools with TVL >= $X USD
+- `--audit-local` / `-l` : Run Hardhat fork test on every scanned contract with exploitable findings
+- **Live feedback**: Each pool result is printed immediately with `[LIVE]` tag and verdict
 
 ### Examples
 

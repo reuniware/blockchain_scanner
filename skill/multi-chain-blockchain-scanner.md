@@ -243,8 +243,11 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 5. scan_bsc_recent.py — 100-block BSC deployment scanner
 6. scan_bsc_500.py — 500-block BSC bulk scanner + auto exploit pipeline
 7. pool_scanner.py — DEX pool scanner via DEX Screener (PancakeSwap, Thena on BSC)
-8. All .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
-9. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
+8. pool_scanner.py --all mode — scan ALL pools without filter + live feedback
+9. pool_scanner.py --audit-local — systematic Hardhat fork test on each contract
+10. First --all scan: 136 pools, 126 scanned, 43 INTERESSANTS (Velodrome/Optimism)
+11. All .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
+12. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:
@@ -252,6 +255,21 @@ Scanner finds patterns, not vulnerabilities. Key examples:
 - Nola/Smolcoin/PinLink: 41 exploitables flagged — but all functions behind `onlyOwner`
 - Lido stETH: `delegatecall` flagged as CRITICAL — but it's an intentional EIP-1967 proxy
 - **~85% of findings on audited contracts are false positives**
+
+### Pool Scanner Modes (NEW)
+
+| Flag | Description |
+|:---|:---|
+| `--all` / `-a` | Scan ALL pools returned by DEX Screener (no TVL filter, no count limit) |
+| `--min-tvl X` / `-t X` | Only scan pools with TVL >= $X USD |
+| `--audit-local` / `-l` | Run Hardhat fork test on each scanned contract with exploitable findings |
+| `--top N` / `-n N` | Max pools per DEX (default: 5, ignored with --all) |
+
+**Live feedback**: Each pool result printed immediately with `[LIVE]` tag, verdict, findings count.
+
+**Hardhat integration**: `_audit_hardhat()` method lazy-inits HardhatForkTester, pre-compiles contracts once, then runs fork tests with 240s timeout per contract. Skips standard clones (UniswapV2Pair etc.) automatically.
+
+**First --all scan results (07/06/2026):** 136 pools found, 126 scanned, 43 INTERESSANTS (Velodrome/Optimism), 60 false positives (QuickSwap/Polygon clones).
 
 ### BSC-Specific Scanning Tools
 

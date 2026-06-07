@@ -45,7 +45,32 @@ Deux scanners dédiés BSC pour l'analyse de blocs et de déploiements :
 
 Utilisent `bsc-dataseed1.binance.org` (RPC public gratuit) et l'API Etherscan V2 (chainid=56).
 
-### Résultats Pool Scanner
+### Pool Scanner — Mode --all (07/06/2026)
+
+Premier scan exhaustif de TOUS les pools via `python pool_scanner.py --all` :
+
+| Métrique | Valeur |
+|:---|---|
+| Pools trouvés | **136** |
+| Pools scannés | **126** |
+| Avec findings | **126** |
+| INTERESSANTS | **43** (Velodrome/Optimism surtout) |
+| Faux positifs | **60** (QuickSwap/Polygon — clones UniswapV2Pair) |
+
+**Top pools INTERESSANTS :**
+
+| Pool | DEX | Chaîne | TVL | Findings | Exploitables |
+|:---|---|:---:|:---:|:---:|:---:|
+| alETH-WETH | Velodrome | Optimism | **$2.1M** | 8 | **8** |
+| alUSD-USDC | Velodrome | Optimism | **$1.6M** | 8 | **8** |
+| msETH-WETH | Velodrome | Optimism | **$1.5M** | 8 | **8** |
+| msUSD-USDC | Velodrome | Optimism | **$994k** | 8 | **8** |
+| USD?0-USDC | Velodrome | Optimism | **$567k** | 12 | **10** |
+| VELO-USDC | Velodrome | Optimism | **$470k** | 8 | **8** |
+
+> Tous les pools Velodrome ont comme finding principal `Delegatecall to Variable Address` + Reentrancy. Les pools QuickSwap sont des clones UniswapV2Pair standard (faux positifs).
+
+### Résultats Pool Scanner (session précédente)
 
 | Pool | DEX | Chaîne | TVL | Findings | Verdict |
 |:---|---|:---:|:---:|:---:|:---|
