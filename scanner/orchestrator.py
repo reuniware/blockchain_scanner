@@ -151,9 +151,17 @@ class ScannerOrchestrator:
         # Start event processor
         self._processor_task = asyncio.create_task(self._process_events())
 
-        # Start all scanners in parallel
+        # Start all scanners in parallel (tolerate individual failures)
         start_tasks = [scanner.start() for scanner in self.scanners.values()]
-        await asyncio.gather(*start_tasks)
+        results = await asyncio.gather(*start_tasks, return_exceptions=True)
+        failed = []
+        for chain_key, result in zip(list(self.scanners.keys()), results):
+            if isinstance(result, Exception):
+                logger.error(f"[{chain_key}] Scanner failed to start: {result}")
+                failed.append(chain_key)
+        # Remove failed scanners entirely so they don't block stop()
+        for chain_key in failed:
+            del self.scanners[chain_key]
 
         logger.info(
             f"Orchestrator running: {len(self.scanners)} scanner(s) active"

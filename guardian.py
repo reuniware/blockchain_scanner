@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import os
+import platform
 import signal
 import sqlite3
 import subprocess
@@ -32,6 +33,10 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Optional
+
+# Cross-platform npm/npx commands (Python subprocess doesn't resolve .cmd on Windows)
+_NPM = "npm.cmd" if platform.system() == "Windows" else "npm"
+_NPX = "npx.cmd" if platform.system() == "Windows" else "npx"
 
 import yaml
 
@@ -457,7 +462,7 @@ main().catch(e => {{
         """Check if Hardhat (npx hardhat) is available."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "npx", "hardhat", "--version",
+                _NPX, "hardhat", "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -552,7 +557,7 @@ module.exports = {
             if not os.path.exists(node_modules):
                 logger.info(f"[HARDHAT] Installing deps in {work_dir[:50]}...")
                 install_proc = await asyncio.create_subprocess_exec(
-                    "npm", "install", "--no-audit", "--no-fund",
+                    _NPM, "install", "--no-audit", "--no-fund",
                     cwd=work_dir,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
@@ -562,7 +567,7 @@ module.exports = {
             # Step 5: Run the exploit test
             logger.info(f"[HARDHAT] Running exploit test for {contract_addr[:14]}..")
             test_proc = await asyncio.create_subprocess_exec(
-                "npx", "hardhat", "run", "test_exploit.js",
+                _NPX, "hardhat", "run", "test_exploit.js",
                 cwd=work_dir,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
