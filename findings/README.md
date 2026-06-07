@@ -21,6 +21,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | **CampaignWrapper** (`0x8a56c6be..`) | Ethereum | 8 (7 HIGH, 1 MED) | **7/8** | Pattern validé ✅ | [Détail](campaign_wrapper.md) |
 | **CZ Token** (`0xfe61a573..`) | BSC | 0 | - | - | Token standard |
 | **Token** (`0xff9a0457..`) | BSC | 0 | - | - | Token standard |
+| **DigitalToken** (`0xab1e5f6b..`) | BSC | 0 | - | - | Token standard (BSC scan 100 blocs) |
 | **WETH9** (`0xc02aaa39..`) | Ethereum | 2 (1 HIGH, 1 MED) | 1/2 | Faux positif | CEI respecté |
 | **DAI** (`0x6b175474..`) | Ethereum | 0 | - | - | Propre |
 | **USDC** (`0xa0b86991..`) | Ethereum | 0 | - | - | Propre |

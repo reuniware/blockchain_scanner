@@ -47,6 +47,8 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 
 ## Binance Smart Chain (Chain ID: 56)
 
+### Session précédente (scan scanner live)
+
 | Date | Contrat | Type | Findings | Exploitables | Notes |
 |:---|---|:---:|:---:|:---:|:---|
 | Juin 2026 | **Token** (`0xff9a0457..ed4c`) | BEP-20 | 0 | 0 | Token standard |
@@ -55,14 +57,39 @@ Tous les contrats analysés par le scanner de vulnérabilités, classés par cha
 | Juin 2026 | `0x4e5356ef..5b5` | - | - | - | Non vérifié |
 | Juin 2026 | `0x84858cd7..c69` | - | - | - | Non vérifié |
 
+### Nouveaux déploiements (RPC scan 100 blocs, blocks #102853963-#102854063)
+
+| Contrat | Type | Statut | Findings | Verdict |
+|:---|---|:---:|:---:|:---:|
+| **DigitalToken** (`0xab1e5f6b6edd6e22ade9ed2991603605bdd47b60`) | BEP-20 | ✅ Vérifié | 0 | Token standard — propre |
+| `0x0a1f2e243a13bb7e7ebe2cd54189fc4a135b6a9c` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x24f58cdacbea2364a305d34f577879261c26b67b` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x702fc0d67ea19246ea7c738ad822aee2c1d4c24b` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x8b5e2e5ea32a4b1758249276eb3a46bec6a21b05` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x61b6e994cbae86f4a581c7dc2dcdf050d01dbc5f` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x3438253b7658aa505c0e219dbaa97e8f93e67b24` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x42d08748e7765da3475d1deadf47d7bd971af777` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x624199ddd14e8b4833d77b2b98cf3232515d8c6b` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0xe32c22365651670eafcc13d0bbad8020d52341d3` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x806b9f7abfe467773cfa2afe2474a3d16ad58cbb` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0xf8879091bc400f099917f52697238e4b87dae165` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x581e4a7b7fba3edd797be81b8aa15660c4fabe64` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0xa9f0b762625cb8a9a7267f72e5c4863e3b6775a6` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0xd692926352b4fc038a39c966fdf960cbc7609a22` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0xee7a0995b6733fc5ac9d0ce87be265e044b07201` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x2fc2c8c587febf8c9166389a23631c3243418e92` | - | ❌ Non vérifié | - | Impossible d'analyser |
+| `0x6a4532c684d6821bad13ef8434d4caba70510261` | - | ❌ Non vérifié | - | Impossible d'analyser |
+
+**Résultat :** 1 vérifié (DigitalToken — propre) + 17 non vérifiés = même problème que sur Ethereum.
+
 ## Statistiques globales
 
 | Métrique | Valeur |
 |:---|---:|
-| Total contrats scannés | ~25 |
+| Total contrats scannés | ~45 |
 | Contrats vérifiés avec findings | 2 (WETH9, CampaignWrapper) |
-| Contrats non vérifiés (analysables) | 10 (ETH) + 3 (BSC) |
-| Nouveaux déploiements (non vérifiés) | 10 |
+| Contrats non vérifiés (analysables) | 10 (ETH) + 20 (BSC) |
+| Nouveaux déploiements (non vérifiés) | 10 (ETH) + 17 (BSC) = 27 |
 | Findings totaux | 10 |
 | Exploitables (théoriques) | 8 |
 | Exploitables (empiriques) | ✅ Reentrancy CEI validée |
