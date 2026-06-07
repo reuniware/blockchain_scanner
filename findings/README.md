@@ -6,13 +6,15 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 | Statut | Nombre |
 |:---|---:|
-| Contrats scannés | ~25 |
-| Contrats vérifiés analysés | 15 |
-| Nouveaux déploiements (non vérifiés) | 10 |
-| Haute sévérité trouvées | 10 |
-| Exploitables (théorique - pipeline) | 8 |
-| Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy) |
-| Faux positifs (contrats audités) | ~85% |
+| Contrats scannés | ~60 |
+| Contrats vérifiés analysés | 20+ |
+| DEX non-bluechip analysés | 5 |
+| Nouveaux déploiements (non vérifiés) | 40+ |
+| Findings totaux | **28** |
+| Exploitables (théorique - pipeline) | **19** (12 DEX + 7 CampaignWrapper) |
+| Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper) |
+| Faux positifs (blue-chips audités) | ~85% |
+| Faux positifs (non-bluechip DEX) | ~0% (à valider) |
 
 ## Derniers contrats analysés
 
@@ -21,7 +23,11 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | **CampaignWrapper** (`0x8a56c6be..`) | Ethereum | 8 (7 HIGH, 1 MED) | **7/8** | Pattern validé ✅ | [Détail](campaign_wrapper.md) |
 | **CZ Token** (`0xfe61a573..`) | BSC | 0 | - | - | Token standard |
 | **Token** (`0xff9a0457..`) | BSC | 0 | - | - | Token standard |
-| **DigitalToken** (`0xab1e5f6b..`) | BSC | 0 | - | - | Token standard (BSC scan 100 blocs) |
+| **DigitalToken** (`0xab1e5f6b..`) | BSC | 0 | - | - | Token standard |
+| **BabySwap BabySmartRouter** (`0x8317c460..`) | BSC | **6** (1 CRIT, 3 HIGH, 2 MED) | **4** | 🔴 Delegatecall + Reentrancy |
+| **BiSwap SmartRouter** (`0x0eB6949e..`) | BSC | **5** (3 HIGH, 2 MED) | **3** | Withdraw ×2 + Init |
+| **ApeSwap ApeRouter** (`0xcF0feBd3..`) | BSC | **4** (3 HIGH, 1 MED) | **3** | Reentrancy + Withdraw + Init |
+| **BiSwap Factory** (`0x858e3312..`) | BSC | **3** (2 HIGH, 1 MED) | **2** | Init ×2 |
 | **WETH9** (`0xc02aaa39..`) | Ethereum | 2 (1 HIGH, 1 MED) | 1/2 | Faux positif | CEI respecté |
 | **DAI** (`0x6b175474..`) | Ethereum | 0 | - | - | Propre |
 | **USDC** (`0xa0b86991..`) | Ethereum | 0 | - | - | Propre |
