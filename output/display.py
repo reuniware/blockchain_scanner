@@ -5,12 +5,34 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Any, Optional
 
 from scanner.base import TransactionEvent
 
 logger = logging.getLogger("scanner.display")
+
+
+_last_beep_time: float = 0.0
+
+
+def _beep(force: bool = False) -> None:
+    """Emit a system beep (non-blocking, cross-platform, rate-limited).
+
+    Args:
+        force: If True, bypasses the 2-second rate limit.
+    """
+    global _last_beep_time
+    now = time.monotonic()
+    if not force and now - _last_beep_time < 2.0:  # Max 1 beep per 2 seconds
+        return
+    _last_beep_time = now
+    try:
+        # ASCII bell character — non-blocking, works on all platforms
+        print("\a", end="", flush=True)
+    except Exception:
+        pass
 
 # Try to import Rich
 try:
@@ -140,6 +162,10 @@ class DisplayManager:
         if self.format == "json":
             await self._write_json(event)
 
+        # System beep for noteworthy events
+        if event.event_type in ("transfer", "transaction", "mempool"):
+            _beep()
+
         if self.format in ("rich", "both") and self.console:
             self._display_rich(event)
 
@@ -257,6 +283,10 @@ class DisplayManager:
 
     async def show_verification(self, event: TransactionEvent) -> None:
         """Re-display an event with updated verification info."""
+        # Double beep for verification results (more urgent)
+        _beep(force=True)
+        _beep(force=True)
+
         if self.format in ("rich", "both") and self.console:
             c_addr = event.contract_address or ""
             c_short = f"{c_addr[:10]}..{c_addr[-4:]}" if len(c_addr) > 14 else c_addr

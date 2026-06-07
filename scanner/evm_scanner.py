@@ -7,6 +7,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any, Optional
 
+import httpx
 from web3 import AsyncWeb3
 from web3.providers.persistent import WebSocketProvider
 
@@ -15,7 +16,7 @@ from scanner.base import BaseScanner, TransactionEvent
 logger = logging.getLogger("scanner.evm")
 
 # ERC-20 Transfer event signature hash
-ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4b11628f55a4df523b3ef"
+ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 
 class EVMScanner(BaseScanner):
@@ -51,6 +52,15 @@ class EVMScanner(BaseScanner):
             return None
         return int(value * 10**18)
 
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """Get or create the HTTP client for RPC calls (separate from WebSocket)."""
+        if not hasattr(self, '_http_client') or self._http_client is None:
+            self._http_client = httpx.AsyncClient(
+                timeout=30.0,
+                headers={"Content-Type": "application/json"},
+            )
+        return self._http_client
+
     async def _connect(self) -> AsyncWeb3:
         """Connect to the EVM node via WebSocket (web3.py v7 persistent connection)."""
         if not self.rpc_ws:
@@ -75,6 +85,11 @@ class EVMScanner(BaseScanner):
         logger.info(
             f"[{self.name}] Connected - Chain ID: {chain_id}, Block: #{block_num}"
         )
+
+        # Pre-create HTTP client for log fetching (separate from WebSocket)
+        self.rpc_http = self.config.get("rpc_http", "")
+        await self._get_http_client()
+
         return self.w3
 
     async def _subscribe(self) -> None:
@@ -201,19 +216,95 @@ class EVMScanner(BaseScanner):
             block_hash=block.get("hash", ""),
             event_type="block",
             data={
-                "timestamp": block.get("timestamp"),                    "tx_count": len(block.get("transactions", [])),
+                "timestamp": block.get("timestamp"),
+                "tx_count": len(block.get("transactions", [])),
                 "gas_used": block.get("gasUsed"),
                 "gas_limit": block.get("gasLimit"),
             },
         )
         await self.emit_async(event)
 
-    async def _fetch_logs_for_block(self, block_number: int) -> None:
-        """Fetch Transfer event logs for a given block (used in polling fallback).
+        # Fallback: fetch Transfer events via eth_getLogs over HTTP.
+        # Uses a separate HTTP connection (not the WebSocket) to avoid
+        # interfering with the subscription stream.
+        # Queries a range of recent blocks for better coverage:
+        # [block_num - 4, block_num - 1] (skips current unindexed block)
+        if self.rpc_http and "Transfer" in self.tracked_events:
+            # Query only the most recent fully-indexed block to avoid overlap
+            to_block = block_num - 1
+            from_block = max(to_block, 1)  # Single block query
+            if from_block <= to_block:
+                task = asyncio.create_task(
+                    self._fetch_logs_http(from_block, to_block)
+                )
+                task.add_done_callback(
+                    lambda t: self._tasks.remove(t) if t in self._tasks else None
+                )
+                self._tasks.append(task)
 
-        Note: Most free public nodes (PublicNode.com) do NOT support eth_getLogs.
-        This method silently handles the error so polling continues uninterrupted.
-        Transfer events on BSC require a paid RPC provider (Alchemy/QuickNode).
+    async def _fetch_logs_http(self, from_block: int, to_block: int) -> None:
+        """Fetch event logs via HTTP RPC and filter for Transfer events client-side.
+
+        Infura's free tier blocks eth_getLogs with address/topic filters.
+        We query ALL logs for the block range and let _handle_log filter
+        only ERC-20 Transfer events via topic comparison.
+        """
+        if not self.rpc_http:
+            return
+        if hasattr(self, '_logs_http_failed'):
+            return
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getLogs",
+            "params": [{
+                "fromBlock": hex(from_block),
+                "toBlock": hex(to_block),
+            }],
+            "id": from_block,
+        }
+
+        try:
+            client = await self._get_http_client()
+            resp = await client.post(self.rpc_http, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if data.get("error"):
+                err_msg = str(data.get("error", {}))
+                if "dedicated full node" in err_msg:
+                    self._logs_http_failed = True
+                    logger.info(f"[{self.name}] eth_getLogs requires a dedicated RPC node.")
+                return
+
+            log_entries = data.get("result", [])
+            if not log_entries:
+                return
+
+            # Process logs — _handle_log filters by Transfer topic internally
+            # Cap at 1000 to avoid overwhelming the event loop (~1.3 blocks worth)
+            for log_entry in log_entries[:1000]:
+                await self._handle_log(log_entry)
+
+            logger.info(
+                f"[{self.name}] Processed {min(len(log_entries), 1000)}/{len(log_entries)} logs "
+                f"(blocks #{from_block}-#{to_block})"
+            )
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                await asyncio.sleep(1.0)
+            return
+        except (httpx.TimeoutException, httpx.ConnectError):
+            return
+        except Exception as e:
+            logger.debug(f"[{self.name}] eth_getLogs HTTP error: {e}")
+
+    async def _fetch_logs_for_block(self, block_number: int) -> None:
+        """Fetch Transfer event logs for a given block via WebSocket make_request.
+
+        Used ONLY in polling mode where there's no subscription stream to
+        interfere with. In subscription mode, _fetch_logs_http is used instead.
         """
         if not self.w3 or "Transfer" not in self.tracked_events:
             return
@@ -235,7 +326,7 @@ class EVMScanner(BaseScanner):
                 if isinstance(logs_resp, dict) and logs_resp.get("error"):
                     self._logs_not_supported = True
                     logger.info(
-                        f"[{self.name}] eth_getLogs not supported on this provider. "
+                        f"[{self.name}] eth_getLogs not supported. "
                         "Transfer events will not be detected in polling mode."
                     )
                     return
@@ -258,6 +349,16 @@ class EVMScanner(BaseScanner):
                     continue
                 self._logs_not_supported = True
                 logger.debug(f"[{self.name}] eth_getLogs unavailable: {e}")
+
+    async def _disconnect(self) -> None:
+        """Close the HTTP client on disconnect."""
+        if hasattr(self, '_http_client') and self._http_client is not None:
+            try:
+                await self._http_client.aclose()
+            except Exception:
+                pass
+            self._http_client = None
+        await super()._disconnect()
 
     async def _poll_blocks(self) -> None:
         """Fallback: poll for new blocks using raw RPC calls.
@@ -422,32 +523,62 @@ class EVMScanner(BaseScanner):
         if not topics:
             return
 
+        # Deduplication: skip if we already processed this log
+        tx_hash = log.get("transactionHash", "")
+        log_index = log.get("logIndex", "")
+        log_key = f"{tx_hash}:{log_index}"
+        if hasattr(self, '_seen_logs') and log_key in self._seen_logs:
+            return
+        if not hasattr(self, '_seen_logs'):
+            self._seen_logs: set[str] = set()
+        self._seen_logs.add(log_key)
+        if len(self._seen_logs) > 10000:
+            self._seen_logs.clear()
+
         # Check if this is an ERC-20 Transfer event
-        if topics[0] == ERC20_TRANSFER_TOPIC:
+        # Topics can be str (raw) or HexBytes (formatted) in web3.py v7
+        topic0 = topics[0]
+        if isinstance(topic0, str):
+            match = topic0.lower() == ERC20_TRANSFER_TOPIC.lower()
+        else:
+            match = str(topic0) == ERC20_TRANSFER_TOPIC
+
+        if match:
             # Topics are 32-byte hex strings ("0x" + 64 hex chars)
             # The actual address is the last 20 bytes (40 hex chars)
             from_addr = AsyncWeb3.to_checksum_address("0x" + topics[1][-40:]) if len(topics) > 1 else ""
             to_addr = AsyncWeb3.to_checksum_address("0x" + topics[2][-40:]) if len(topics) > 2 else ""
 
             data_hex = log.get("data", "0x0")
+            # data can be HexBytes or str; convert to int safely
+            if hasattr(data_hex, 'hex'):
+                raw_value = int(data_hex.hex(), 16)
+            elif isinstance(data_hex, str):
+                raw_value = int(data_hex, 16) if data_hex.startswith("0x") else int(data_hex, 10)
+            else:
+                raw_value = 0
+
             try:
-                value = int(data_hex, 16) / 1e18
+                value = raw_value / 1e18 if raw_value > 0 else 0
             except (ValueError, TypeError):
                 value = 0
 
             token_addr = log.get("address", "")
 
-            if self.min_value_wei is not None and int(data_hex, 16) < self.min_value_wei:
-                return
-            if self.tracked_tokens and token_addr.lower() not in self.tracked_tokens:
-                return
+            # Note: min_value_wei filter is NOT applied to token transfers
+            # because tokens have different decimal places (6 for USDC, 18 for most)
+            # and the raw value cannot be compared to a wei-based threshold.
+            if self.tracked_tokens:
+                t_addr = token_addr.lower() if isinstance(token_addr, str) else str(token_addr).lower()
+                if t_addr not in self.tracked_tokens:
+                    return
 
             self._stats["txs_matched"] += 1
 
             event = TransactionEvent(
                 chain=self.name,
                 chain_id=self.chain_id,
-                tx_hash=log.get("transactionHash", ""),
+                tx_hash=tx_hash,
                 block_number=log.get("blockNumber"),
                 from_address=from_addr,
                 to_address=to_addr,
@@ -457,7 +588,7 @@ class EVMScanner(BaseScanner):
                 contract_address=token_addr,  # Le token contract (central)
                 data={
                     "token_contract": token_addr,
-                    "log_index": log.get("logIndex"),
+                    "log_index": log_index,
                 },
             )
             await self.emit_async(event)
