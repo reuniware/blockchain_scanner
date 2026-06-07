@@ -172,6 +172,17 @@ Pour la première fois, des contrats réels AVEC FONDS ont été testés localem
 
 ## Binance Smart Chain (Chain ID: 56)
 
+### Outils de scan BSC
+
+| Outil | Description | Commande |
+|:---|---|:---|
+| **`scan_bsc_recent.py`** | Scan 100 blocs récents, détecte les nouveaux déploiements | `python scan_bsc_recent.py` |
+| **`scan_bsc_500.py`** | Scan 500 blocs, vérifie les contrats, lance le pipeline d'exploit | `python scan_bsc_500.py` |
+| **`pool_scanner.py`** | Scan des pools PancakeSwap et Thena via DEX Screener | `python pool_scanner.py --chains bsc` |
+| **`hardhat_fork_tester.py`** | Test d'exploit sur fork BSC (RPC: bsc-dataseed1.binance.org) | `python hardhat_fork_tester.py --chain bsc --address 0x...` |
+
+Tous utilisent `bsc-dataseed1.binance.org` (RPC public gratuit, pas de clé API requise).
+
 ### Session précédente (scan scanner live)
 
 | Date | Contrat | Type | Findings | Exploitables | Notes |

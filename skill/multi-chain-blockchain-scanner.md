@@ -24,6 +24,8 @@ blockchain_scanner/
   exploit_pipeline.py                # Automated vuln validation pipeline (20 types)
   hardhat_fork_tester.py             # Standalone fork testing framework
   pool_scanner.py                    # DEX pool scanner via DEX Screener API
+  scan_bsc_recent.py                 # Scan 100 BSC blocks for new deployments
+  scan_bsc_500.py                    # Scan 500 BSC blocks + auto exploit pipeline
   scanner/
     base.py                          # BaseScanner ABC
     evm_scanner.py                   # EVM chains
@@ -238,8 +240,11 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 2. UniversalExploit.sol — single contract for 18/20 attack types
 3. test_fork_exploit.js — generic fork exploitation script
 4. hardhat_fork_tester.py — Python orchestrator for fork testing
-5. All 5 .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
-6. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
+5. scan_bsc_recent.py — 100-block BSC deployment scanner
+6. scan_bsc_500.py — 500-block BSC bulk scanner + auto exploit pipeline
+7. pool_scanner.py — DEX pool scanner via DEX Screener (PancakeSwap, Thena on BSC)
+8. All .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
+9. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:
@@ -247,6 +252,17 @@ Scanner finds patterns, not vulnerabilities. Key examples:
 - Nola/Smolcoin/PinLink: 41 exploitables flagged — but all functions behind `onlyOwner`
 - Lido stETH: `delegatecall` flagged as CRITICAL — but it's an intentional EIP-1967 proxy
 - **~85% of findings on audited contracts are false positives**
+
+### BSC-Specific Scanning Tools
+
+| Tool | Description | RPC |
+|:---|:---|:---|
+| `scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments | `bsc-dataseed1.binance.org` |
+| `scan_bsc_500.py` | Scan 500 BSC blocks, auto-verify + exploit pipeline | `bsc-dataseed1.binance.org` |
+| `pool_scanner.py` | Scan PancakeSwap/Thena BSC pools via DEX Screener API | Etherscan V2 chainid=56 |
+| `hardhat_fork_tester.py` | Fork BSC at latest block, test exploits | `bsc-dataseed1.binance.org` |
+
+All BSC tools use free public RPC — no API key required for block scanning.
 
 ### Scanning Results by Chain
 | Chain | Contracts | Verified | Balance |

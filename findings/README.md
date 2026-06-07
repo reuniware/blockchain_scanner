@@ -34,6 +34,17 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - **46 findings** : 10 CRITICAL, 25 HIGH, 11 MED — **35 exploitables théoriques**
 - **0 contrat avec solde > 0.001** (même constat : findings sur routeurs à 0 BNB)
 
+### BSC Block Scanners
+
+Deux scanners dédiés BSC pour l'analyse de blocs et de déploiements :
+
+| Script | Description |
+|:---|---|
+| **`scan_bsc_recent.py`** | Scan 100 blocs BSC récents → détection de nouveaux déploiements |
+| **`scan_bsc_500.py`** | Scan 500 blocs BSC → vérification + pipeline d'exploit automatique |
+
+Utilisent `bsc-dataseed1.binance.org` (RPC public gratuit) et l'API Etherscan V2 (chainid=56).
+
 ### Résultats Pool Scanner
 
 | Pool | DEX | Chaîne | TVL | Findings | Verdict |

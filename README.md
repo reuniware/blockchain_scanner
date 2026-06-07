@@ -27,6 +27,9 @@ python main.py
 | `python main.py --chains ethereum,bsc,bitcoin` | Scan specific chains |
 | `python main.py --list-chains` | List configured chains without scanning |
 | `python exploit_pipeline.py --address 0x... --chain ethereum` | Analyze a contract's vulnerabilities |
+| `python scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments |
+| `python scan_bsc_500.py` | Scan 500 BSC blocks + auto-run exploit pipeline on verified contracts |
+| `python pool_scanner.py --chains bsc` | Scan DEX pools on BSC (PancakeSwap, Thena) for vulnerabilities |
 | `cd exploit && npx hardhat run scripts/deploy_and_exploit.js` | Run classic reentrancy attack demo |
 | `cd exploit && npx hardhat run scripts/test_campaign_reentrancy.js` | Run CampaignWrapper CEI reentrancy validation |
 | `cd exploit && npx hardhat run scripts/test_cei_reentrancy.js` | Run combined reentrancy validation suite |
@@ -64,8 +67,35 @@ python main.py
 
 | Command | Description |
 |:---|:---|
+| `python hardhat_fork_tester.py --target 0x... --chain bsc` | Test exploits on a forked BSC contract |
 | `python hardhat_fork_tester.py --target 0x... --chain arbitrum` | Test exploits on a forked contract |
 | `cd exploit && npx hardhat run scripts/test_fork_exploit.js --network hardhat <address> <rpc> <funding>` | Manual fork test |
+
+### BSC Block Scanners (NEW)
+
+Two dedicated scanners for Binance Smart Chain block analysis:
+
+| Command | Description |
+|:---|:---|
+| `python scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments |
+| `python scan_bsc_500.py` | Scan 500 BSC blocks, auto-verify contracts, run exploit pipeline on verified |
+
+These scripts:
+- Fetch blocks via `bsc-dataseed1.binance.org` (free public RPC)
+- Detect contract deployments (`to=null` transactions) via transaction receipts
+- Check verification status via Etherscan V2 API (chainid=56)
+- Auto-run `exploit_pipeline.py` on verified contracts
+- Provide ASCII-safe output for Windows cp1252 terminals
+
+### Pool Scanner (NEW)
+
+Scan DEX pools with TVL via DEX Screener API. Supports BSC (PancakeSwap, Thena), Polygon (QuickSwap), Optimism (Velodrome), Ethereum (Uniswap, SushiSwap, Balancer, Curve).
+
+| Command | Description |
+|:---|:---|
+| `python pool_scanner.py` | Scan top 5 pools per DEX across all chains |
+| `python pool_scanner.py --chains bsc` | Scan BSC pools only (PancakeSwap, Thena) |
+| `python pool_scanner.py --daemon` | Continuous mode — re-scan every 30 minutes |
 
 ### Examples
 
@@ -321,6 +351,8 @@ blockchain_scanner/
   exploit_pipeline.py        # Automated vulnerability validation pipeline
   hardhat_fork_tester.py     # Standalone fork testing framework
   pool_scanner.py            # DEX pool scanner via DEX Screener API
+  scan_bsc_recent.py         # Scan 100 recent BSC blocks for new contracts
+  scan_bsc_500.py            # Scan 500 BSC blocks + auto exploit pipeline
   requirements.txt           # Python dependencies
   .gitignore                 # Git ignore rules
   README.md                  # This file
