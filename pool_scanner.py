@@ -85,23 +85,28 @@ class DEXScreenerAPI:
 
     BASE_URL = "https://api.dexscreener.com/latest/dex"
 
+    def __init__(self):
+        import httpx
+        self._http = httpx.AsyncClient(timeout=15)
+
     async def search_pools(self, query: str, chain_filter: Optional[str] = None) -> list[dict]:
         """Search for pools matching a query (DEX name or token symbol)."""
-        import httpx
-        async with httpx.AsyncClient(timeout=15) as c:
-            url = f"{self.BASE_URL}/search?q={query}"
-            r = await c.get(url)
-            if r.status_code != 200:
-                logger.warning(f"DEX Screener HTTP {r.status_code} for '{query}'")
-                return []
+        url = f"{self.BASE_URL}/search?q={query}"
+        r = await self._http.get(url)
+        if r.status_code != 200:
+            logger.warning(f"DEX Screener HTTP {r.status_code} for '{query}'")
+            return []
 
-            data = r.json()
-            pairs = data.get("pairs", [])
+        data = r.json()
+        pairs = data.get("pairs", [])
 
-            if chain_filter:
-                pairs = [p for p in pairs if p.get("chainId") == chain_filter]
+        if chain_filter:
+            pairs = [p for p in pairs if p.get("chainId") == chain_filter]
 
-            return pairs
+        return pairs
+
+    async def close(self):
+        await self._http.aclose()
 
     async def get_top_pools(self, dex_name: str, dex_config: dict,
                             limit: int = 10) -> list[PoolInfo]:
@@ -164,7 +169,7 @@ class PoolAnalyzer:
 
             # Determine if this is a known standard contract type
             contract_type = report.contract_name
-            is_standard = contract_type in KNOWN_STANDARD_TYPES
+            is_standard = any(t in contract_type for t in KNOWN_STANDARD_TYPES)
 
             result = {
                 "address": pool.address,
@@ -285,30 +290,26 @@ class PoolScanner:
         return all_results
 
     def _print_summary(self, results: list[dict], total_pools: int):
-        """Print a formatted summary of scan results."""
-        print(f"\n{'='*60}")
-        print("  POOL SCANNER — RAPPORT FINAL")
-        print(f"{'='*60}")
-        print(f"\n  Pools trouves: {total_pools}")
-        print(f"  Scannes: {len(results)}")
-        print(f"  Avec findings: {len([r for r in results if r['total_findings'] > 0])}")
+        """Log a formatted summary of scan results."""
+        logger.info(f"{'='*60}")
+        logger.info("  POOL SCANNER — RAPPORT FINAL")
+        logger.info(f"{'='*60}")
+        logger.info(f"  Pools trouves: {total_pools}")
+        logger.info(f"  Scannes: {len(results)}")
+        logger.info(f"  Avec findings: {len([r for r in results if r['total_findings'] > 0])}")
 
         interesting = [r for r in results if r["verdict"].startswith("INTERESSANT")]
         if interesting:
-            print(f"\n  [!!!] POOLS INTERESSANTS ({len(interesting)}):")
+            logger.info(f"  [!!!] POOLS INTERESSANTS ({len(interesting)}):")
             for r in interesting[:10]:
-                print(f"    {r['pair']:20s} | ${r['tvl_usd']:>12,.0f} | "
+                logger.info(f"    {r['pair']:20s} | ${r['tvl_usd']:>12,.0f} | "
                      f"{r['contract_name']:20s} | {r['exploitable']} exploitables")
-                print(f"    {r['address']}")
-                print(f"    {r['dex_url']}")
-                print()
 
         fps = [r for r in results if "FAUX_POSITIF" in r["verdict"]]
         if fps:
-            print(f"\n  [FP] Faux positifs (clones standardises): {len(fps)}")
+            logger.info(f"  [FP] Faux positifs (clones standardises): {len(fps)}")
 
-        print(f"\n  Resultats sauvegardes: pool_scan_results.json")
-        print()
+        logger.info(f"  Resultats sauvegardes: pool_scan_results.json")
 
     def save_results(self, results: list[dict], path: str = "pool_scan_results.json"):
         """Save scan results to JSON file."""
@@ -336,15 +337,20 @@ async def main_async(args):
     if args.daemon:
         # Run in loop every 30 minutes
         logger.info("[DAEMON] Mode boucle 30min demarre")
-        while True:
-            results = await scanner.scan_all(top_n=args.top)
-            scanner.save_results(results)
-            if results:
-                interesting = [r for r in results if r["verdict"].startswith("INTERESSANT")]
-                if interesting:
-                    logger.critical(f"[!!!] {len(interesting)} pool(s) interessant(s) trouve(s)!")
-            logger.info(f"[DAEMON] Prochain scan dans 30min...")
-            await asyncio.sleep(1800)  # 30 minutes
+        try:
+            while True:
+                results = await scanner.scan_all(top_n=args.top)
+                scanner.save_results(results)
+                if results:
+                    interesting = [r for r in results if r["verdict"].startswith("INTERESSANT")]
+                    if interesting:
+                        logger.critical(f"[!!!] {len(interesting)} pool(s) interessant(s) trouve(s)!")
+                logger.info(f"[DAEMON] Prochain scan dans 30min...")
+                await asyncio.sleep(1800)  # 30 minutes
+        except asyncio.CancelledError:
+            logger.info("[DAEMON] Arrete")
+        except KeyboardInterrupt:
+            logger.info("[DAEMON] Interrompu par utilisateur")
     else:
         chain_filter = args.chains.split(",") if args.chains else None
         results = await scanner.scan_all(top_n=args.top, chain_filter=chain_filter)
