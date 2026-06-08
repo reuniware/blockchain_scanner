@@ -78,6 +78,18 @@ class ScannerOrchestrator:
         self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}
         self._scanning_vulns: set[str] = set()
 
+        # Cache of EOA checks (addresses confirmed to have no bytecode)
+        self._eoa_cache: set[str] = set()
+        self._checking_eoa: set[str] = set()
+
+        # Build chain_id -> rpc_http mapping from config for EOA checks
+        self._chain_rpc_map: dict[int, str] = {}
+        for chain_key, chain_cfg in self.chains_config.items():
+            cid = chain_cfg.get("chain_id")
+            rpc = chain_cfg.get("rpc_http", "")
+            if cid and rpc:
+                self._chain_rpc_map[cid] = rpc
+
         # Fire-and-forget tasks (verify, vuln scan) — tracked so they can be
         # cancelled on shutdown instead of leaking.
         self._fire_and_forget: set[asyncio.Task] = set()
@@ -312,6 +324,46 @@ class ScannerOrchestrator:
         finally:
             self._verifying.discard(addr_key)
 
+    async def _is_eoa(self, address: str, chain_id: int) -> bool:
+        """Check if an address is an EOA (not a contract) via eth_getCode.
+
+        Uses the chain's RPC HTTP endpoint to check if the address has
+        any bytecode. If not, it's an EOA and should be skipped to avoid
+        false positive vulnerability scans on externally owned accounts.
+        """
+        addr_key = f"{chain_id}:{address.lower()}"
+        if addr_key in self._eoa_cache:
+            return True
+        if addr_key in self._checking_eoa:
+            return False  # Already checking, assume it's a contract
+
+        rpc_url = self._chain_rpc_map.get(chain_id)
+        if not rpc_url:
+            return False  # No RPC configured, assume contract
+
+        self._checking_eoa.add(addr_key)
+        try:
+            import httpx
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_getCode",
+                "params": [address, "latest"],
+                "id": 1,
+            }
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(rpc_url, json=payload)
+                data = resp.json()
+                code = data.get("result", "0x")
+                is_eoa = (code == "0x" or code == "0x0")
+                if is_eoa:
+                    self._eoa_cache.add(addr_key)
+                return is_eoa
+        except Exception as e:
+            logger.debug(f"[eoa] Error checking {addr_key}: {e}")
+            return False  # On error, assume contract (better to scan than miss)
+        finally:
+            self._checking_eoa.discard(addr_key)
+
     async def _scan_vulnerabilities(self, event: TransactionEvent) -> None:
         """Asynchronously scan a verified contract's source code
         for security vulnerabilities.
@@ -329,6 +381,16 @@ class ScannerOrchestrator:
             return
 
         self._scanning_vulns.add(addr_key)
+
+        # Filter out EOAs (externally owned accounts) — they have no bytecode
+        # and would produce false positive vulnerability detections.
+        # This avoids issues with Etherscan returning metadata for addresses
+        # that are actually EOAs on the current chain (but contracts on others).
+        if await self._is_eoa(event.contract_address, event.chain_id):
+            logger.debug(f"[vuln] {event.contract_address[:10]}.. is EOA, skipping")
+            self._vuln_cache[addr_key] = []
+            self._scanning_vulns.discard(addr_key)
+            return
 
         try:
             # Fetch the full source code
