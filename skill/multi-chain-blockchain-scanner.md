@@ -91,12 +91,17 @@ resp = await w3.provider.make_request("eth_getBlockByNumber", [hex(number), Fals
 block = resp["result"]
 ```
 
-**Shutdown fix:** Always call `provider.disconnect()` before cleanup to prevent `asyncio.queues.QueueFull` from subscription callbacks during shutdown:
+**Shutdown fix:** Always call `provider.disconnect()` before cleanup + **monkey-patch `put_nowait`** on the subscription queue to catch `asyncio.QueueFull` (suppressed during shutdown, logged as warning during normal ops):
 ```python
 async def _disconnect(self):
     if self.w3 and hasattr(self.w3, 'provider'):
         await self.w3.provider.disconnect()  # Stop internal message listener first
     ...
+
+# In _connect(): monkey-patch the queue to survive QueueFull during shutdown
+q = provider._request_processor._subscription_response_queue
+_orig = q.put_nowait
+q.put_nowait = lambda item: _orig(item) if not queue_full else ...
 ```
 
 ## 4. Windows cp1252 Encoding
@@ -266,6 +271,7 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 12. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
 13. Proxy fallback in exploit_pipeline: auto-fetch implementation source for proxy contracts (EIP-1967/UUPS)
 14. WebSocketProvider.disconnect() fix: stops asyncio QueueFull errors on scanner shutdown
+15. Monkey-patch `put_nowait` on web3.py subscription queue: catches QueueFull silently during shutdown, warns if lagging in normal ops
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:

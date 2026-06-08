@@ -73,6 +73,29 @@ class EVMScanner(BaseScanner):
         )
         self.w3 = AsyncWeb3(provider)
 
+        # Monkey-patch the subscription queue to suppress QueueFull during shutdown.
+        # web3.py's _message_listener_callback does put_nowait() on an internal queue
+        # that fills up when the consumer stops. We catch QueueFull only when the
+        # scanner is shutting down; during normal operation we log a warning.
+        if hasattr(provider, '_request_processor'):
+            rp = provider._request_processor
+            if hasattr(rp, '_subscription_response_queue'):
+                q = rp._subscription_response_queue
+                _orig_put = q.put_nowait
+                _scanner = self  # Capture for closure
+                def _safe_put_nowait(item):
+                    try:
+                        _orig_put(item)
+                    except asyncio.QueueFull:
+                        if not _scanner._running:
+                            pass  # Shutdown: safe to discard
+                        else:
+                            logger.warning(
+                                f"[{_scanner.name}] Web3 subscription queue FULL! "
+                                "Scanner may be lagging — events are being lost."
+                            )
+                q.put_nowait = _safe_put_nowait
+
         # Connect (establishes the persistent WebSocket connection)
         await provider.connect()
 

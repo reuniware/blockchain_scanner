@@ -21,7 +21,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 ### 🔧 Changements récents
 - **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies (EIP-1967/UUPS) et fetch automatiquement la source de l'implementation quand `SourceCode` est vide
-- **Fix QueueFull (Shutdown)** : `evm_scanner._disconnect()` appelle `provider.disconnect()` avant le cleanup pour éviter les erreurs `asyncio.queues.QueueFull` au shutdown
+- **Fix QueueFull (Shutdown)** : `evm_scanner._disconnect()` appelle `provider.disconnect()` + **monkey-patch `put_nowait`** pour catcher `QueueFull` silencieusement pendant le shutdown
 - **Fix Hardhat** : Plus de temp ESM projects → utilise `exploit/` dir (CommonJS, déps existantes)
 - **Fix `import re`** : 2 574 échecs Hardhat corrigés (name 're' is not defined)
 - **Nouveau flag `--force-hardhat`** : Teste TOUS les findings exploitables, balance=0 incluse
