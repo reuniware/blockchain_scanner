@@ -38,6 +38,9 @@ from typing import Any, Optional
 _NPM = "npm.cmd" if platform.system() == "Windows" else "npm"
 _NPX = "npx.cmd" if platform.system() == "Windows" else "npx"
 
+# Prevent console windows from popping up on Windows during subprocess calls
+_CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
 import yaml
 
 # Add project root to path
@@ -466,6 +469,7 @@ main().catch(e => {{
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
+                creationflags=_CREATION_FLAGS,
             )
             code = await proc.wait()
             return code == 0
@@ -539,6 +543,7 @@ main().catch(e => {{
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
+                creationflags=_CREATION_FLAGS,
             )
             _, stderr = await asyncio.wait_for(compile_proc.communicate(), timeout=60)
             if compile_proc.returncode != 0:
@@ -554,6 +559,7 @@ main().catch(e => {{
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                creationflags=_CREATION_FLAGS,
             )
             stdout, _ = await asyncio.wait_for(test_proc.communicate(), timeout=120)
 
@@ -1006,9 +1012,9 @@ class Guardian:
                 alive = False
                 try:
                     if sys.platform == "win32":
-                        import subprocess
                         r = subprocess.run(["tasklist", "/FI", f"PID eq {pid_int}"],
-                                          capture_output=True, text=True, timeout=5)
+                                          capture_output=True, text=True, timeout=5,
+                                          creationflags=_CREATION_FLAGS)
                         alive = "python" in r.stdout.lower()
                     else:
                         # Unix/macOS: kill with signal 0 checks if process exists

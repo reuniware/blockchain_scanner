@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import signal
+import subprocess
 import sys
 from typing import Any
 
@@ -28,6 +29,9 @@ import yaml
 from scanner.orchestrator import ScannerOrchestrator
 
 VERSION = "1.0.0"
+
+# Prevent console windows from popping up on Windows during subprocess calls
+_CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 def parse_args() -> argparse.Namespace:
@@ -269,6 +273,7 @@ async def main_async(args: argparse.Namespace) -> None:
                     "--api-key", api_key,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
+                    creationflags=_CREATION_FLAGS,
                 )
                 stdout, _ = await proc.communicate()
                 print(stdout.decode("utf-8", errors="replace"))

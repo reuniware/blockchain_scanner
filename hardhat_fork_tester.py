@@ -44,6 +44,9 @@ RPC_URLS = {
 # Cross-platform npx command
 _NPX = "npx.cmd" if platform.system() == "Windows" else "npx"
 
+# Prevent console windows from popping up on Windows during subprocess calls
+_CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
 CHAIN_NAMES = {
     1: "ethereum", 56: "bsc", 137: "polygon", 42161: "arbitrum",
     10: "optimism", 43114: "avalanche", 8453: "base", 250: "fantom",
@@ -152,6 +155,7 @@ class HardhatForkTester:
                 env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                creationflags=_CREATION_FLAGS,
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
             output = stdout.decode("utf-8", errors="replace")
@@ -202,6 +206,7 @@ class HardhatForkTester:
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
+                creationflags=_CREATION_FLAGS,
             )
             code = await proc.wait()
             return code == 0
@@ -230,6 +235,7 @@ class HardhatForkTester:
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
+                creationflags=_CREATION_FLAGS,
             )
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
             return proc.returncode == 0

@@ -8,6 +8,9 @@ BSC_RPC = "https://bsc-dataseed1.binance.org"
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 API_KEY = "47JTF3MC7RJ24NSZGTIXNT84KFBQDHWY8E"
 
+# Prevent console windows from popping up on Windows during subprocess calls
+_CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
 def _s(text: str) -> str:
     """ASCII-safe output for Windows cp1252."""
     return text.encode('ascii', errors='replace').decode('ascii')
@@ -92,7 +95,8 @@ async def main():
                 try:
                     result = subprocess.run(
                         [sys.executable, "exploit_pipeline.py", "--address", c['address'], "--chain", "bsc"],
-                        capture_output=True, text=True, timeout=60
+                        capture_output=True, text=True, timeout=60,
+                        creationflags=_CREATION_FLAGS,
                     )
                     print(_s(result.stdout))
                 except subprocess.TimeoutExpired:
