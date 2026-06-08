@@ -202,9 +202,13 @@ class SourceCodeVerifier:
         return None
 
     async def get_source_code(
-        self, address: str, chain_id: int
+        self, address: str, chain_id: int, _depth: int = 0
     ) -> Optional[str]:
         """Get the full Solidity source code of a verified contract.
+
+        Auto-redirects to the implementation contract if this is a proxy
+        (EIP-1967, UUPS, TransparentUpgradeableProxy). Handles proxy chains
+        up to 3 levels deep (_depth is internal, do not pass it).
 
         Args:
             address: The contract address.
@@ -216,6 +220,19 @@ class SourceCodeVerifier:
         info = await self.get_contract_info(address, chain_id)
         if not info:
             return None
+
+        # Auto-redirect proxy → implementation (avoid scanning OZ boilerplate)
+        proxy_type = info.get("Proxy", "0")
+        impl_addr = info.get("Implementation", "")
+        if proxy_type != "0" and impl_addr and _depth < 3:
+            logger.info(
+                f"[verify] Proxy {address[:10]}.. → implementation {impl_addr[:10]}.."
+            )
+            return await self.get_source_code(impl_addr, chain_id, _depth + 1)
+        elif proxy_type != "0" and impl_addr:
+            logger.warning(
+                f"[verify] Proxy chain too deep (depth={_depth}) for {address[:10]}.. — stopping"
+            )
 
         source = info.get("SourceCode", "")
         if not source or not source.strip():

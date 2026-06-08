@@ -273,6 +273,7 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 14. WebSocketProvider.disconnect() fix: stops asyncio QueueFull errors on scanner shutdown
 15. Monkey-patch `put_nowait` on web3.py subscription queue: catches QueueFull silently during shutdown, warns if lagging in normal ops
 16. Track fire-and-forget tasks (_verify_contract, _scan_vulnerabilities) in orchestrator — properly cancelled on shutdown (no more task leaks)
+17. Auto-redirect proxy→implementation in verify.py (recursive depth 3) + exploit_pipeline.py — eliminates OZ boilerplate false positives
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:
