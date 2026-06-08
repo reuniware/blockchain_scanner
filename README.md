@@ -59,9 +59,13 @@ python main.py
 
 | Command | Description |
 |:---|:---|
-| `python guardian.py` | Start the 24/7 guardian scanner |
+| `python guardian.py` | Start the 24/7 guardian scanner (6 EVM chains) |
+| `python guardian.py --chains ethereum,bsc` | Scan specific chains only |
+| `python guardian.py --force-hardhat` | Force Hardhat validation on ALL findings (balance=0 included) |
 | `python guardian.py --status` | Show DB stats (contracts, findings, balance) |
 | `python guardian.py --health` | Check if guardian process is running |
+| `bash run_forever.sh` | Auto-restart loop (infinite, logs, no git push) |
+| `python dump_results.py` | Export DB stats to findings/scanned_contracts.md |
 
 ### Fork tester
 
@@ -262,20 +266,20 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 - The state update happens AFTER the external call, so the check passes multiple times
 - Each recursive call drains another full refund amount
 
-### Guardian 24/7 Stats (as of 07/06/2026)
+### Guardian 24/7 Stats (as of 08/06/2026)
 
 | Metric | Value |
 |:---|---|
-| Contracts in DB | **2 340** |
-| Verified contracts | **463** |
-| Total findings | **1 307** |
-| Exploitable (pipeline) | **857** |
-| Contracts with balance > 0 | **19** (264.74 total native) |
-| Hardhat fork tests | **853** (all failed — automated testing not configured) |
+| Contracts in DB | **21 839** |
+| Verified contracts | **901** |
+| Total findings | **4 471** |
+| Exploitable (pipeline) | **2 866** |
+| Hardhat tests run | **18** (configured via `exploit/` dir) |
 | Confirmed exploits | **0** |
-| Pending Hardhat tests | **4** |
+| Pending Hardhat tests | **2 848** (force mode: testing all regardless of balance) |
+| Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
-> **Key finding:** 100% of contracts with balance > 0 are ERC20 memecoins protected by OpenZeppelin `Ownable`. All critical functions are behind `onlyOwner` — the scanner detects code patterns but doesn't understand access control context.
+> **Key finding:** Scanner now tests ALL exploitable findings with `--force-hardhat`, including zero-balance contracts. The periodic task (every 120s) re-audits existing contracts. Auto-restart via `run_forever.sh`.
 
 ### Bitcoin mempool tracking
 - Connects to mempool.space WebSocket for real-time unconfirmed transactions

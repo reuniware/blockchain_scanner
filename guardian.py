@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import platform
+import re
 import signal
 import sqlite3
 import subprocess
@@ -627,7 +628,7 @@ class Guardian:
       - Validates exploitable findings via HardhatValidator
     """
 
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", force_hardhat: bool = False):
         self.config_path = config_path
         self.config = self._load_config()
         self.db = FindingsDB()
@@ -636,6 +637,8 @@ class Guardian:
         self.running = False
         self.stop_event = asyncio.Event()
         self._exploit_pipeline: Optional[ExploitPipeline] = None
+        self.force_hardhat = force_hardhat
+        self._hardhat_task: Optional[asyncio.Task] = None
 
         # Stats (cumulative across runs)
         self.stats = {
@@ -761,9 +764,10 @@ class Guardian:
             if found_exploitable:
                 self.db.upsert_contract(contract)
 
-            # Auto-validate on Hardhat if exploitable AND has balance
-            if found_exploitable and contract.bnb_balance > 0.001:
-                logger.info(f"[HARDHAT] Auto-validating on {contract.bnb_balance:.4f} native tokens...")
+            # Auto-validate on Hardhat if exploitable (in force mode, skip balance check)
+            if found_exploitable and (self.force_hardhat or contract.bnb_balance > 0.001):
+                bal_info = f"bal={contract.bnb_balance:.4f}" if contract.bnb_balance > 0 else "bal=0 (forced)"
+                logger.info(f"[HARDHAT] Auto-validating ({bal_info})...")
                 results = await self.hardhat.validate_all_pending()
                 for r in results:
                     if r["result"] == "CONFIRMED":
@@ -789,15 +793,17 @@ class Guardian:
                             f.write(f"\nEvidence: {r['evidence']}")
                             f.write(f"\n{'='*60}\n")
             elif found_exploitable:
-                logger.info(f"[HARDHAT] Skipping validation: balance = {contract.bnb_balance:.4f} (< 0.001)")
+                logger.info(f"[HARDHAT] Skipping: balance={contract.bnb_balance:.4f} (< 0.001, use --force-hardhat to override)")
 
-    async def start(self, target_chains: list[str] | None = None):
+    async def start(self, target_chains: list[str] | None = None, force_hardhat: bool = False):
         """Start the guardian — runs forever until interrupted.
         
         Args:
             target_chains: Optional list of chain keys to scan (e.g. ['bsc']).
                            If None, all enabled chains in config are used.
+            force_hardhat: If True, validates ALL exploitable findings regardless of balance.
         """
+        self.force_hardhat = force_hardhat
         logger.info("=" * 60)
         logger.info("  GUARDIAN — Usine de detection automatisee 24/7")
         logger.info("=" * 60)
@@ -805,6 +811,8 @@ class Guardian:
         logger.info(f"  Demarrage: {datetime.utcnow().isoformat()}")
         if target_chains:
             logger.info(f"  Chaines ciblees: {', '.join(target_chains)}")
+        if force_hardhat:
+            logger.info("  [FORCE] Hardhat force mode: testing ALL exploitable findings (balance=0 included)")
         logger.info("=" * 60)
 
         self.stats["started_at"] = datetime.utcnow().isoformat()
@@ -856,6 +864,24 @@ class Guardian:
 
         stats_task = asyncio.create_task(show_stats())
 
+        # Periodic Hardhat validation (tests existing contracts in DB every 2 min)
+        async def hardhat_loop():
+            while self.running:
+                await asyncio.sleep(120)
+                pending = self.db.get_exploitable_not_tested()
+                if pending:
+                    logger.info(f"[HARDHAT] Periodic: {len(pending)} findings pending, starting validation...")
+                    try:
+                        results = await self.hardhat.validate_all_pending()
+                        for r in results:
+                            if r["result"] == "CONFIRMED":
+                                self.stats["exploits_confirmed"] += 1
+                                logger.critical(f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. via {r['finding']}!")
+                    except Exception as e:
+                        logger.error(f"[HARDHAT] Periodic validation error: {e}")
+
+        self._hardhat_task = asyncio.create_task(hardhat_loop())
+
         try:
             # Wait FOREVER — no stop on vulnerability!
             logger.info("[GUARDIAN] Running. Press Ctrl+C to stop.")
@@ -864,6 +890,8 @@ class Guardian:
             logger.info("Keyboard interrupt received...")
         finally:
             stats_task.cancel()
+            if self._hardhat_task:
+                self._hardhat_task.cancel()
             await self.stop()
 
     async def stop(self):
@@ -872,6 +900,8 @@ class Guardian:
         self.running = False
         self.stop_event.set()
 
+        if self._hardhat_task:
+            self._hardhat_task.cancel()
         if self.orchestrator:
             await self.orchestrator.stop()
         if self._exploit_pipeline:
@@ -1064,7 +1094,8 @@ async def main_async(args):
     if args.health:
         sys.exit(Guardian.check_health())
 
-    guardian = Guardian(config_path=args.config)
+    force_hardhat = getattr(args, "force_hardhat", False)
+    guardian = Guardian(config_path=args.config, force_hardhat=force_hardhat)
 
     if args.status:
         guardian.print_status()
@@ -1079,7 +1110,7 @@ async def main_async(args):
         target_chains = [c.strip().lower() for c in args.chains.split(",") if c.strip()]
 
     try:
-        await guardian.start(target_chains=target_chains)
+        await guardian.start(target_chains=target_chains, force_hardhat=force_hardhat)
     except KeyboardInterrupt:
         await guardian.stop()
 
@@ -1096,6 +1127,8 @@ def main():
                         help="Health check (process, DB, logs)")
     parser.add_argument("--chains", default=None,
                         help="Comma-separated list of chains to scan (default: all enabled in config)")
+    parser.add_argument("--force-hardhat", action="store_true",
+                        help="Force Hardhat validation on ALL exploitable findings (balance=0 included)")
     args = parser.parse_args()
 
     try:

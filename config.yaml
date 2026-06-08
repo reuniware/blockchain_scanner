@@ -103,6 +103,78 @@ chains:
         - "Transfer"
       tracked_tokens: []
 
+  # --- EVM Chain 5: Optimism ------------------------------------------------
+  optimism:
+    enabled: true
+    rpc_ws: "wss://optimism-rpc.publicnode.com"
+    rpc_http: "https://optimism-rpc.publicnode.com"
+    name: "Optimism"
+    currency: "ETH"
+    chain_id: 10
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 6: Avalanche -----------------------------------------------
+  avalanche:
+    enabled: true
+    rpc_ws: "wss://avalanche-c-chain-rpc.publicnode.com"
+    rpc_http: "https://avalanche-c-chain-rpc.publicnode.com"
+    name: "Avalanche C-Chain"
+    currency: "AVAX"
+    chain_id: 43114
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 7: Base ----------------------------------------------------
+  base:
+    enabled: true
+    rpc_ws: "wss://base-rpc.publicnode.com"
+    rpc_http: "https://base-rpc.publicnode.com"
+    name: "Base"
+    currency: "ETH"
+    chain_id: 8453
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 8: Fantom --------------------------------------------------
+  fantom:
+    enabled: true
+    rpc_ws: "wss://fantom-rpc.publicnode.com"
+    rpc_http: "https://fantom-rpc.publicnode.com"
+    name: "Fantom"
+    currency: "FTM"
+    chain_id: 250
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 1.0
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
   # --- Solana ---------------------------------------------------------------
   solana:
     enabled: false  # Non-EVM (pas de contrats Solidity) + crash websocket

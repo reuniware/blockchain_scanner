@@ -2,22 +2,30 @@
 
 Ce répertoire répertorie tous les contrats analysés par le scanner de vulnérabilités, avec les résultats détaillés de chaque analyse.
 
-## Résumé (07/06/2026)
+## Résumé (08/06/2026)
 
 | Statut | Nombre |
 |:---|---:|
-| Contrats dans la DB Guardian | **2 340** |
-| Contrats vérifiés analysés | **463** |
-| Findings totaux cumulés | **1 307** |
-| Exploitables (théorique - pipeline) | **857** |
-| Types de vulnérabilités détectées | **20** |
-| Tests Hardhat automatisés | **853** (tous échoués) |
+| Contrats dans la DB Guardian | **21 839** |
+| Contrats vérifiés analysés | **901** |
+| Findings totaux cumulés | **4 471** |
+| Exploitables (théorique - pipeline) | **2 866** |
+| Types de vulnérabilités détectées | **29** (+9 OpenZeppelin checks) |
+| Tests Hardhat automatisés | **18** (corrigés: plus de temp ESM — utilise exploit/ dir) |
 | Tests fork manuels | **2** (PrismHook, AIDoge) |
-| Contrats avec balance > 0 | **19** (264.74 total native) |
+| Contrats avec balance > 0 | Vérification en cours (force mode) |
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper — faux positif réel) |
-| Faux positifs sur contrats avec balance | **100%** (ERC20 memecoins avec onlyOwner) |
-| Faux positifs globaux | **~85%** |
-| **Fonds drainables** | **$0** — Aucun contrat avec fonds + faille exploitable trouvé |
+| Faux positifs sur contrats avec balance | Analyse en cours (force-hardhat actif) |
+| Faux positifs globaux | Estimation ~85% |
+| **Fonds drainables** | **En cours d'analyse** — mode --force-hardhat activé |
+
+### 🔧 Changements récents
+- **Fix Hardhat** : Plus de temp ESM projects → utilise `exploit/` dir (CommonJS, déps existantes)
+- **Fix `import re`** : 2 574 échecs Hardhat corrigés (name 're' is not defined)
+- **Nouveau flag `--force-hardhat`** : Teste TOUS les findings exploitables, balance=0 incluse
+- **Tâche périodique** : Ré-audit automatique des contrats existants toutes les 120s
+- **6 chaînes EVM** : ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon
+- **run_forever.sh** : Relance automatique du guardian en cas de crash (boucle infinie)
 
 ## Session 2 — Guardian + Pool Scanner (juin 2026)
 

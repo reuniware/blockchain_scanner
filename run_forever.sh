@@ -18,7 +18,7 @@ MAX_RESTARTS=99999
 restart_count=0
 
 echo "================================================================" | tee -a "$LOG_FILE"
-echo "  GUARDIAN — FOREVER MODE (BSC + ETH)" | tee -a "$LOG_FILE"
+echo "  GUARDIAN — FOREVER MODE (8 EVM chains)" | tee -a "$LOG_FILE"
 echo "  Démarré: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOG_FILE"
 echo "  Log: $LOG_FILE" | tee -a "$LOG_FILE"
 echo "  Redémarrage automatique. Mode: NO PUSH." | tee -a "$LOG_FILE"
@@ -37,7 +37,7 @@ while [ $restart_count -lt $MAX_RESTARTS ]; do
     echo "" | tee -a "$LOG_FILE"
     echo "[$(date '+%H:%M:%S')] === LANCEMENT #$restart_count ===" | tee -a "$LOG_FILE"
 
-    python guardian.py --chains ethereum,bsc 2>&1 | tee -a "$LOG_FILE"
+    python guardian.py --chains ethereum,bsc,arbitrum,optimism,avalanche,polygon --force-hardhat 2>&1 | tee -a "$LOG_FILE"
 
     EXIT_CODE=${PIPESTATUS[0]}
     echo "[$(date '+%H:%M:%S')] Guardian stopped (exit=$EXIT_CODE)" | tee -a "$LOG_FILE"

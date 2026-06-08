@@ -213,25 +213,31 @@ npx hardhat compile
 npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc 0.05
 ```
 
-## 10. Guardian 24/7 Stats (07/06/2026)
+## 10. Guardian 24/7 Stats (08/06/2026)
 
 | Metric | Value |
 |:---|---|
-| Contracts in DB | **2 340** |
-| Verified contracts | **463** |
-| Total findings | **1 307** |
-| Exploitable | **857** (CRITICAL: 192, HIGH: 440, MEDIUM: 5) |
-| Contracts with balance > 0 | **19** (264.74 total native: Ethereum 261.47, Arbitrum 3.27) |
-| Hardhat tests run | **853** (all failed — automated testing misconfigured) |
+| Contracts in DB | **21 839** |
+| Verified contracts | **901** |
+| Total findings | **4 471** |
+| Exploitable | **2 866** |
+| Hardhat tests run | **18** (configured via `exploit/` dir) |
 | Confirmed exploits | **0** |
-| Pending tests | **4** |
+| Pending Hardhat tests | **2 848** (force mode active: testing ALL regardless of balance) |
+| Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
+| Vulnerabilities scanned | **29** (20 base + 9 OpenZeppelin) |
 
 ### Top Finding Types (exploitable)
-1. Potential Reentrancy: 232
-2. Delegatecall: 208
-3. Unprotected Initializer: 108
-4. Unprotected Withdraw: 62
-5. TX Origin: 14
+1. Potential Reentrancy
+2. Delegatecall to Variable Address
+3. Unprotected Initializer
+4. Unprotected Withdraw/Claim Function
+5. TX Origin Authorization
+
+### --force-hardhat Mode
+- Added CLI flag `--force-hardhat` to bypass balance threshold (0.001)
+- Periodic Hardhat validation every 120s for existing contracts
+- `run_forever.sh` auto-restart on crash (infinite loop, no git push)
 
 ## 11. Project Evolution
 
