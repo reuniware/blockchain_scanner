@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import signal
@@ -89,6 +90,14 @@ Examples:
         "--version",
         action="store_true",
         help="Show version and exit",
+    )
+    parser.add_argument(
+        "--stop-on",
+        default="detected",
+        choices=["detected", "confirmed", "none"],
+        help="Auto-stop mode: 'detected' (stop on first HIGH/CRITICAL finding), "
+             "'confirmed' (stop only after pipeline confirms exploit), "
+             "'none' (never auto-stop, manual only)",
     )
 
     args = parser.parse_args()
@@ -209,8 +218,8 @@ async def main_async(args: argparse.Namespace) -> None:
         if current_format == "rich":
             global_cfg["output_format"] = "both"
 
-    # Create orchestrator
-    orchestrator = ScannerOrchestrator(config)
+    # Create orchestrator with the configured stop mode
+    orchestrator = ScannerOrchestrator(config, stop_on=args.stop_on)
 
     # Handle graceful shutdown (cross-platform: Windows + Unix)
     stop_event = asyncio.Event()
@@ -227,94 +236,192 @@ async def main_async(args: argparse.Namespace) -> None:
     except (NotImplementedError, AttributeError):
         pass
 
+    chain_names = {1: "ethereum", 56: "bsc", 137: "polygon",
+                   10: "optimism", 42161: "arbitrum",
+                   43114: "avalanche", 8453: "base", 250: "fantom"}
+
+    async def _run_pipeline(addr: str, chain_id: int, source_code: Optional[str]) -> str:
+        """Launch exploit pipeline subprocess and return stdout."""
+        api_key = global_cfg.get("explorer_api_key", "")
+        chain_name = chain_names.get(chain_id, "ethereum")
+
+        # Write cached source to temp file to avoid a second Etherscan API call
+        cached_source_path = None
+        if source_code:
+            try:
+                tmp = tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".sol", delete=False, encoding="utf-8"
+                )
+                tmp.write(source_code)
+                cached_source_path = tmp.name
+                tmp.close()
+            except Exception as e:
+                print(f"    [WARN] Could not write cached source: {e}")
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        pipeline_script = os.path.join(script_dir, "exploit_pipeline.py")
+        cmd = [
+            sys.executable, pipeline_script,
+            "--address", addr,
+            "--chain", chain_name,
+            "--api-key", api_key,
+        ]
+        if cached_source_path:
+            cmd.extend(["--cached-source", cached_source_path])
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            creationflags=_CREATION_FLAGS,
+        )
+        stdout, _ = await proc.communicate()
+        output = stdout.decode("utf-8", errors="replace")
+
+        # Clean up temp file
+        if cached_source_path:
+            try:
+                os.unlink(cached_source_path)
+            except Exception:
+                pass
+
+        return output
+
+    async def _parse_pipeline_result(output: str) -> bool:
+        """Parse pipeline JSON output to check if exploit was confirmed."""
+        # Look for the JSON report block
+        try:
+            # Find JSON between markers
+            lines = output.split("\n")
+            in_json = False
+            json_lines = []
+            for line in lines:
+                if line.strip() == "[JSON REPORT]":
+                    in_json = True
+                    continue
+                if in_json:
+                    json_lines.append(line)
+            if json_lines:
+                report = json.loads("\n".join(json_lines))
+                exploitable = report.get("exploitable", 0)
+                return exploitable > 0
+        except Exception:
+            pass
+        # Fallback: check for keywords in output
+        has_exploitable = "[RED] EXPLOITABLE" in output or "[RED] THEORETICALLY EXPLOITABLE" in output
+        has_not_exploitable = "NOT exploitable" in output or "Non exploitable" in output
+        if has_exploitable and not has_not_exploitable:
+            return True
+        return False
+
     try:
         # Start scanning
         await orchestrator.start()
 
-        # Wait for either manual shutdown or vulnerability auto-stop.
-        # Python 3.12+ requires explicit Task objects (not raw coroutines).
-        stop_task = asyncio.create_task(stop_event.wait())
-        vuln_task = asyncio.create_task(orchestrator.vulnerability_found_event.wait())
-        done, pending = await asyncio.wait(
-            [stop_task, vuln_task],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
+        if args.stop_on == "detected":
+            # Mode detected: stop immediately on first HIGH/CRITICAL (current behavior)
+            stop_task = asyncio.create_task(stop_event.wait())
+            vuln_task = asyncio.create_task(orchestrator.vulnerability_found_event.wait())
+            done, pending = await asyncio.wait(
+                [stop_task, vuln_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in pending:
+                task.cancel()
 
-        # Cancel pending waiters
-        for task in pending:
-            task.cancel()
+            if orchestrator.vulnerability_found_event.is_set():
+                vuln = orchestrator.found_vulnerability
+                addr = orchestrator.last_vuln_address
+                chain_id = orchestrator.last_vuln_chain_id
+                chain_name = chain_names.get(chain_id, "ethereum")
+                print(f"\n{'=' * 60}")
+                print(f"  [!] VULNERABILITE DETECTEE — Arret automatique")
+                print(f"  [!] {vuln.name} [{vuln.severity}]")
+                print(f"  [!] Contrat: {addr}")
+                print(f"  [!] Chaine: {chain_name}")
+                print(f"{'=' * 60}")
 
-        # If auto-stopped by a vulnerability, show details and validate
-        if orchestrator.vulnerability_found_event.is_set():
-            vuln = orchestrator.found_vulnerability
-            addr = orchestrator.last_vuln_address
-            chain_id = orchestrator.last_vuln_chain_id
-            chain_names = {1: "ethereum", 56: "bsc", 137: "polygon"}
-            chain_name = chain_names.get(chain_id, "ethereum")
-            print(f"\n{'=' * 60}")
-            print(f"  [!] VULNERABILITE DETECTEE — Arret automatique")
-            print(f"  [!] {vuln.name} [{vuln.severity}]")
-            print(f"  [!] Contrat: {addr}")
-            print(f"  [!] Chaine: {chain_name}")
-            print(f"{'=' * 60}")
+                # Stop the orchestrator first to free WebSocket/HTTP resources
+                await orchestrator.stop()
 
-            # Stop the orchestrator first to free WebSocket/HTTP resources
+                # Then launch exploit pipeline to validate the finding
+                if addr:
+                    print(f"\n[!] Lancement du pipeline d'exploitation sur {addr[:14]}..")
+                    output = await _run_pipeline(addr, chain_id, orchestrator.last_source_code)
+                    print(output)
+
+                return
+
+        elif args.stop_on == "confirmed":
+            # Mode confirmed: keep scanning, validate via pipeline before stopping
+            print("\n  [!] Mode confirme: les scanners continuent pendant la validation pipeline")
+            while True:
+                stop_task = asyncio.create_task(stop_event.wait())
+                vuln_task = asyncio.create_task(orchestrator.pending_vuln_event.wait())
+                done, pending = await asyncio.wait(
+                    [stop_task, vuln_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task in pending:
+                    task.cancel()
+
+                if stop_event.is_set():
+                    break
+
+                # A vulnerability is pending pipeline validation
+                # Clear the event immediately so new vulns can queue up
+                orchestrator.pending_vuln_event.clear()
+
+                pending_vuln = orchestrator.next_pending_vuln
+                if not pending_vuln:
+                    continue
+
+                vuln = pending_vuln["finding"]
+                addr = pending_vuln["address"]
+                chain_id = pending_vuln["chain_id"]
+                chain_name = chain_names.get(chain_id, "ethereum")
+                source_code = pending_vuln["source_code"]
+
+                print(f"\n{'=' * 60}")
+                print(f"  [!] VULNERABILITE DETECTEE — Validation en cours")
+                print(f"  [!] {vuln.name} [{vuln.severity}]")
+                print(f"  [!] Contrat: {addr}")
+                print(f"  [!] Chaine: {chain_name}")
+                print(f"  [!] Les scanners continuent de tourner...")
+                print(f"{'=' * 60}")
+
+                # Launch pipeline WITHOUT stopping scanners
+                print(f"\n[!] Pipeline d'exploitation sur {addr[:14]}.. (scanners actifs)")
+                output = await _run_pipeline(addr, chain_id, source_code)
+                print(output)
+
+                # Parse result
+                confirmed = await _parse_pipeline_result(output)
+                orchestrator.confirm_vulnerability(addr, chain_id, confirmed)
+
+                if confirmed:
+                    print(f"\n{'=' * 60}")
+                    print(f"  [!] EXPLOIT CONFIRME — Arret automatique")
+                    print(f"{'=' * 60}")
+                    await orchestrator.stop()
+                    return
+                else:
+                    print(f"\n  [!] Faux positif — reprise du scan...")
+                    # Loop back to wait for next vulnerability
+
+            # If we get here, stop_event was set (manual shutdown)
             await orchestrator.stop()
 
-            # Then launch exploit pipeline to validate the finding
-            if addr:
-                api_key = global_cfg.get("explorer_api_key", "")
-                print(f"\n[!] Lancement du pipeline d'exploitation sur {addr[:14]}..")
-
-                # Write cached source to temp file to avoid a second Etherscan API call
-                # (the API can be inconsistent between calls, returning source then empty)
-                cached_source_path = None
-                cached_source = orchestrator.last_source_code
-                if cached_source:
-                    try:
-                        tmp = tempfile.NamedTemporaryFile(
-                            mode="w", suffix=".sol", delete=False, encoding="utf-8"
-                        )
-                        tmp.write(cached_source)
-                        cached_source_path = tmp.name
-                        tmp.close()
-                    except Exception as e:
-                        print(f"    [WARN] Could not write cached source: {e}")
-
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                pipeline_script = os.path.join(script_dir, "exploit_pipeline.py")
-                cmd = [
-                    sys.executable, pipeline_script,
-                    "--address", addr,
-                    "--chain", chain_name,
-                    "--api-key", api_key,
-                ]
-                if cached_source_path:
-                    cmd.extend(["--cached-source", cached_source_path])
-
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    creationflags=_CREATION_FLAGS,
-                )
-                stdout, _ = await proc.communicate()
-                print(stdout.decode("utf-8", errors="replace"))
-
-                # Clean up temp file
-                if cached_source_path:
-                    try:
-                        os.unlink(cached_source_path)
-                    except Exception:
-                        pass
-
-            # Return early (finally block runs to print vuln info)
-            return
+        else:  # stop_on == "none"
+            # Mode none: never auto-stop, just wait for manual shutdown
+            print("\n  [!] Mode sans arret: les scanners tournent jusqu'a CTRL+C")
+            await stop_event.wait()
+            await orchestrator.stop()
 
     except KeyboardInterrupt:
         print("\n\n[!] Interrupted by user...")
-    finally:
         await orchestrator.stop()
+    finally:
         if orchestrator.found_vulnerability:
             print(f"\n[VULN] Trouvee: {orchestrator.found_vulnerability.name} [{orchestrator.found_vulnerability.severity}]")
             print(f"[VULN] Lines: {orchestrator.found_vulnerability.line_numbers}")

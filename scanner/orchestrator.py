@@ -29,7 +29,7 @@ class ScannerOrchestrator:
         config: dict[str, Any],
         on_contract_checked: Optional[callable] = None,
         on_unverified_contract: Optional[callable] = None,
-        auto_stop_enabled: bool = True,
+        stop_on: str = "detected",
     ):
         """
         Args:
@@ -38,15 +38,76 @@ class ScannerOrchestrator:
                                 Called when a verified contract is fully scanned.
             on_unverified_contract: async callback(address, chain_id, chain_name)
                                     Called when a contract is detected but NOT verified.
-            auto_stop_enabled: If True, sets vulnerability_found_event on HIGH/CRITICAL finding
-                               (used by main.py). Guardian mode sets this to False.
+            stop_on: Auto-stop mode:
+                "detected"  — Stop immediately when a HIGH/CRITICAL vulnerability is found
+                "confirmed" — Stop only after the exploit pipeline confirms it's exploitable
+                "none"      — Never auto-stop (guardian/main loop mode)
         """
         self.config = config
         self.global_config = config.get("global", {})
         self.chains_config = config.get("chains", {})
         self._on_contract_checked = on_contract_checked
         self._on_unverified_contract = on_unverified_contract
-        self._auto_stop_enabled = auto_stop_enabled
+        self._stop_on = stop_on
+
+        self.scanners: dict[str, BaseScanner] = {}
+        self.display: Optional[DisplayManager] = None
+        self.filter: Optional[TransactionFilter] = None
+
+        # Stats aggregation
+        self.total_stats: dict[str, dict[str, int]] = {}
+
+        # Event queue for async processing (unbounded to avoid dropping events)
+        self._event_queue: asyncio.Queue[TransactionEvent] = asyncio.Queue()
+        self._processor_task: Optional[asyncio.Task] = None
+
+        # Auto-stop events
+        # vulnerability_found_event: set when a vuln is found (mode detected) OR confirmed (mode confirmed)
+        self.vulnerability_found_event: asyncio.Event = asyncio.Event()
+        # pending_vuln_event: set when a HIGH/CRITICAL is found but awaiting pipeline confirmation (mode confirmed only)
+        self.pending_vuln_event: asyncio.Event = asyncio.Event()
+        self._pending_vulns: list[dict] = []  # Queue of vulns awaiting pipeline confirmation
+        self._found_vulnerability: Optional[VulnerabilityFinding] = None
+        self._last_vuln_address: Optional[str] = None
+        self._last_vuln_chain_id: Optional[int] = None
+        self._last_source_code: Optional[str] = None  # Cache source for exploit pipeline
+
+    @property
+    def next_pending_vuln(self) -> Optional[dict]:
+        """Get the next pending vulnerability awaiting pipeline confirmation."""
+        if self._pending_vulns:
+            return self._pending_vulns[0]
+        return None
+
+    def confirm_vulnerability(self, address: str, chain_id: int, confirmed: bool) -> None:
+        """Mark a pending vulnerability as confirmed or rejected.
+
+        Called by main.py after the exploit pipeline validates the finding.
+        If confirmed, sets vulnerability_found_event to trigger auto-stop.
+        If rejected, removes from queue and continues scanning.
+        """
+        # Remove from pending queue
+        self._pending_vulns = [
+            v for v in self._pending_vulns
+            if not (v.get("address", "").lower() == address.lower() and v.get("chain_id") == chain_id)
+        ]
+
+        if confirmed:
+            logger.warning(
+                f"[AUTO-STOP] Vulnerability CONFIRMED exploitable for "
+                f"{address[:14]}.. — stopping scanner!"
+            )
+            self.vulnerability_found_event.set()
+        else:
+            logger.info(
+                f"[vuln] {address[:14]}.. vulnerability REJECTED by pipeline "
+                f"(false positive) — continuing scan"
+            )
+            # Reset pending event if there are more to process
+            if self._pending_vulns:
+                self.pending_vuln_event.set()
+            else:
+                self.pending_vuln_event.clear()
 
         self.scanners: dict[str, BaseScanner] = {}
         self.display: Optional[DisplayManager] = None
@@ -420,21 +481,35 @@ class ScannerOrchestrator:
 
                 # Check if any finding is exploitable (HIGH or CRITICAL)
                 exploitable = [f for f in findings if f.severity in ("HIGH", "CRITICAL")]
-                if exploitable and self._auto_stop_enabled:
+                if exploitable and self._stop_on != "none":
                     # Guard against race: only store the FIRST vulnerability found.
-                    # Concurrent _scan_vulnerabilities tasks may finish at the same
-                    # time; preserve the original finding to avoid mismatched
-                    # address/vulnerability pairs in main.py's display.
-                    if not self.vulnerability_found_event.is_set():
+                    if not self.vulnerability_found_event.is_set() and not self.pending_vuln_event.is_set():
                         self._found_vulnerability = exploitable[0]
                         self._last_vuln_address = event.contract_address
                         self._last_vuln_chain_id = event.chain_id
                         self._last_source_code = source_code  # Cache source for exploit pipeline
-                    self.vulnerability_found_event.set()
-                    logger.warning(
-                        f"[AUTO-STOP] HIGH/CRITICAL vulnerability found in "
-                        f"{event.contract_address[:14]}.. — stopping scanner!"
-                    )
+
+                    if self._stop_on == "detected":
+                        # Mode detected: stop immediately
+                        self.vulnerability_found_event.set()
+                        logger.warning(
+                            f"[AUTO-STOP] HIGH/CRITICAL vulnerability found in "
+                            f"{event.contract_address[:14]}.. — stopping scanner!"
+                        )
+                    elif self._stop_on == "confirmed":
+                        # Mode confirmed: queue for pipeline validation, keep scanning
+                        self._pending_vulns.append({
+                            "address": event.contract_address,
+                            "chain_id": event.chain_id,
+                            "chain_name": event.chain,
+                            "finding": exploitable[0],
+                            "source_code": source_code,
+                        })
+                        self.pending_vuln_event.set()
+                        logger.warning(
+                            f"[PENDING] HIGH/CRITICAL vulnerability found in "
+                            f"{event.contract_address[:14]}.. — awaiting pipeline confirmation"
+                        )
             else:
                 logger.info(
                     f"[vuln] {event.contract_address[:10]}.. "

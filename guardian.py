@@ -629,7 +629,7 @@ class Guardian:
     Architecture:
       - Creates ScannerOrchestrator with:
           * on_contract_checked callback for DB persistence
-          * auto_stop_enabled=False (never stops on vulnerability)
+          * stop_on="none" (never stops on vulnerability)
       - Handles all DB persistence internally
       - Validates exploitable findings via HardhatValidator
     """
@@ -840,7 +840,7 @@ class Guardian:
             config=self.config,
             on_contract_checked=self._on_contract_checked,
             on_unverified_contract=self._on_unverified_contract,
-            auto_stop_enabled=False,
+            stop_on="none",
         )
 
         # Start orchestrator (creates single _process_events task — NO DUAL READ)
