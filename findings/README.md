@@ -23,7 +23,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies (EIP-1967/UUPS) et fetch automatiquement la source de l'implementation quand `SourceCode` est vide
 - **Fix QueueFull (Shutdown)** : `evm_scanner._disconnect()` appelle `provider.disconnect()` + **monkey-patch `put_nowait`** pour catcher `QueueFull` silencieusement pendant le shutdown
 - **Fix Task Leaks** : Les tâches fire-and-forget (`_verify_contract`, `_scan_vulnerabilities`) sont maintenant trackées et cancellées au `stop()` — plus de fuites
-- **Fix Proxy False Positives** : `verify.py` + `exploit_pipeline.py` redirigent automatiquement proxy → implementation (récursif, depth 3) — plus de faux positifs sur le boilerplate OpenZeppelin des proxies
+- **Fix Race Condition (Auto-Stop)** : Les tâches concurrentes `_scan_vulnerabilities` ne peuvent plus écraser `_last_vuln_address` — seule la PREMIÈRE vulnérabilité trouvée est stockée, évitant le mismatch adresse/finding
 - **Fix Hardhat** : Plus de temp ESM projects → utilise `exploit/` dir (CommonJS, déps existantes)
 - **Fix `import re`** : 2 574 échecs Hardhat corrigés (name 're' is not defined)
 - **Nouveau flag `--force-hardhat`** : Teste TOUS les findings exploitables, balance=0 incluse
