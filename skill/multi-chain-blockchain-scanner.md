@@ -83,12 +83,20 @@ async for response in w3.socket.process_subscriptions():
     ...
 ```
 
-## 3. BSC Compatibility (extraData)
+## 3. BSC Compatibility (extraData) + WebSocketProvider Disconnect
 
 Use raw RPC polling fallback for BSC:
 ```python
 resp = await w3.provider.make_request("eth_getBlockByNumber", [hex(number), False])
 block = resp["result"]
+```
+
+**Shutdown fix:** Always call `provider.disconnect()` before cleanup to prevent `asyncio.queues.QueueFull` from subscription callbacks during shutdown:
+```python
+async def _disconnect(self):
+    if self.w3 and hasattr(self.w3, 'provider'):
+        await self.w3.provider.disconnect()  # Stop internal message listener first
+    ...
 ```
 
 ## 4. Windows cp1252 Encoding
@@ -164,7 +172,9 @@ python exploit_pipeline.py --live --chains bsc,ethereum
 python exploit_pipeline.py --batch addresses.txt
 ```
 
-### Exploitability Validation (20 types)
+### Exploitability Validation (20 types) — + Proxy Fallback
+
+When `SourceCode` is empty (common with proxy contracts), the pipeline now detects `Proxy`/`Implementation` fields from Etherscan API and auto-fetches the implementation source.
 
 | Finding Type | Exploitable? | Condition |
 |:---|:---|---:|
@@ -254,6 +264,8 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 10. First --all scan: 136 pools, 126 scanned, 43 INTERESSANTS (Velodrome/Optimism)
 11. All .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
 12. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
+13. Proxy fallback in exploit_pipeline: auto-fetch implementation source for proxy contracts (EIP-1967/UUPS)
+14. WebSocketProvider.disconnect() fix: stops asyncio QueueFull errors on scanner shutdown
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:

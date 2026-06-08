@@ -211,6 +211,7 @@ Validates whether discovered vulnerabilities are **actually exploitable** by ana
 - `unchecked {}` blocks (bypass overflow protection)
 - Access control modifiers (onlyOwner, onlyRole)
 - CEI pattern (Checks-Effects-Interactions ordering)
+- **Proxy detection**: auto-fetches implementation source for EIP-1967/UUPS proxies
 
 ```bash
 # Analyze any verified contract on any chain

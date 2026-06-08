@@ -470,13 +470,25 @@ class EVMScanner(BaseScanner):
             logger.debug(f"[{self.name}] Error checking contract deployments: {e}")
 
     async def _disconnect(self) -> None:
-        """Close the HTTP client on disconnect."""
+        """Close connections gracefully to avoid QueueFull / resource leaks."""
+        # 1. Disconnect the WebSocketProvider properly BEFORE the event loop
+        #    releases its tasks. This stops the internal message listener and
+        #    prevents QueueFull from subscription callbacks during shutdown.
+        if self.w3 is not None and hasattr(self.w3, 'provider'):
+            try:
+                await self.w3.provider.disconnect()
+            except Exception:
+                pass
+
+        # 2. Close the HTTP client (used for eth_getLogs / RPC calls)
         if hasattr(self, '_http_client') and self._http_client is not None:
             try:
                 await self._http_client.aclose()
             except Exception:
                 pass
             self._http_client = None
+
+        # 3. Let the base class clean up self._ws
         await super()._disconnect()
 
     async def _rpc_call(self, method: str, params: list) -> dict:
