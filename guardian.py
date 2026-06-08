@@ -692,7 +692,7 @@ class Guardian:
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
-    async def run_backfill(self, force: bool = False, limit: int = 0):
+    async def run_backfill(self, force: bool = False, limit: int = 0, hardhat: bool = False):
         """Backfill: run exploit pipeline on all verified contracts in the DB.
 
         Reads contracts from the database, fetches their source code,
@@ -702,6 +702,7 @@ class Guardian:
         Args:
             force: If True, re-process ALL contracts (delete + re-create findings).
             limit: Max contracts to process (0 = no limit).
+            hardhat: If True, run Hardhat fork tests on exploitable findings after backfill.
         """
         logger.info("=" * 60)
         logger.info("  GUARDIAN — BACKFILL: Reprise de tous les contrats verifies")
@@ -804,8 +805,37 @@ class Guardian:
 
         await pipeline.close()
 
+        # Optionally run Hardhat fork validation on all exploitable findings
+        if hardhat:
+            pending = self.db.get_exploitable_not_tested()
+            if pending:
+                logger.info(f"[BACKFILL-HARDHAT] Validation de {len(pending)} finding(s) exploitable(s) sur Hardhat fork...")
+                hardhat_results = await self.hardhat.validate_all_pending()
+                confirmed = [r for r in hardhat_results if r["result"] == "CONFIRMED"]
+                for r in confirmed:
+                    self.stats["exploits_confirmed"] += 1
+                    logger.critical(f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. via {r['finding']}!")
+                    self.db.log_event("EXPLOIT", "backfill",
+                        f"CONFIRMED on {r['contract']} via {r['finding']}")
+                if confirmed:
+                    alarm_path = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        "guardian_exploits_found.txt"
+                    )
+                    with open(alarm_path, "a") as f:
+                        f.write(f"\n{'='*60}")
+                        f.write(f"\n[BACKFILL] EXPLOITS CONFIRMED at {datetime.utcnow().isoformat()}")
+                        for r in confirmed:
+                            f.write(f"\n  - {r['contract']} via {r['finding']}: {r['evidence'][:200]}")
+                        f.write(f"\n{'='*60}\n")
+                logger.info(f"[BACKFILL-HARDHAT] Hardhat termine: {len(confirmed)} confirme(s) / {len(hardhat_results)} test(s)")
+            else:
+                logger.info("[BACKFILL-HARDHAT] Aucun finding exploitable a valider")
+
         logger.info("=" * 60)
         logger.info(f"  BACKFILL TERMINE: {processed} traites, {errors} erreurs")
+        if hardhat:
+            logger.info("  Hardhat execute")
         logger.info("=" * 60)
 
     async def _on_unverified_contract(
@@ -1259,7 +1289,8 @@ async def main_async(args):
     # Backfill mode: process all contracts from DB without live scanning
     if args.backfill:
         backfill_limit = getattr(args, "backfill_limit", 0) or 0
-        await guardian.run_backfill(force=args.force, limit=backfill_limit)
+        backfill_hardhat = getattr(args, "backfill_hardhat", False)
+        await guardian.run_backfill(force=args.force, limit=backfill_limit, hardhat=backfill_hardhat)
         return
 
     # Parse target chains if specified
@@ -1293,6 +1324,8 @@ def main():
                         help="Max contracts to process in backfill mode (0 = unlimited)")
     parser.add_argument("--force", action="store_true",
                         help="Force re-scan in backfill mode (delete and re-create findings)")
+    parser.add_argument("--backfill-hardhat", action="store_true",
+                        help="After backfill, run Hardhat fork tests on all exploitable findings to confirm them")
     args = parser.parse_args()
 
     try:
