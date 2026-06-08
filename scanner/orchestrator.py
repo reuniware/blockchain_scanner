@@ -354,9 +354,14 @@ class ScannerOrchestrator:
                 # Check if any finding is exploitable (HIGH or CRITICAL)
                 exploitable = [f for f in findings if f.severity in ("HIGH", "CRITICAL")]
                 if exploitable and self._auto_stop_enabled:
-                    self._found_vulnerability = exploitable[0]
-                    self._last_vuln_address = event.contract_address
-                    self._last_vuln_chain_id = event.chain_id
+                    # Guard against race: only store the FIRST vulnerability found.
+                    # Concurrent _scan_vulnerabilities tasks may finish at the same
+                    # time; preserve the original finding to avoid mismatched
+                    # address/vulnerability pairs in main.py's display.
+                    if not self.vulnerability_found_event.is_set():
+                        self._found_vulnerability = exploitable[0]
+                        self._last_vuln_address = event.contract_address
+                        self._last_vuln_chain_id = event.chain_id
                     self.vulnerability_found_event.set()
                     logger.warning(
                         f"[AUTO-STOP] HIGH/CRITICAL vulnerability found in "
