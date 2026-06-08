@@ -77,6 +77,10 @@ class ScannerOrchestrator:
         self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}
         self._scanning_vulns: set[str] = set()
 
+        # Fire-and-forget tasks (verify, vuln scan) — tracked so they can be
+        # cancelled on shutdown instead of leaking.
+        self._fire_and_forget: set[asyncio.Task] = set()
+
     @property
     def found_vulnerability(self) -> Optional[VulnerabilityFinding]:
         return self._found_vulnerability
@@ -187,6 +191,16 @@ class ScannerOrchestrator:
             except asyncio.CancelledError:
                 pass
 
+        # Cancel fire-and-forget tasks (verify, vuln scan) that may still be running.
+        # Use a list copy for gather because add_done_callback fires on cancel
+        # and removes tasks from the set before we can await them.
+        pending = list(self._fire_and_forget)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._fire_and_forget.clear()
+
         self.scanners.clear()
 
         # Close contract verifier HTTP session
@@ -227,9 +241,9 @@ class ScannerOrchestrator:
                 # Async contract source code verification (non-blocking)
                 # Only for EVM chains with a contract address
                 if event.contract_address and event.chain_id and event.event_type in ("transfer", "transaction", "contract_deploy"):
-                    asyncio.create_task(
-                        self._verify_contract(event)
-                    )
+                    task = asyncio.create_task(self._verify_contract(event))
+                    self._fire_and_forget.add(task)
+                    task.add_done_callback(self._fire_and_forget.discard)
 
             except asyncio.CancelledError:
                 break
@@ -274,9 +288,9 @@ class ScannerOrchestrator:
 
                 # If verified, scan for vulnerabilities
                 if verified:
-                    asyncio.create_task(
-                        self._scan_vulnerabilities(event)
-                    )
+                    task = asyncio.create_task(self._scan_vulnerabilities(event))
+                    self._fire_and_forget.add(task)
+                    task.add_done_callback(self._fire_and_forget.discard)
                 elif self._on_unverified_contract:
                     # Fire callback for unverified contracts too
                     try:
