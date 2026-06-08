@@ -27,3 +27,6 @@ guardian_data.db
 guardian_exploits_found.txt
 guardian_output.log
 pool_scan_results.json
+guardian.pid
+exploit/contracts/GuardianExploit.sol
+exploit/scripts/guardian_test.js

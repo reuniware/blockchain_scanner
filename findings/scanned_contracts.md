@@ -1,27 +1,27 @@
 # Guardian Auto-Report
-> **restart_1** — 2026-06-08 05:44:40 UTC
+> **PUSH_CHECK** — 2026-06-08 06:06:47 UTC
 
 ## Global Stats
 
 | Metric | Count |
 |--------|-------|
-| Contracts in DB | 21839 |
-| Verified (source available) | 901 |
-| Total findings | 4471 |
-| Exploitable findings | 2866 |
+| Contracts in DB | 22554 |
+| Verified (source available) | 915 |
+| Total findings | 4580 |
+| Exploitable findings | 2935 |
 | Hardhat confirmed exploits | 0 |
-| Hardhat test failures | 18 |
+| Hardhat test failures | 0 |
 
 ## Per-Chain Breakdown
 
 | Chain | Contracts | Verified |
 |-------|-----------|----------|
-| Binance Smart Chain | 15376 | 108 |
+| Binance Smart Chain | 16053 | 113 |
 | Ethereum | 2742 | 201 |
-| Arbitrum | 1849 | 562 |
+| Arbitrum | 1858 | 562 |
 | Polygon | 917 | 2 |
-| Avalanche C-Chain | 733 | 12 |
-| Optimism | 222 | 16 |
+| Avalanche C-Chain | 747 | 17 |
+| Optimism | 237 | 20 |
 
 ## Top 15 Exploitable Findings
 
