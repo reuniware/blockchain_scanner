@@ -22,6 +22,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 from typing import Any
 
 import yaml
@@ -264,19 +265,48 @@ async def main_async(args: argparse.Namespace) -> None:
             if addr:
                 api_key = global_cfg.get("explorer_api_key", "")
                 print(f"\n[!] Lancement du pipeline d'exploitation sur {addr[:14]}..")
+
+                # Write cached source to temp file to avoid a second Etherscan API call
+                # (the API can be inconsistent between calls, returning source then empty)
+                cached_source_path = None
+                cached_source = orchestrator.last_source_code
+                if cached_source:
+                    try:
+                        tmp = tempfile.NamedTemporaryFile(
+                            mode="w", suffix=".sol", delete=False, encoding="utf-8"
+                        )
+                        tmp.write(cached_source)
+                        cached_source_path = tmp.name
+                        tmp.close()
+                    except Exception as e:
+                        print(f"    [WARN] Could not write cached source: {e}")
+
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 pipeline_script = os.path.join(script_dir, "exploit_pipeline.py")
-                proc = await asyncio.create_subprocess_exec(
+                cmd = [
                     sys.executable, pipeline_script,
                     "--address", addr,
                     "--chain", chain_name,
                     "--api-key", api_key,
+                ]
+                if cached_source_path:
+                    cmd.extend(["--cached-source", cached_source_path])
+
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                     creationflags=_CREATION_FLAGS,
                 )
                 stdout, _ = await proc.communicate()
                 print(stdout.decode("utf-8", errors="replace"))
+
+                # Clean up temp file
+                if cached_source_path:
+                    try:
+                        os.unlink(cached_source_path)
+                    except Exception:
+                        pass
 
             # Return early (finally block runs to print vuln info)
             return

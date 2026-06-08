@@ -64,6 +64,7 @@ class ScannerOrchestrator:
         self._found_vulnerability: Optional[VulnerabilityFinding] = None
         self._last_vuln_address: Optional[str] = None
         self._last_vuln_chain_id: Optional[int] = None
+        self._last_source_code: Optional[str] = None  # Cache source for exploit pipeline
 
         # Source code verifier (checks if contracts are verified on block explorers)
         # A single Etherscan API V2 key works for ALL chains (60+ chains)
@@ -92,6 +93,10 @@ class ScannerOrchestrator:
     @property
     def last_vuln_chain_id(self) -> Optional[int]:
         return self._last_vuln_chain_id
+
+    @property
+    def last_source_code(self) -> Optional[str]:
+        return self._last_source_code
 
     def _create_scanner(
         self, chain_key: str, chain_cfg: dict
@@ -362,6 +367,7 @@ class ScannerOrchestrator:
                         self._found_vulnerability = exploitable[0]
                         self._last_vuln_address = event.contract_address
                         self._last_vuln_chain_id = event.chain_id
+                        self._last_source_code = source_code  # Cache source for exploit pipeline
                     self.vulnerability_found_event.set()
                     logger.warning(
                         f"[AUTO-STOP] HIGH/CRITICAL vulnerability found in "
