@@ -6,32 +6,42 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 
 | Statut | Nombre |
 |:---|---:|
-| Contrats dans la DB Guardian | **21 839** |
-| Contrats vérifiés analysés | **901** |
-| Findings totaux cumulés | **4 471** |
-| Exploitables (théorique - pipeline) | **2 866** |
+| Contrats dans la DB Guardian | **24 945** |
+| Contrats vérifiés analysés | **985** |
+| Findings totaux cumulés | **5 184** |
+| Exploitables (théorique - pipeline) | **3 340** |
 | Types de vulnérabilités détectées | **29** (+9 OpenZeppelin checks) |
-| Tests Hardhat automatisés | **18** (corrigés: plus de temp ESM — utilise exploit/ dir) |
-| Tests fork manuels | **2** (PrismHook, AIDoge) |
-| Contrats avec balance > 0 | Vérification en cours (force mode) |
+| Tests Hardhat fork (batch) | **55** (tous les contrats vérifiés avec balance) |
+| Tests fork PredictionV2 | **5 scripts** (oracle, reentrancy, delegatecall, txorigin, treasury) |
+| Tests générés dynamiquement | **1** (généré depuis les findings DB) |
+| Contrats avec balance > 0.001 | **66** |
+| Total BNB dans les contrats | **1 746 162** |
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper — faux positif réel) |
-| Faux positifs sur contrats avec balance | Analyse en cours (force-hardhat actif) |
+| Faux positifs sur contrats avec balance | ~100% (aucun confirmé après 55 tests) |
 | Faux positifs globaux | Estimation ~85% |
-| **Fonds drainables** | **En cours d'analyse** — mode --force-hardhat activé |
+| **Fonds drainables** | **0 confirmé** après 55 tests Hardhat fork complets |
 
-### 🔧 Changements récents
-- **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies (EIP-1967/UUPS) et fetch automatiquement la source de l'implementation quand `SourceCode` est vide
-- **Fix QueueFull (Shutdown)** : `evm_scanner._disconnect()` appelle `provider.disconnect()` + **monkey-patch `put_nowait`** pour catcher `QueueFull` silencieusement pendant le shutdown
-- **Fix Task Leaks** : Les tâches fire-and-forget (`_verify_contract`, `_scan_vulnerabilities`) sont maintenant trackées et cancellées au `stop()` — plus de fuites
-- **Fix Race Condition (Auto-Stop)** : Les tâches concurrentes `_scan_vulnerabilities` ne peuvent plus écraser `_last_vuln_address` — seule la PREMIÈRE vulnérabilité trouvée est stockée, évitant le mismatch adresse/finding
-- **Fix Hardhat** : Plus de temp ESM projects → utilise `exploit/` dir (CommonJS, déps existantes)
-- **Fix `import re`** : 2 574 échecs Hardhat corrigés (name 're' is not defined)
-- **Nouveau flag `--force-hardhat`** : Teste TOUS les findings exploitables, balance=0 incluse
-- **Tâche périodique** : Ré-audit automatique des contrats existants toutes les 120s
+### 🔧 Changements récents (Session 5 — 08/06/2026)
+- **UniversalExploit v2** : Étendu de 18 → **28 attaques**, **80+ signatures DeFi** (withdraw, redeem, unstake, harvest, stake, enter, upgradeTo, grantRole, pause, sweep, etc.)
+- **5 contrats exploit PredictionV2** : OracleManipulator, Reentrancy, Delegatecall, TXOrigin, Treasury — tests ciblés pour PancakeSwap Prediction V2 (1,724 BNB)
+- **6 scripts JS PredictionV2** : 5 tests individuels + 1 master suite (`test_prediction_v2_all.js`)
+- **`dynamic_test_generator.py`** : Nouvel outil qui lit les findings DB et génère des tests JS Hardhat ciblés avec 50+ selecteurs 4-byte
+- **Flag `--dynamic`** dans `hardhat_fork_tester.py` : Génère + exécute des tests dynamiques depuis les findings
+- **Flag `--batch`** : Teste TOUS les 55 contrats vérifiés avec balance en séquentiel
+- **`allowUnlimitedContractSize`** : Activé dans `hardhat.config.js` pour déployer UniversalExploit v2 (30kb)
+- **Fix TDZ** : `attacks.length` référencé avant `const attacks` dans `test_fork_exploit.js` — ReferenceError corrigé
+- **Fix générateur dynamique** : Chemins absolus résolus + bloc scope `{ }` pour éviter les déclarations `const` dupliquées
+- **3 pipelines de test** : UniversalExploit (générique), Dynamique (basé findings), Spécialisés (manuels)
+- **Batch complet** : 55 contrats testés, **0 confirmé exploitable**
+
+### 🔧 Changements antérieurs
+- **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies et fetch l'implementation
+- **Fix QueueFull (Shutdown)** : Monkey-patch `put_nowait` sur la queue web3.py
+- **Fix Task Leaks** : Tâches fire-and-forget trackées et cancellées
+- **Fix Race Condition** : Lock sur `_last_vuln_address`
+- **Fix `import re`** : 2 574 échecs Hardhat corrigés
+- **Flag `--force-hardhat`** et tâche périodique 120s
 - **6 chaînes EVM** : ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon
-- **run_forever.sh** : Relance automatique du guardian en cas de crash (boucle infinie)
-
-## Session 2 — Guardian + Pool Scanner (juin 2026)
 
 ### Nouveaux outils
 

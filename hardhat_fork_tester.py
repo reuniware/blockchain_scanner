@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from verify import SourceCodeVerifier
 from analysis.vulnerability_scanner import analyze_contract, VulnerabilityFinding
+from dynamic_test_generator import DynamicTestGenerator
 
 # RPC URLs for forking
 RPC_URLS = {
@@ -254,6 +255,12 @@ async def main():
                         help="Chain: ethereum, bsc, polygon, arbitrum")
     parser.add_argument("--batch", action="store_true",
                         help="Test all contracts with balance > 0 from DB")
+    parser.add_argument("--specialized", "-s", default="",
+                        help="Run specialized test suite (ex: prediction-v2)")
+    parser.add_argument("--dynamic", "-d", action="store_true",
+                        help="Generate targeted tests dynamically from DB findings")
+    parser.add_argument("--test", "-t", default="all",
+                        help="For specialized: which test to run (all, oracle, reentrancy, delegatecall, txorigin, treasury)")
     parser.add_argument("--api-key", "-k",
                         default="47JTF3MC7RJ24NSZGTIXNT84KFBQDHWY8E")
     args = parser.parse_args()
@@ -265,7 +272,139 @@ async def main():
     tester = HardhatForkTester(api_key=args.api_key)
 
     try:
-        if args.address:
+        if args.dynamic:
+            # Generate and run targeted tests dynamically from DB findings
+            if not args.address:
+                print("[FAIL] --dynamic requires --address")
+                return
+
+            cid = chain_ids.get(args.chain, 56)
+            rpc_url = RPC_URLS.get(cid, "https://eth.llamarpc.com")
+            address = args.address
+
+            print(f"\n{'=' * 60}")
+            print(f"  DYNAMIC TEST GENERATION — {address[:14]}..")
+            print(f"{'=' * 60}")
+
+            # Check Hardhat
+            if not await tester._check_hardhat():
+                print("  [FAIL] Hardhat not available")
+                return
+
+            # Compile first
+            if not await tester._compile_contracts():
+                print("  [FAIL] Compilation failed")
+                return
+
+            # Generate the dynamic test
+            gen = DynamicTestGenerator()
+            findings = gen.load_findings(address, cid)
+            if not findings:
+                print(f"  [FAIL] No exploitable findings for {address[:14]}..")
+                return
+
+            print(f"  Loaded {len(findings)} exploitable findings:")
+            for f in findings:
+                pattern = gen.classify_finding(f)
+                print(f"    {'[' + f['severity'] + ']':12} {f['finding_name'][:50]} -> {pattern or 'unmapped'}")
+
+            filepath = gen.save_and_run(address, cid)
+            if not filepath:
+                print("  [FAIL] Could not generate test (no known patterns)")
+                return
+
+            print(f"\n  Generated: {filepath}")
+
+            # Run the generated test
+            env = os.environ.copy()
+            env["TARGET_ADDRESS"] = address
+            env["CHAIN_RPC"] = rpc_url
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    _NPX, "hardhat", "run", filepath,
+                    "--network", "hardhat",
+                    cwd=tester.exploit_dir,
+                    env=env,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                    creationflags=_CREATION_FLAGS,
+                )
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
+                output = stdout.decode("utf-8", errors="replace")
+                print(output[-3000:] if len(output) > 3000 else output)
+            except asyncio.TimeoutError:
+                print("  [TIMEOUT] after 300s")
+            except Exception as e:
+                print(f"  [FAIL] {e}")
+
+        elif args.specialized:
+            # Run specialized test suite
+            script_map = {
+                "prediction-v2": {
+                    "all": "scripts/test_prediction_v2_all.js",
+                    "oracle": "scripts/test_prediction_v2_oracle_manipulation.js",
+                    "reentrancy": "scripts/test_prediction_v2_reentrancy.js",
+                    "delegatecall": "scripts/test_prediction_v2_delegatecall.js",
+                    "txorigin": "scripts/test_prediction_v2_txorigin.js",
+                    "treasury": "scripts/test_prediction_v2_treasury.js",
+                }
+            }
+            suite = args.specialized.lower()
+            if suite not in script_map:
+                print(f"[FAIL] Unknown suite '{suite}'. Available: {list(script_map.keys())}")
+                return
+
+            test_name = args.test.lower()
+            if test_name not in script_map[suite]:
+                print(f"[FAIL] Unknown test '{test_name}'. Available: {list(script_map[suite].keys())}")
+                return
+
+            script = script_map[suite][test_name]
+            address = args.address or "0x18b2a687610328590bc8f2e5fedde3b582a49cda"
+            cid = chain_ids.get(args.chain, 56)
+            rpc_url = RPC_URLS.get(cid, "https://bsc-dataseed1.binance.org")
+
+            print(f"\n{'=' * 60}")
+            print(f"  SPECIALIZED TEST: {suite}/{test_name}")
+            print(f"  Target: {address[:14]}..")
+            print(f"  Script: {script}")
+            print(f"{'=' * 60}")
+
+            # Check Hardhat
+            if not await tester._check_hardhat():
+                print("  [FAIL] Hardhat not available")
+                return
+
+            # Compile first
+            if not await tester._compile_contracts():
+                print("  [FAIL] Compilation failed")
+                return
+
+            # Run the test
+            env = os.environ.copy()
+            env["TARGET_ADDRESS"] = address
+            env["CHAIN_RPC"] = rpc_url
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    _NPX, "hardhat", "run", script,
+                    "--network", "hardhat",
+                    cwd=tester.exploit_dir,
+                    env=env,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                    creationflags=_CREATION_FLAGS,
+                )
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
+                output = stdout.decode("utf-8", errors="replace")
+                print(output[-3000:] if len(output) > 3000 else output)
+            except asyncio.TimeoutError:
+                print("  [TIMEOUT] after 300s")
+            except Exception as e:
+                print(f"  [FAIL] {e}")
+
+        elif args.address:
             cid = chain_ids.get(args.chain, 1)
             result = await tester.test_contract(args.address, cid)
             print(f"\n{'=' * 60}")

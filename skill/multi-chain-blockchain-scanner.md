@@ -47,16 +47,28 @@ blockchain_scanner/
       ExploitV2.sol                  # Debug version with configurable maxRounds
       CampaignVulnerable.sol         # CEI reentrancy reproduction
       CampaignExploit.sol            # CEI exploit with guard-rail
-      PrismReentrancyExploit.sol     # PrismHook-specific exploit
-      AIDogeExploit.sol              # AIDoge-specific exploit
-      UniversalExploit.sol           # Universal exploit: 18/20 attack types in one contract
+      PrismReentrancyExploit.sol        # PrismHook-specific exploit
+      AIDogeExploit.sol                 # AIDoge-specific exploit
+      UniversalExploit.sol              # Universal exploit: 28 attack types, 80+ sigs
+      PredictionV2OracleManipulator.sol # PredictionV2 oracle manipulation
+      PredictionV2ReentrancyExploit.sol # PredictionV2 reentrancy
+      PredictionV2TXOriginExploit.sol   # PredictionV2 tx.origin exploit
+      PredictionV2DelegatecallExploit.sol # PredictionV2 delegatecall
+      PredictionV2TreasuryExploit.sol   # PredictionV2 treasury drain
     scripts/
-      deploy_and_exploit.js          # Full reentrancy attack demo
-      test_campaign_reentrancy.js    # CampaignWrapper CEI validation
-      test_cei_reentrancy.js         # Combined validation suite
-      test_simple_withdraw.js        # Sanity check
-      test_fork_exploit.js           # Universal fork exploitation script
-    hardhat.config.js                # Hardhat config (Solidity 0.8.20)
+      deploy_and_exploit.js                  # Full reentrancy attack demo
+      test_campaign_reentrancy.js            # CampaignWrapper CEI validation
+      test_cei_reentrancy.js                 # Combined validation suite
+      test_simple_withdraw.js                # Sanity check
+      test_fork_exploit.js                   # Universal fork exploitation (28 attacks)
+      test_prediction_v2_all.js              # Master suite PredictionV2
+      test_prediction_v2_oracle_manipulation.js
+      test_prediction_v2_reentrancy.js
+      test_prediction_v2_delegatecall.js
+      test_prediction_v2_txorigin.js
+      test_prediction_v2_treasury.js
+    generated/                               # Dynamically generated test files
+    hardhat.config.js                # Hardhat config (Solidity 0.8.20, allowUnlimitedContractSize)
     package.json
     .gitignore
 ```
@@ -232,15 +244,24 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 
 | Metric | Value |
 |:---|---|
-| Contracts in DB | **23 007** |
-| Verified contracts | **923** |
-| Total findings | **4 685** |
-| Exploitable | **3 015** |
-| Hardhat tests run | **18** (configured via `exploit/` dir) |
+| Contracts in DB | **24 945** |
+| Verified contracts | **985** |
+| Total findings | **5 184** |
+| Exploitable | **3 340** |
+| Hardhat tests run | **55 batch + 5 PredictionV2 + 1 dynamique** |
 | Confirmed exploits | **0** |
-| Pending Hardhat tests | **~2 997** (force mode active: testing ALL regardless of balance) |
+| Batch test result | 55 contracts, 0 confirmed |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 | Vulnerabilities scanned | **29** (20 base + 9 OpenZeppelin) |
+
+### Nouveaux outils (Session 5)
+
+| Outil | Description | Commande |
+|:---|---|:---|
+| **`dynamic_test_generator.py`** | Génère des tests JS Hardhat depuis les findings DB | `python hardhat_fork_tester.py --dynamic` |
+| **PredictionV2 exploits** | 5 contrats + 6 scripts pour PancakeSwap Prediction | `--specialized prediction-v2` |
+| **UniversalExploit v2** | 28 attaques, 80+ signatures DeFi | Via `test_fork_exploit.js` |
+| **Batch mode** | Teste TOUS les contrats avec balance | `python hardhat_fork_tester.py --batch` |
 
 ### Top Finding Types (exploitable)
 1. Potential Reentrancy

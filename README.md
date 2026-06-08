@@ -71,8 +71,11 @@ python main.py
 
 | Command | Description |
 |:---|:---|
-| `python hardhat_fork_tester.py --target 0x... --chain bsc` | Test exploits on a forked BSC contract |
-| `python hardhat_fork_tester.py --target 0x... --chain arbitrum` | Test exploits on a forked contract |
+| `python hardhat_fork_tester.py --address 0x... --chain bsc` | Test exploits on a forked BSC contract |
+| `python hardhat_fork_tester.py --address 0x... --chain arbitrum` | Test exploits on a forked contract |
+| `python hardhat_fork_tester.py --specialized prediction-v2 --address 0x...` | Run specialized PredictionV2 test suite |
+| `python hardhat_fork_tester.py --dynamic --address 0x... --chain bsc` | Generate targeted tests dynamically from DB findings |
+| `python hardhat_fork_tester.py --batch` | Test ALL contracts with balance > 0.001 from DB |
 | `cd exploit && npx hardhat run scripts/test_fork_exploit.js --network hardhat <address> <rpc> <funding>` | Manual fork test |
 
 ### BSC Block Scanners (NEW)
@@ -246,15 +249,16 @@ npx hardhat run scripts/test_cei_reentrancy.js --network hardhat
 - Shows that non-arithmetic state (hasClaimed flag) CAN be bypassed by reentrancy
 - Validates 5 rounds of recursive claim draining 5 ETH
 
-#### 3. Universal exploit framework (20 attack types)
+#### 3. Universal exploit framework v2 (28 attack types, 80+ signatures)
 ```bash
 cd exploit
 npx hardhat compile
 npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc-url 0.05
 ```
-- `UniversalExploit.sol` — single contract testing 18/20 vulnerability types
-- `test_fork_exploit.js` — fork → impersonate → deploy → attack → verify
+- `UniversalExploit.sol` — single contract testing **28 attack vectors** with **80+ DeFi function signatures**
+- `test_fork_exploit.js` — fork → impersonate → deploy → 28 attacks → verify
 - `hardhat_fork_tester.py` — Python orchestrator for automated fork testing
+- New extended attacks: ExtendedWithdraw, ExtendedInit, ExtendedDelegatecall, ExtendedOwnership, ExtendedUpgrade, ExtendedTreasury, ExtendedPause, ExtendedSweep, ExtendedCrossChain, ExtendedReentrancy
 
 ### Key discovery: Solidity >=0.8 blocks underflow reentrancy but NOT CEI reentrancy
 
@@ -267,20 +271,68 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 - The state update happens AFTER the external call, so the check passes multiple times
 - Each recursive call drains another full refund amount
 
+### Dynamic Test Generator (NEW)
+
+`dynamic_test_generator.py` reads vulnerability findings from `guardian_data.db` and generates targeted Hardhat JS test scripts on the fly:
+
+```bash
+# Generate and run tests dynamically from DB findings
+python hardhat_fork_tester.py --dynamic --address 0x... --chain bsc
+
+# Standalone usage
+python dynamic_test_generator.py 0x18b2a687610328590bc8f2e5fedde3b582a49cda
+```
+
+**8 vulnerability patterns supported:** reentrancy, delegatecall, unprotected-withdraw, unprotected-init, ownership, oracle, treasury, force-feed. Each pattern generates targeted JS with exact 4-byte selectors.
+
+### Spécialisé PredictionV2 (NEW)
+
+5 contrats exploit Solidity + 6 scripts JS pour tester PancakeSwap Prediction V2 (1,724 BNB) :
+
+| Contrat | Cible | Approche |
+|:---|---|:---|
+| `PredictionV2OracleManipulator.sol` | Oracle/Spot Price | Swap massif WBNB→BUSD pour manipuler le pool |
+| `PredictionV2ReentrancyExploit.sol` | Reentrancy | Attaque reentrancy sur `claim()` via callback `receive()` |
+| `PredictionV2TXOriginExploit.sol` | TX Origin | Simulation phishing : le owner appelle le contrat piégé |
+| `PredictionV2DelegatecallExploit.sol` | Delegatecall | Analyse bytecode + implémentation malveillante |
+| `PredictionV2TreasuryExploit.sol` | Access Control | Teste 12 fonctions admin sans autorisation |
+
+```bash
+# Lancer la suite complète
+python hardhat_fork_tester.py --specialized prediction-v2 --address 0x18b2a687...
+
+# Test individuel
+python hardhat_fork_tester.py --specialized prediction-v2 --test oracle
+python hardhat_fork_tester.py --specialized prediction-v2 --test reentrancy
+```
+
+### Batch Testing (NEW)
+
+Test ALL 55 verified contracts with balance > 0.001 BNB in a single command:
+
+```bash
+python hardhat_fork_tester.py --batch
+```
+
+Runs UniversalExploit v2 (28 attacks) against each contract sequentially. Stops on first confirmed exploit.
+
+**Batch results (08/06/2026):** 55 contracts tested, **0 confirmed exploitable**. All real-world contracts are properly protected.
+
 ### Guardian 24/7 Stats (as of 08/06/2026)
 
 | Metric | Value |
 |:---|---|
-| Contracts in DB | **21 839** |
-| Verified contracts | **901** |
-| Total findings | **4 471** |
-| Exploitable (pipeline) | **2 866** |
-| Hardhat tests run | **18** (configured via `exploit/` dir) |
+| Contracts in DB | **24 945** |
+| Verified contracts | **985** |
+| With native balance > 0.001 | **66** |
+| Total BNB across all contracts | **1 746 162** |
+| Total findings | **5 184** |
+| Exploitable (pipeline) | **3 340** |
+| Hardhat tests (batch) | **55** |
 | Confirmed exploits | **0** |
-| Pending Hardhat tests | **2 848** (force mode: testing all regardless of balance) |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
-> **Key finding:** Scanner now tests ALL exploitable findings with `--force-hardhat`, including zero-balance contracts. The periodic task (every 120s) re-audits existing contracts. Auto-restart via `run_forever.sh`.
+> **Key finding:** After 55 Hardhat fork tests on verified contracts with balance, **0 confirmed exploits**. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. The dynamic test generator and specialized contracts fill this gap for high-value targets.
 
 ### Bitcoin mempool tracking
 - Connects to mempool.space WebSocket for real-time unconfirmed transactions
@@ -401,16 +453,29 @@ blockchain_scanner/
       ExploitV2.sol          # Debug version with configurable recursion
       CampaignVulnerable.sol # Reproduces CampaignWrapper pattern (CEI bool flag)
       CampaignExploit.sol    # CEI reentrancy exploit with guard-rail
-      UniversalExploit.sol   # Universal exploit testing 18/20 attack types
+      UniversalExploit.sol   # Universal exploit testing 28 attack types
       PrismReentrancyExploit.sol # PrismHook-specific reentrancy exploit
       AIDogeExploit.sol      # AIDoge-specific exploit contract
+      PredictionV2OracleManipulator.sol  # PredictionV2 oracle attack
+      PredictionV2ReentrancyExploit.sol  # PredictionV2 reentrancy attack
+      PredictionV2TXOriginExploit.sol    # PredictionV2 tx.origin attack
+      PredictionV2DelegatecallExploit.sol# PredictionV2 delegatecall attack
+      PredictionV2TreasuryExploit.sol    # PredictionV2 treasury drain
     scripts/
-      deploy_and_exploit.js   # Classic underflow reentrancy demo
-      test_simple_withdraw.js # Basic sanity check
-      test_campaign_reentrancy.js  # CampaignWrapper CEI validation
-      test_cei_reentrancy.js       # Combined validation suite
-      test_fork_exploit.js    # Universal fork exploitation script
-    hardhat.config.js         # Hardhat config (Solidity 0.8.20)
+      deploy_and_exploit.js          # Classic underflow reentrancy demo
+      test_simple_withdraw.js        # Basic sanity check
+      test_campaign_reentrancy.js    # CampaignWrapper CEI validation
+      test_cei_reentrancy.js         # Combined validation suite
+      test_fork_exploit.js           # Universal fork exploitation script (28 attacks)
+      test_prediction_v2_all.js      # Master suite for PredictionV2
+      test_prediction_v2_oracle_manipulation.js
+      test_prediction_v2_reentrancy.js
+      test_prediction_v2_delegatecall.js
+      test_prediction_v2_txorigin.js
+      test_prediction_v2_treasury.js
+    generated/                      # Dynamically generated test files
+      dyn_test_*.js
+    hardhat.config.js         # Hardhat config (Solidity 0.8.20, unlimited contract size)
     package.json
     .gitignore
   findings/                  # Vulnerability findings catalog
