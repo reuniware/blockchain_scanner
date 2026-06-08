@@ -1,0 +1,210 @@
+{
+  "total_contracts": 500,
+  "scanned": 364,
+  "no_source": 136,
+  "errors": 0,
+  "total_findings": 4042,
+  "avg_findings_per_contract": 11.1,
+  "contracts_with_zero_findings": 23,
+  "patterns": {
+    "delegatecall": {
+      "count": 113,
+      "severity": "CRITICAL",
+      "name": "Delegatecall to Variable Address",
+      "pct": 31.0
+    },
+    "uups-unprotected": {
+      "count": 21,
+      "severity": "CRITICAL",
+      "name": "UUPS Unprotected Upgrade",
+      "pct": 5.8
+    },
+    "selfdestruct": {
+      "count": 19,
+      "severity": "CRITICAL",
+      "name": "Selfdestruct / Suicide",
+      "pct": 5.2
+    },
+    "reentrancy": {
+      "count": 7,
+      "severity": "CRITICAL",
+      "name": "Reentrancy Vulnerability",
+      "pct": 1.9
+    },
+    "upgradeable-field-init": {
+      "count": 1089,
+      "severity": "HIGH",
+      "name": "Field Initializers in Upgradeable Contract",
+      "pct": 299.2
+    },
+    "unprotected-init": {
+      "count": 227,
+      "severity": "HIGH",
+      "name": "Unprotected Initializer",
+      "pct": 62.4
+    },
+    "reentrancy-no-cei": {
+      "count": 219,
+      "severity": "HIGH",
+      "name": "Potential Reentrancy (No CEI Pattern)",
+      "pct": 60.2
+    },
+    "signature-replay": {
+      "count": 117,
+      "severity": "HIGH",
+      "name": "Signature Replay Attack",
+      "pct": 32.1
+    },
+    "missing-deadline": {
+      "count": 101,
+      "severity": "HIGH",
+      "name": "Missing Deadline in Swap",
+      "pct": 27.7
+    },
+    "unprotected-withdraw": {
+      "count": 100,
+      "severity": "HIGH",
+      "name": "Unprotected Withdraw/Claim Function",
+      "pct": 27.5
+    },
+    "missing-disable-init": {
+      "count": 89,
+      "severity": "HIGH",
+      "name": "Missing _disableInitializers",
+      "pct": 24.5
+    },
+    "flash-loan": {
+      "count": 89,
+      "severity": "HIGH",
+      "name": "Flash Loan Susceptibility",
+      "pct": 24.5
+    },
+    "oracle-manipulation": {
+      "count": 85,
+      "severity": "HIGH",
+      "name": "Oracle / Spot Price Manipulation",
+      "pct": 23.4
+    },
+    "storage-collision": {
+      "count": 71,
+      "severity": "HIGH",
+      "name": "Storage Collision Risk (Upgradeable)",
+      "pct": 19.5
+    },
+    "missing-reinitializer": {
+      "count": 65,
+      "severity": "HIGH",
+      "name": "Missing reinitializer on Upgrade Initializer",
+      "pct": 17.9
+    },
+    "tx-origin": {
+      "count": 22,
+      "severity": "HIGH",
+      "name": "TX Origin Authorization",
+      "pct": 6.0
+    },
+    "arbitrary-storage-write": {
+      "count": 2,
+      "severity": "HIGH",
+      "name": "Arbitrary Storage Write (Assembly)",
+      "pct": 0.5
+    },
+    "transaction-order-dep": {
+      "count": 279,
+      "severity": "MEDIUM",
+      "name": "Transaction Order Dependence",
+      "pct": 76.6
+    },
+    "gas-loop": {
+      "count": 278,
+      "severity": "MEDIUM",
+      "name": "Unbounded Loop Over Dynamic Array",
+      "pct": 76.4
+    },
+    "ownership-renounce": {
+      "count": 163,
+      "severity": "MEDIUM",
+      "name": "Ownership Renouncement Risk",
+      "pct": 44.8
+    },
+    "erc20-return-unchecked": {
+      "count": 150,
+      "severity": "MEDIUM",
+      "name": "ERC20 transfer Return Not Checked",
+      "pct": 41.2
+    },
+    "single-step-ownership": {
+      "count": 137,
+      "severity": "MEDIUM",
+      "name": "Single-Step Ownership Transfer",
+      "pct": 37.6
+    },
+    "force-feed-eth": {
+      "count": 119,
+      "severity": "MEDIUM",
+      "name": "Force-Fed ETH via selfdestruct",
+      "pct": 32.7
+    },
+    "unchecked-call": {
+      "count": 107,
+      "severity": "MEDIUM",
+      "name": "Unchecked External Call",
+      "pct": 29.4
+    },
+    "integer-overflow": {
+      "count": 45,
+      "severity": "MEDIUM",
+      "name": "Integer Overflow/Underflow",
+      "pct": 12.4
+    },
+    "timestamp-manipulation": {
+      "count": 32,
+      "severity": "MEDIUM",
+      "name": "Block Timestamp Manipulation",
+      "pct": 8.8
+    },
+    "flash-loan-no-fee": {
+      "count": 18,
+      "severity": "MEDIUM",
+      "name": "Flash Loan Without Fee",
+      "pct": 4.9
+    },
+    "arbitrary-from": {
+      "count": 8,
+      "severity": "MEDIUM",
+      "name": "Arbitrary 'from' in transferFrom",
+      "pct": 2.2
+    },
+    "unsafe-immutable-upgradeable": {
+      "count": 186,
+      "severity": "LOW",
+      "name": "Unsafe immutable in Upgradeable Contract",
+      "pct": 51.1
+    },
+    "custom-auth": {
+      "count": 42,
+      "severity": "LOW",
+      "name": "Custom Access Control Implementation",
+      "pct": 11.5
+    },
+    "multiple-external-calls": {
+      "count": 38,
+      "severity": "LOW",
+      "name": "Multiple External Calls",
+      "pct": 10.4
+    },
+    "strict-balance-equality": {
+      "count": 4,
+      "severity": "LOW",
+      "name": "Strict Balance Equality",
+      "pct": 1.1
+    }
+  },
+  "missing_patterns": [
+    "zero-slippage",
+    "rounding-error",
+    "missing-pause",
+    "arbitrary-jump",
+    "predictable-var"
+  ]
+}

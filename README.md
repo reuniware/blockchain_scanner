@@ -172,36 +172,51 @@ python pool_scanner.py --all --chains bsc --min-tvl 50000
 - Uses Etherscan API V2 — a single API key works for **all 60+ chains**
 - Results cached in memory to avoid redundant API calls
 
-### Solidity Vulnerability Scanner (NEW)
-Analyzes verified smart contract source code for **25 types of security vulnerabilities**:
+### Solidity Vulnerability Scanner (34 patterns)
 
-| Vulnerability | Severity | Description |
-|:---|---:|:---|
-| Reentrancy | CRITICAL | State change AFTER external call — fund theft |
-| Selfdestruct | CRITICAL | Contract destruction without access control |
-| Delegatecall | CRITICAL | Dynamic target — contract takeover |
-| TX Origin | HIGH | tx.origin used for auth — phishing risk |
-| Unprotected Withdraw | HIGH | Withdraw/claim without access control |
-| Unprotected Init | HIGH | Initializer callable multiple times |
-| Unchecked Call | MEDIUM | External call result not verified |
-| Integer Overflow | MEDIUM | Arithmetic without SafeMath (pre-0.8) |
-| Gas Loop | MEDIUM | Unbounded loop over dynamic array |
-| Arbitrary transferFrom | MEDIUM | User-controlled 'from' without allowance |
-| Flash Loan Susceptibility | HIGH | DEX swap without access control — flash loan vector |
-| Oracle Manipulation | HIGH | Spot price (getReserves) instead of TWAP |
-| Missing Slippage / Deadline | HIGH | Zero slippage or no deadline — sandwich/MEV attacks |
-| Force-Fed ETH | MEDIUM | address(this).balance manipulatable via selfdestruct |
-| ERC20 Return Unchecked | MEDIUM | transfer() return value not checked (USDT/BNB) |
-| Signature Replay | HIGH | ecrecover without chainId/nonce |
-| Rounding Error | MEDIUM | Division before multiplication — precision loss |
-| Storage Collision | HIGH | Upgradeable contract without __gap |
-| Timestamp Manipulation | MEDIUM | block.timestamp in critical logic |
-| Ownership Renouncement | MEDIUM | renounceOwnership without recovery |
-| UUPS Unprotected Upgrade | CRITICAL | upgradeToAndCall/_authorizeUpgrade without access control — anyone can replace implementation |
-| Missing _disableInitializers | HIGH | Upgradeable contract without constructor lock — implementation hijackable |
-| Single-Step Ownership | MEDIUM | transferOwnership without acceptOwnership two-step — typo loses control |
-| Flash Loan Without Fee | MEDIUM | flashLoan/flashMint with zero fee — free price manipulation |
-| Missing Pause on Critical | LOW | Pausable contract without whenNotPaused on transfer/withdraw/swap |
+Analyzes verified smart contract source code for **34 types of security vulnerabilities**, combining 10 original patterns with advanced DeFi, OpenZeppelin, and Mythril-derived detections.
+
+| Vulnerability | Severity | Source |
+|:---|---:|---|
+| Reentrancy | CRITICAL | Original |
+| Selfdestruct / Suicide | CRITICAL | Original |
+| Delegatecall to Variable Address | CRITICAL | Original |
+| UUPS Unprotected Upgrade | CRITICAL | OpenZeppelin |
+| TX Origin Authorization | HIGH | Original |
+| Unprotected Withdraw/Claim | HIGH | Original |
+| Unprotected Initializer | HIGH | Original |
+| Flash Loan Susceptibility | HIGH | Advanced (11-20) |
+| Oracle / Spot Price Manipulation | HIGH | Advanced (11-20) |
+| Missing Deadline in Swap | HIGH | Advanced (11-20) |
+| Signature Replay Attack | HIGH | Advanced (11-20) |
+| Storage Collision Risk (Upgradeable) | HIGH | Advanced (11-20) |
+| Missing _disableInitializers | HIGH | OpenZeppelin |
+| Missing reinitializer on Upgrade | HIGH | OpenZeppelin Skills |
+| Field Initializers in Upgradeable | HIGH | OpenZeppelin Skills |
+| **Arbitrary Jump (Assembly)** | **HIGH** | **Mythril (NEW)** |
+| **Arbitrary Storage Write (Assembly)** | **HIGH** | **Mythril (NEW)** |
+| Unchecked External Call | MEDIUM | Original |
+| Integer Overflow/Underflow | MEDIUM | Original |
+| Unbounded Loop Over Dynamic Array | MEDIUM | Original |
+| Arbitrary 'from' in transferFrom | MEDIUM | Original |
+| Force-Fed ETH via selfdestruct | MEDIUM | Advanced (11-20) |
+| ERC20 transfer Return Not Checked | MEDIUM | Advanced (11-20) |
+| Rounding Error | MEDIUM | Advanced (11-20) |
+| Block Timestamp Manipulation | MEDIUM | Advanced (11-20) |
+| Ownership Renouncement Risk | MEDIUM | Advanced (11-20) |
+| Single-Step Ownership Transfer | MEDIUM | OpenZeppelin |
+| Flash Loan Without Fee | MEDIUM | OpenZeppelin |
+| **Transaction Order Dependence** | **MEDIUM** | **Mythril (NEW)** |
+| **Dependence on Predictable Variable** | **MEDIUM** | **Mythril (NEW)** |
+| Custom Access Control | LOW | OpenZeppelin Skills |
+| Unsafe immutable in Upgradeable | LOW | OpenZeppelin Skills |
+| Missing Pause on Critical | LOW | OpenZeppelin |
+| Multiple External Calls | LOW | Mythril (NEW) |
+| Strict Balance Equality | LOW | Mythril (NEW) |
+
+Patterns from **Mythril** (cloned from [github.com/ConsenSysDiligence/mythril](https://github.com/ConsenSysDiligence/mythril)) were analyzed and adapted as regex-based checks, covering assembly-level vulnerabilities (jump, sstore), race conditions (tx order dependence), and gas/design issues.
+
+**Stats from 364 verified contracts:** `transaction-order-dep` found in **76.6%** of contracts, `multiple-external-calls` in **10.4%**, `arbitrary-storage-write` in **0.5%**. See `findings/pattern_stats.json`.
 
 Results appear automatically when a verified contract is detected:
 ```
@@ -336,6 +351,34 @@ Runs UniversalExploit v2 (28 attacks) against each contract sequentially. Stops 
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
 > **Key finding:** After 55 Hardhat fork tests on verified contracts with balance, **0 confirmed exploits**. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. The dynamic test generator and specialized contracts fill this gap for high-value targets.
+
+## Testing
+
+Before every commit, a pre-commit hook runs the Mythril pattern tests to ensure scanner integrity:
+
+```bash
+# Run the test suite manually
+python test_mythril_patterns.py
+
+# The pre-commit hook runs automatically on git commit
+# To bypass (emergency only): git commit --no-verify
+```
+
+**Test scope:** Validates all 5 Mythril-derived patterns (arbitrary-jump, arbitrary-storage-write, multiple-external-calls, transaction-order-dependence, strict-balance-equality) with positive and negative test cases, plus an integration test on UniversalExploit.sol.
+
+**Pre-commit hook:** Installed via `hooks/pre-commit`. If tests fail, the commit is aborted with an error message.
+
+### Stats generation
+
+```bash
+# Generate full pattern statistics across N verified contracts
+python stats_patterns.py --limit 500
+
+# Filter by chain
+python stats_patterns.py --limit 100 --chain 56
+```
+
+Results saved to `findings/pattern_stats.json`.
 
 ### Bitcoin mempool tracking
 - Connects to mempool.space WebSocket for real-time unconfirmed transactions
