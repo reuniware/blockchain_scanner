@@ -271,6 +271,28 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 4. Unprotected Withdraw/Claim Function
 5. TX Origin Authorization
 
+### Backfill-Hardhat Mode (NEW)
+- `python guardian.py --backfill --backfill-hardhat` — full pipeline from DB to Hardhat confirmation
+- `python guardian.py --backfill --force` — force re-scan (delete + recreate findings)
+- `python guardian.py --backfill --backfill-limit 10` — limit to N contracts
+
+### Auto-Stop Modes (NEW)
+- `--stop-on detected` — stop on first HIGH/CRITICAL (default)
+- `--stop-on confirmed` — stop only after pipeline confirms
+- `--stop-on none` — never auto-stop (manual)
+
+### Performance: ×20 Optimization
+- `validate_contract()` batches all findings of a contract into 1 fork + 1 compile + 1 Hardhat run
+- Old: ~60s/finding → New: ~3s for 1 contract with 1 finding exploitable
+- `validate_for_addresses()` and `validate_all_pending()` group by contract automatically
+- `validate_finding()` preserved for backward compatibility
+
+### Bugfixes: EOA Filter, Cache Source, RPC URLs
+- **EOA filter**: `eth_getCode` before analysis — prevents false positives on EOA addresses
+- **Source cache**: passes `--cached-source` via temp file to avoid duplicate Etherscan API calls (inconsistent between calls)
+- **RPC URLs**: uses `config.yaml` RPC URLs (with Infura secret) instead of hardcoded `CHAIN_REGISTRY`
+- **`getLatestBlock()` fix**: uses `ethers.JsonRpcProvider(url)` direct instead of `hre.network.provider` before fork initialization
+
 ### --force-hardhat Mode
 - Added CLI flag `--force-hardhat` to bypass balance threshold (0.001)
 - Periodic Hardhat validation every 120s for existing contracts
@@ -278,24 +300,41 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 
 ## 11. Project Evolution
 
-### Built in this session
+### Built in this session (Session 6)
+1. `--backfill-hardhat`: Full pipeline from DB to Hardhat confirmation
+2. `--stop-on detected|confirmed|none`: 3 auto-stop modes for main.py
+3. `--backfill` mode in guardian.py: re-scan all verified contracts from DB
+4. `validate_contract()`: ×20 performance optimization (1 fork/contract)
+5. EOA filter: `eth_getCode` before scanning to prevent cross-chain false positives
+6. Source cache: avoid duplicate Etherscan API calls via temp file
+7. RPC URL fix: use config.yaml URLs (with Infura secret) for Hardhat fork
+8. `getLatestBlock()` fix: use direct JsonRpcProvider instead of Hardhat provider
+9. `validate_for_addresses()`: scoped validation for backfill mode
+10. All `.md` files updated with latest changes
+
+### Built in Session 5
+1. UniversalExploit v2: 28 attack types, 80+ signatures
+2. 5 PredictionV2 exploit contracts + 6 JS scripts
+3. dynamic_test_generator.py
+4. Batch mode: 55 contracts tested, 0 confirmed
+5. Hardhat config: allowUnlimitedContractSize
+6. Fix TDZ in test_fork_exploit.js
+
+### Built in Session 4
 1. Vulnerability scanner expanded from 10 → 20 Solidity patterns
 2. UniversalExploit.sol — single contract for 18/20 attack types
 3. test_fork_exploit.js — generic fork exploitation script
 4. hardhat_fork_tester.py — Python orchestrator for fork testing
 5. scan_bsc_recent.py — 100-block BSC deployment scanner
 6. scan_bsc_500.py — 500-block BSC bulk scanner + auto exploit pipeline
-7. pool_scanner.py — DEX pool scanner via DEX Screener (PancakeSwap, Thena on BSC)
-8. pool_scanner.py --all mode — scan ALL pools without filter + live feedback
-9. pool_scanner.py --audit-local — systematic Hardhat fork test on each contract
-10. First --all scan: 136 pools, 126 scanned, 43 INTERESSANTS (Velodrome/Optimism)
-11. All .md files updated with consolidated stats (2 340 contracts, 0 confirmed)
-12. Discovery: 100% false positive rate on contracts with balance (ERC20 memecoins)
-13. Proxy fallback in exploit_pipeline: auto-fetch implementation source for proxy contracts (EIP-1967/UUPS)
-14. WebSocketProvider.disconnect() fix: stops asyncio QueueFull errors on scanner shutdown
-15. Monkey-patch `put_nowait` on web3.py subscription queue: catches QueueFull silently during shutdown, warns if lagging in normal ops
-16. Track fire-and-forget tasks (_verify_contract, _scan_vulnerabilities) in orchestrator — properly cancelled on shutdown (no more task leaks)
-17. Auto-redirect proxy→implementation in verify.py (recursive depth 3) + exploit_pipeline.py — eliminates OZ boilerplate false positives
+7. pool_scanner.py — DEX pool scanner via DEX Screener
+8. pool_scanner.py --all mode — scan ALL pools
+9. pool_scanner.py --audit-local — systematic Hardhat fork test
+10. First --all scan: 136 pools, 126 scanned
+11. Discovery: 100% false positive rate on contracts with balance
+12. Proxy fallback in exploit_pipeline
+
+### Older Changes
 
 ### Concrete Validation vs Pattern Detection
 Scanner finds patterns, not vulnerabilities. Key examples:

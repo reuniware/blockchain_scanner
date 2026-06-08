@@ -1,5 +1,5 @@
 # Guardian Auto-Report
-> **manual** — 2026-06-08 14:00:14 UTC
+> **manual** — 2026-06-08 19:00:00 UTC
 
 ## Global Stats
 
@@ -10,7 +10,17 @@
 | Total findings | 5184 |
 | Exploitable findings | 3340 |
 | Hardhat confirmed exploits | 0 |
-| Hardhat test failures | 247 |
+| Hardhat test failures | 248 |
+
+## Session 6 — Nouveautés
+
+| Feature | Description |
+|---------|------------|
+| `--backfill-hardhat` | Pipeline complet DB → source → analyse → **Hardhat fork → confirmation** |
+| `--stop-on confirmed` | Auto-stop après validation par le pipeline (pas juste la détection) |
+| Filtre EOA | `eth_getCode` avant analyse — évite les faux positifs cross-chain |
+| Cache source | Pas de double appel API incohérent Etherscan |
+| **Performance ×20** | `validate_contract()` : 1 fork/contrat au lieu de 1/finding (~3s au lieu de ~60s) |
 
 ## Per-Chain Breakdown
 

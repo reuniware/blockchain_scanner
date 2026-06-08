@@ -21,18 +21,26 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | Faux positifs globaux | Estimation ~85% |
 | **Fonds drainables** | **0 confirmé** après 55 tests Hardhat fork complets |
 
-### 🔧 Changements récents (Session 5 — 08/06/2026)
-- **UniversalExploit v2** : Étendu de 18 → **28 attaques**, **80+ signatures DeFi** (withdraw, redeem, unstake, harvest, stake, enter, upgradeTo, grantRole, pause, sweep, etc.)
-- **5 contrats exploit PredictionV2** : OracleManipulator, Reentrancy, Delegatecall, TXOrigin, Treasury — tests ciblés pour PancakeSwap Prediction V2 (1,724 BNB)
-- **6 scripts JS PredictionV2** : 5 tests individuels + 1 master suite (`test_prediction_v2_all.js`)
-- **`dynamic_test_generator.py`** : Nouvel outil qui lit les findings DB et génère des tests JS Hardhat ciblés avec 50+ selecteurs 4-byte
-- **Flag `--dynamic`** dans `hardhat_fork_tester.py` : Génère + exécute des tests dynamiques depuis les findings
-- **Flag `--batch`** : Teste TOUS les 55 contrats vérifiés avec balance en séquentiel
-- **`allowUnlimitedContractSize`** : Activé dans `hardhat.config.js` pour déployer UniversalExploit v2 (30kb)
-- **Fix TDZ** : `attacks.length` référencé avant `const attacks` dans `test_fork_exploit.js` — ReferenceError corrigé
-- **Fix générateur dynamique** : Chemins absolus résolus + bloc scope `{ }` pour éviter les déclarations `const` dupliquées
-- **3 pipelines de test** : UniversalExploit (générique), Dynamique (basé findings), Spécialisés (manuels)
-- **Batch complet** : 55 contrats testés, **0 confirmé exploitable**
+### 🔧 Changements récents (Session 6 — 08/06/2026)
+
+#### `--backfill-hardhat` — Pipeline complet jusqu'à la confirmation
+- Nouveau mode : `python guardian.py --backfill --backfill-hardhat`
+- Enchaîne : DB → source → pipeline analyse → **Hardhat fork → CONFIRMED ou FAILED**
+- `--backfill-limit N` : limite le nombre de contrats traités
+- `--force` : re-scan complet (supprime + recrée les findings)
+
+#### Bugfixes
+- **Scope Hardhat** : `validate_for_addresses()` ne teste que les findings des contrats du backfill (pas les 3108 de toute la DB)
+- **"missing trie node"** : `getLatestBlock()` utilise `ethers.JsonRpcProvider(url)` direct au lieu de `hre.network.provider` avant que le fork soit initialisé
+- **URLs RPC** : RPC URLs depuis `config.yaml` (inclut le secret Infura) au lieu de `CHAIN_REGISTRY`
+- **Filtre EOA** : `eth_getCode` avant analyse — évite les faux positifs sur les EOA (ex: adresse Ethereum qui est un contrat sur Optimism)
+- **Cache source** : passage du source via fichier temporaire pour éviter le double appel API incohérent Etherscan
+- **Stop-on modes** : `--stop-on detected|confirmed|none` pour choisir quand arrêter le scan
+
+#### Performance ×20
+- `validate_contract()` : groupe tous les findings d'un contrat en **1 fork + 1 compile + 1 run**
+- Avant : ~60s/finding → Après : ~3s pour 1 contrat avec 1 finding exploitable
+- `validate_finding()` préservée pour compatibilité
 
 ### 🔧 Changements antérieurs
 - **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies et fetch l'implementation

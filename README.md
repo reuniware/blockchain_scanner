@@ -25,6 +25,9 @@ python main.py
 | `python main.py` | Scan all enabled chains |
 | `python main.py --chains ethereum` | Scan Ethereum only |
 | `python main.py --chains ethereum,bsc,bitcoin` | Scan specific chains |
+| `python main.py --stop-on detected` | Stop on first HIGH/CRITICAL finding (default) |
+| `python main.py --stop-on confirmed` | Stop only after exploit pipeline confirms the finding |
+| `python main.py --stop-on none` | Never auto-stop (manual Ctrl+C) |
 | `python main.py --list-chains` | List configured chains without scanning |
 | `python exploit_pipeline.py --address 0x... --chain ethereum` | Analyze a contract's vulnerabilities |
 | `python scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments |
@@ -64,6 +67,10 @@ python main.py
 | `python guardian.py --force-hardhat` | Force Hardhat validation on ALL findings (balance=0 included) |
 | `python guardian.py --status` | Show DB stats (contracts, findings, balance) |
 | `python guardian.py --health` | Check if guardian process is running |
+| `python guardian.py --backfill` | Backfill: re-scan all verified contracts from DB (no live scanning) |
+| `python guardian.py --backfill --force` | Force re-scan (delete + re-create findings) |
+| `python guardian.py --backfill --backfill-hardhat` | Backfill + Hardhat fork validation (full pipeline: DB → source → analysis → fork → confirmation) |
+| `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
 | `bash run_forever.sh` | Auto-restart loop (infinite, logs, no git push) |
 | `python dump_results.py` | Export DB stats to findings/scanned_contracts.md |
 
@@ -185,34 +192,34 @@ Analyzes verified smart contract source code for **34 types of security vulnerab
 | TX Origin Authorization | HIGH | Original |
 | Unprotected Withdraw/Claim | HIGH | Original |
 | Unprotected Initializer | HIGH | Original |
-| Flash Loan Susceptibility | HIGH | Advanced (11-20) |
-| Oracle / Spot Price Manipulation | HIGH | Advanced (11-20) |
-| Missing Deadline in Swap | HIGH | Advanced (11-20) |
-| Signature Replay Attack | HIGH | Advanced (11-20) |
-| Storage Collision Risk (Upgradeable) | HIGH | Advanced (11-20) |
+| Flash Loan Susceptibility | HIGH | Advanced |
+| Oracle / Spot Price Manipulation | HIGH | Advanced |
+| Missing Deadline in Swap | HIGH | Advanced |
+| Signature Replay Attack | HIGH | Advanced |
+| Storage Collision Risk (Upgradeable) | HIGH | Advanced |
 | Missing _disableInitializers | HIGH | OpenZeppelin |
-| Missing reinitializer on Upgrade | HIGH | OpenZeppelin Skills |
-| Field Initializers in Upgradeable | HIGH | OpenZeppelin Skills |
-| **Arbitrary Jump (Assembly)** | **HIGH** | **Mythril (NEW)** |
-| **Arbitrary Storage Write (Assembly)** | **HIGH** | **Mythril (NEW)** |
+| Missing reinitializer on Upgrade | HIGH | OpenZeppelin |
+| Field Initializers in Upgradeable | HIGH | OpenZeppelin |
+| Arbitrary Jump (Assembly) | HIGH | Mythril |
+| Arbitrary Storage Write (Assembly) | HIGH | Mythril |
 | Unchecked External Call | MEDIUM | Original |
 | Integer Overflow/Underflow | MEDIUM | Original |
 | Unbounded Loop Over Dynamic Array | MEDIUM | Original |
 | Arbitrary 'from' in transferFrom | MEDIUM | Original |
-| Force-Fed ETH via selfdestruct | MEDIUM | Advanced (11-20) |
-| ERC20 transfer Return Not Checked | MEDIUM | Advanced (11-20) |
-| Rounding Error | MEDIUM | Advanced (11-20) |
-| Block Timestamp Manipulation | MEDIUM | Advanced (11-20) |
-| Ownership Renouncement Risk | MEDIUM | Advanced (11-20) |
+| Force-Fed ETH via selfdestruct | MEDIUM | Advanced |
+| ERC20 transfer Return Not Checked | MEDIUM | Advanced |
+| Rounding Error | MEDIUM | Advanced |
+| Block Timestamp Manipulation | MEDIUM | Advanced |
+| Ownership Renouncement Risk | MEDIUM | Advanced |
 | Single-Step Ownership Transfer | MEDIUM | OpenZeppelin |
 | Flash Loan Without Fee | MEDIUM | OpenZeppelin |
-| **Transaction Order Dependence** | **MEDIUM** | **Mythril (NEW)** |
-| **Dependence on Predictable Variable** | **MEDIUM** | **Mythril (NEW)** |
-| Custom Access Control | LOW | OpenZeppelin Skills |
-| Unsafe immutable in Upgradeable | LOW | OpenZeppelin Skills |
+| Transaction Order Dependence | MEDIUM | Mythril |
+| Dependence on Predictable Variable | MEDIUM | Mythril |
+| Custom Access Control | LOW | OpenZeppelin |
+| Unsafe immutable in Upgradeable | LOW | OpenZeppelin |
 | Missing Pause on Critical | LOW | OpenZeppelin |
-| Multiple External Calls | LOW | Mythril (NEW) |
-| Strict Balance Equality | LOW | Mythril (NEW) |
+| Multiple External Calls | LOW | Mythril |
+| Strict Balance Equality | LOW | Mythril |
 
 Patterns from **Mythril** (cloned from [github.com/ConsenSysDiligence/mythril](https://github.com/ConsenSysDiligence/mythril)) were analyzed and adapted as regex-based checks, covering assembly-level vulnerabilities (jump, sstore), race conditions (tx order dependence), and gas/design issues.
 
@@ -335,6 +342,37 @@ python hardhat_fork_tester.py --batch
 Runs UniversalExploit v2 (28 attacks) against each contract sequentially. Stops on first confirmed exploit.
 
 **Batch results (08/06/2026):** 55 contracts tested, **0 confirmed exploitable**. All real-world contracts are properly protected.
+
+### Backfill + Hardhat (NEW)
+
+Re-scan all contracts from the DB and validate on a real Hardhat fork:
+
+```bash
+# Backfill simple: re-scan sans Hardhat
+python guardian.py --backfill
+
+# Backfill + Hardhat: pipeline complet jusqu'à la confirmation
+python guardian.py --backfill --backfill-hardhat
+
+# Limit to N contracts
+python guardian.py --backfill --backfill-hardhat --backfill-limit 10
+
+# Force re-scan (delete + re-create findings)
+python guardian.py --backfill --force
+```
+
+### Performance: ×20 optimization
+
+HardhatValidator groups all findings per contract into a **single fork + single compile + single run**, instead of one per finding:
+
+| Avant (par finding) | Après (par contrat) |
+|---|---|
+| 1 fork Hardhat | **1 fork unique** |
+| 1 `npx hardhat compile` | **1 compilation pour N exploits** |
+| 1 `npx hardhat run` | **1 seul run pour N attaques** |
+| **~60s/finding** | **~60s + ~10s/finding supplémentaire** |
+
+Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable (×20).
 
 ### Guardian 24/7 Stats (as of 08/06/2026)
 
