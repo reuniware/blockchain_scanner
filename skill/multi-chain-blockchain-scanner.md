@@ -217,13 +217,13 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 
 | Metric | Value |
 |:---|---|
-| Contracts in DB | **21 839** |
-| Verified contracts | **901** |
-| Total findings | **4 471** |
-| Exploitable | **2 866** |
+| Contracts in DB | **23 007** |
+| Verified contracts | **923** |
+| Total findings | **4 685** |
+| Exploitable | **3 015** |
 | Hardhat tests run | **18** (configured via `exploit/` dir) |
 | Confirmed exploits | **0** |
-| Pending Hardhat tests | **2 848** (force mode active: testing ALL regardless of balance) |
+| Pending Hardhat tests | **~2 997** (force mode active: testing ALL regardless of balance) |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 | Vulnerabilities scanned | **29** (20 base + 9 OpenZeppelin) |
 
