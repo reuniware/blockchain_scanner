@@ -217,6 +217,36 @@ class FindingsDB:
     def is_scanned(self, address: str, chain_id: int) -> bool:
         return self.get_contract(address, chain_id) is not None
 
+    def get_verified_contracts(self, force: bool = False) -> list[dict]:
+        """Get all verified contracts from DB.
+
+        Args:
+            force: If True, returns ALL verified contracts (even already scanned).
+                   If False, returns only those without findings (not yet processed).
+        """
+        conn = self.connect()
+        if force:
+            cur = conn.execute(
+                "SELECT * FROM contracts WHERE verified = 1 ORDER BY bnb_balance DESC"
+            )
+        else:
+            cur = conn.execute("""
+                SELECT c.* FROM contracts c
+                LEFT JOIN findings f ON c.address = f.contract_addr AND c.chain_id = f.chain_id
+                WHERE c.verified = 1 AND f.id IS NULL
+                ORDER BY c.bnb_balance DESC
+            """)
+        return [dict(r) for r in cur.fetchall()]
+
+    def delete_findings(self, address: str, chain_id: int):
+        """Delete all findings for a contract (for re-scan)."""
+        conn = self.connect()
+        conn.execute(
+            "DELETE FROM findings WHERE contract_addr = ? AND chain_id = ?",
+            (address, chain_id)
+        )
+        conn.commit()
+
     def get_exploitable_not_tested(self) -> list[dict]:
         conn = self.connect()
         cur = conn.execute("""
@@ -661,6 +691,122 @@ class Guardian:
             sys.exit(1)
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
+
+    async def run_backfill(self, force: bool = False, limit: int = 0):
+        """Backfill: run exploit pipeline on all verified contracts in the DB.
+
+        Reads contracts from the database, fetches their source code,
+        runs the full exploit pipeline, and stores findings.
+        Useful when new patterns are added (e.g., Mythril patterns).
+
+        Args:
+            force: If True, re-process ALL contracts (delete + re-create findings).
+            limit: Max contracts to process (0 = no limit).
+        """
+        logger.info("=" * 60)
+        logger.info("  GUARDIAN — BACKFILL: Reprise de tous les contrats verifies")
+        logger.info("=" * 60)
+
+        self.db.connect()
+        contracts = self.db.get_verified_contracts(force=force)
+
+        if not contracts:
+            logger.info("[BACKFILL] Aucun contrat a traiter (deja tous a jour ?)")
+            return
+
+        if limit > 0:
+            contracts = contracts[:limit]
+
+        logger.info(f"[BACKFILL] {len(contracts)} contrat(s) a traiter")
+        if force:
+            logger.info("[BACKFILL] Mode FORCE: re-scan de tous les contrats (findings existants effaces)")
+
+        # Initialize exploit pipeline
+        api_key = self.config.get("global", {}).get("explorer_api_key", "")
+        pipeline = ExploitPipeline(api_key=api_key)
+
+        processed = 0
+        errors = 0
+
+        for idx, contract in enumerate(contracts, 1):
+            addr = contract["address"]
+            chain_id = contract["chain_id"]
+            chain_name = contract.get("chain_name", f"chain-{chain_id}")
+            bal = contract.get("bnb_balance", 0)
+
+            logger.info(f"[{idx}/{len(contracts)}] {addr[:14]}.. sur {chain_name} (bal={bal:.4f})")
+
+            # If force mode, delete old findings first
+            if force:
+                self.db.delete_findings(addr, chain_id)
+
+            # Skip if already scanned (and not force)
+            if not force and self.db.is_scanned(addr, chain_id):
+                logger.info(f"  -> Deja dans la DB, skip")
+                continue
+
+            try:
+                # Run the exploit pipeline (fetches source via API)
+                report = await pipeline.run_for_address(addr, chain_id, chain_name)
+
+                if not report or not report.findings:
+                    # Still record the contract as scanned (0 findings)
+                    contract_rec = ContractRecord(
+                        address=addr, chain_id=chain_id, chain_name=chain_name,
+                        name=report.contract_name if report else contract.get("name", "Unknown"),
+                        verified=True,
+                        source_length=report.source_length if report else 0,
+                        sol_version=report.solidity_version if report else None,
+                        scanned_at=datetime.utcnow().isoformat(),
+                        finding_count=0,
+                        bnb_balance=bal,
+                    )
+                    self.db.upsert_contract(contract_rec)
+                    logger.info(f"  -> 0 finding(s)")
+                    processed += 1
+                    continue
+
+                # Store contract
+                contract_rec = ContractRecord(
+                    address=addr, chain_id=chain_id, chain_name=chain_name,
+                    name=report.contract_name,
+                    verified=True,
+                    source_length=report.source_length,
+                    sol_version=report.solidity_version,
+                    scanned_at=datetime.utcnow().isoformat(),
+                    finding_count=len(report.findings),
+                    exploitable_count=report.total_exploitable,
+                    bnb_balance=bal,
+                )
+                self.db.upsert_contract(contract_rec)
+
+                # Store findings
+                for finding, validation in zip(report.findings, report.validations):
+                    finding_rec = FindingRecord(
+                        contract_addr=addr, chain_id=chain_id,
+                        finding_name=finding.name, severity=finding.severity,
+                        line_numbers=finding.line_numbers,
+                        exploitable=validation.theoretically_exploitable,
+                        exploit_notes=validation.exploit_notes,
+                        created_at=datetime.utcnow().isoformat(),
+                    )
+                    self.db.add_finding(finding_rec)
+
+                logger.info(f"  -> {len(report.findings)} finding(s), {report.total_exploitable} exploitable(s)")
+                if report.total_exploitable > 0:
+                    logger.warning(f"  [!] EXPLOITABLE: {report.total_exploitable} sur {addr[:14]}..")
+
+                processed += 1
+
+            except Exception as e:
+                logger.error(f"[BACKFILL] Erreur sur {addr[:14]}..: {e}")
+                errors += 1
+
+        await pipeline.close()
+
+        logger.info("=" * 60)
+        logger.info(f"  BACKFILL TERMINE: {processed} traites, {errors} erreurs")
+        logger.info("=" * 60)
 
     async def _on_unverified_contract(
         self, address: str, chain_id: int, chain_name: str
@@ -1110,6 +1256,12 @@ async def main_async(args):
         guardian.print_report()
         return
 
+    # Backfill mode: process all contracts from DB without live scanning
+    if args.backfill:
+        backfill_limit = getattr(args, "backfill_limit", 0) or 0
+        await guardian.run_backfill(force=args.force, limit=backfill_limit)
+        return
+
     # Parse target chains if specified
     target_chains = None
     if args.chains:
@@ -1135,6 +1287,12 @@ def main():
                         help="Comma-separated list of chains to scan (default: all enabled in config)")
     parser.add_argument("--force-hardhat", action="store_true",
                         help="Force Hardhat validation on ALL exploitable findings (balance=0 included)")
+    parser.add_argument("--backfill", action="store_true",
+                        help="Run exploit pipeline on all verified contracts in DB (no live scanning)")
+    parser.add_argument("--backfill-limit", type=int, default=0,
+                        help="Max contracts to process in backfill mode (0 = unlimited)")
+    parser.add_argument("--force", action="store_true",
+                        help="Force re-scan in backfill mode (delete and re-create findings)")
     args = parser.parse_args()
 
     try:
