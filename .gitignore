@@ -30,6 +30,11 @@ pool_scan_results.json
 guardian.pid
 exploit/contracts/GuardianExploit.sol
 exploit/scripts/guardian_test.js
+exploit/contracts/Exploit_*.sol
+exploit/scripts/guardian_combined_test.js
+
+guardian_data.db-shm
+guardian_data.db-wal
 
 # Windows reserved filename (accidental file creation)
 nul

@@ -1005,7 +1005,7 @@ class Guardian:
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
-    async def run_backfill(self, force: bool = False, limit: int = 0, hardhat: bool = False):
+    async def run_backfill(self, force: bool = False, limit: int = 0, hardhat: bool = False, feedback_interval: int = 5):
         """Backfill: run exploit pipeline on all verified contracts in the DB.
 
         Reads contracts from the database, fetches their source code,
@@ -1016,6 +1016,7 @@ class Guardian:
             force: If True, re-process ALL contracts (delete + re-create findings).
             limit: Max contracts to process (0 = no limit).
             hardhat: If True, run Hardhat fork tests on exploitable findings after backfill.
+            feedback_interval: Print progress summary every N contracts (0 = no feedback).
         """
         logger.info("=" * 60)
         logger.info("  GUARDIAN — BACKFILL: Reprise de tous les contrats verifies")
@@ -1031,9 +1032,12 @@ class Guardian:
         if limit > 0:
             contracts = contracts[:limit]
 
-        logger.info(f"[BACKFILL] {len(contracts)} contrat(s) a traiter")
+        total = len(contracts)
+        logger.info(f"[BACKFILL] {total} contrat(s) a traiter")
         if force:
             logger.info("[BACKFILL] Mode FORCE: re-scan de tous les contrats (findings existants effaces)")
+        if feedback_interval > 0:
+            logger.info(f"[BACKFILL] Feedback progressif tous les {feedback_interval} contrats")
 
         # Initialize exploit pipeline
         api_key = self.config.get("global", {}).get("explorer_api_key", "")
@@ -1041,7 +1045,11 @@ class Guardian:
 
         processed = 0
         errors = 0
+        skipped = 0
+        total_findings = 0
+        total_exploitables = 0
         processed_addresses: list[tuple[str, int]] = []  # (address, chain_id) for Hardhat scope
+        start_time = datetime.utcnow()
 
         for idx, contract in enumerate(contracts, 1):
             addr = contract["address"]
@@ -1049,7 +1057,7 @@ class Guardian:
             chain_name = contract.get("chain_name", f"chain-{chain_id}")
             bal = contract.get("bnb_balance", 0)
 
-            logger.info(f"[{idx}/{len(contracts)}] {addr[:14]}.. sur {chain_name} (bal={bal:.4f})")
+            logger.info(f"[{idx}/{total}] {addr[:14]}.. sur {chain_name} (bal={bal:.4f})")
 
             # If force mode, delete old findings first
             if force:
@@ -1058,6 +1066,7 @@ class Guardian:
             # Skip if already scanned (and not force)
             if not force and self.db.is_scanned(addr, chain_id):
                 logger.info(f"  -> Deja dans la DB, skip")
+                skipped += 1
                 continue
 
             try:
@@ -1108,9 +1117,14 @@ class Guardian:
                     )
                     self.db.add_finding(finding_rec)
 
-                logger.info(f"  -> {len(report.findings)} finding(s), {report.total_exploitable} exploitable(s)")
-                if report.total_exploitable > 0:
-                    logger.warning(f"  [!] EXPLOITABLE: {report.total_exploitable} sur {addr[:14]}..")
+                findings_count = len(report.findings)
+                exploitables_count = report.total_exploitable
+                total_findings += findings_count
+                total_exploitables += exploitables_count
+
+                logger.info(f"  -> {findings_count} finding(s), {exploitables_count} exploitable(s)")
+                if exploitables_count > 0:
+                    logger.warning(f"  [!] EXPLOITABLE: {exploitables_count} sur {addr[:14]}..")
 
                 processed += 1
                 processed_addresses.append((addr, chain_id))
@@ -1118,6 +1132,18 @@ class Guardian:
             except Exception as e:
                 logger.error(f"[BACKFILL] Erreur sur {addr[:14]}..: {e}")
                 errors += 1
+
+            # Progress feedback every N contracts
+            if feedback_interval > 0 and processed > 0 and processed % feedback_interval == 0:
+                elapsed = (datetime.utcnow() - start_time).total_seconds()
+                rate = processed / elapsed if elapsed > 0 else 0
+                eta_secs = (total - idx) / rate if rate > 0 else 0
+                logger.info(
+                    f"[PROGRESS] {processed}/{total} traites | "
+                    f"{total_findings} findings | {total_exploitables} exploitables | "
+                    f"{errors} erreurs | {elapsed:.0f}s ecoulees | "
+                    f"ETA: {eta_secs:.0f}s"
+                )
 
         await pipeline.close()
 
@@ -1606,7 +1632,8 @@ async def main_async(args):
     if args.backfill:
         backfill_limit = getattr(args, "backfill_limit", 0) or 0
         backfill_hardhat = getattr(args, "backfill_hardhat", False)
-        await guardian.run_backfill(force=args.force, limit=backfill_limit, hardhat=backfill_hardhat)
+        feedback = getattr(args, "backfill_feedback", 0) or 0
+        await guardian.run_backfill(force=args.force, limit=backfill_limit, hardhat=backfill_hardhat, feedback_interval=feedback)
         return
 
     # Parse target chains if specified
@@ -1642,6 +1669,8 @@ def main():
                         help="Force re-scan in backfill mode (delete and re-create findings)")
     parser.add_argument("--backfill-hardhat", action="store_true",
                         help="After backfill, run Hardhat fork tests on all exploitable findings to confirm them")
+    parser.add_argument("--backfill-feedback", type=int, default=5,
+                        help="Print progress summary every N contracts during backfill (default: 5, 0 = no feedback)")
     args = parser.parse_args()
 
     try:

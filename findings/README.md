@@ -2,16 +2,18 @@
 
 Ce répertoire répertorie tous les contrats analysés par le scanner de vulnérabilités, avec les résultats détaillés de chaque analyse.
 
-## Résumé (08/06/2026)
+## Résumé (09/06/2026)
 
 | Statut | Nombre |
 |:---|---:|
 | Contrats dans la DB Guardian | **24 945** |
 | Contrats vérifiés analysés | **985** |
-| Findings totaux cumulés | **5 184** |
-| Exploitables (théorique - pipeline) | **3 340** |
+| Findings totaux cumulés | **7 365** |
+| Exploitables (théorique - pipeline) | **4 407** |
 | Types de vulnérabilités détectées | **29** (+9 OpenZeppelin checks) |
 | Tests Hardhat fork (batch) | **55** (tous les contrats vérifiés avec balance) |
+| Tests Hardhat fork (backfill force) | **55** (5 contrats BSC, 33 findings) |
+| Tests Hardhat fork (total) | **116** |
 | Tests fork PredictionV2 | **5 scripts** (oracle, reentrancy, delegatecall, txorigin, treasury) |
 | Tests générés dynamiquement | **1** (généré depuis les findings DB) |
 | Contrats avec balance > 0.001 | **66** |
@@ -19,9 +21,28 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper — faux positif réel) |
 | Faux positifs sur contrats avec balance | ~100% (aucun confirmé après 55 tests) |
 | Faux positifs globaux | Estimation ~85% |
-| **Fonds drainables** | **0 confirmé** après 55 tests Hardhat fork complets |
+| **Fonds drainables** | **0 confirmé** après 116 tests Hardhat fork complets |
 
-### 🔧 Changements récents (Session 6 — 08/06/2026)
+### 🔧 Changements récents (Session 7 — 09/06/2026)
+
+#### Backfill force + Hardhat — Validation réelle sur 5 contrats BSC
+- `python guardian.py --backfill --force --backfill-hardhat --backfill-limit 5`
+- Résultat : **5 contrats** (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2)
+- **67 findings** → **33 exploitables théoriques** → **33 testés Hardhat** → **0 confirmé**
+- Même PancakePredictionV2 (1 724 BNB) résiste à tous les exploits spécialisés
+
+#### `--backfill-feedback` — Suivi de progression
+- Nouveau flag : `python guardian.py --backfill --backfill-feedback 10`
+- Affiche un résumé toutes les N contrats (processed, findings, exploitables, errors, ETA)
+- Permet de suivre l'avancement des longs backfills
+
+#### Stats mises à jour
+- Findings : **5 184 → 7 365** (+2 181)
+- Exploitables : **3 340 → 4 407** (+1 067)
+- Tests Hardhat : **55 → 116**
+- Confirmés : toujours **0**
+
+### 🔧 Session 6 — 08/06/2026
 
 #### `--backfill-hardhat` — Pipeline complet jusqu'à la confirmation
 - Nouveau mode : `python guardian.py --backfill --backfill-hardhat`

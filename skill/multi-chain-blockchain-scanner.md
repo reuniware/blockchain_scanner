@@ -247,9 +247,9 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 |:---|---|
 | Contracts in DB | **24 945** |
 | Verified contracts | **985** |
-| Total findings | **5 184** |
-| Exploitable | **3 340** |
-| Hardhat tests run | **55 batch + 5 PredictionV2 + 1 dynamique** |
+| Total findings | **7 365** |
+| Exploitable | **4 407** |
+| Hardhat tests run | **116** (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) |
 | Confirmed exploits | **0** |
 | Batch test result | 55 contracts, 0 confirmed |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
@@ -271,10 +271,12 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 4. Unprotected Withdraw/Claim Function
 5. TX Origin Authorization
 
-### Backfill-Hardhat Mode (NEW)
+### Backfill-Hardhat Mode
 - `python guardian.py --backfill --backfill-hardhat` — full pipeline from DB to Hardhat confirmation
 - `python guardian.py --backfill --force` — force re-scan (delete + recreate findings)
 - `python guardian.py --backfill --backfill-limit 10` — limit to N contracts
+- `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` — progress feedback every N contracts
+- `python guardian.py --backfill --force --backfill-hardhat` — full pipeline with force re-scan + Hardhat validation
 
 ### Auto-Stop Modes (NEW)
 - `--stop-on detected` — stop on first HIGH/CRITICAL (default)
@@ -300,7 +302,14 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 
 ## 11. Project Evolution
 
-### Built in this session (Session 6)
+### Built in Session 7
+1. `--backfill --force --backfill-hardhat`: Full pipeline with force re-scan + Hardhat validation
+2. `--backfill-feedback`: Progress tracking (processed, findings, exploitables, errors, ETA)
+3. Backfill force + Hardhat validated on 5 BSC contracts: 33 findings tested, 0 confirmed
+4. Guardian stats updated: 7,365 findings, 4,407 exploitables, 116 Hardhat tests
+5. All `.md` files updated with latest changes
+
+### Built in Session 6
 1. `--backfill-hardhat`: Full pipeline from DB to Hardhat confirmation
 2. `--stop-on detected|confirmed|none`: 3 auto-stop modes for main.py
 3. `--backfill` mode in guardian.py: re-scan all verified contracts from DB

@@ -71,6 +71,8 @@ python main.py
 | `python guardian.py --backfill --force` | Force re-scan (delete + re-create findings) |
 | `python guardian.py --backfill --backfill-hardhat` | Backfill + Hardhat fork validation (full pipeline: DB → source → analysis → fork → confirmation) |
 | `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
+| `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` | Backfill progress feedback every N contracts (default: 5) |
+| `python guardian.py --backfill --force --backfill-hardhat` | Force re-scan (delete + recreate findings) + Hardhat validation |
 | `bash run_forever.sh` | Auto-restart loop (infinite, logs, no git push) |
 | `python dump_results.py` | Export DB stats to findings/scanned_contracts.md |
 
@@ -359,6 +361,12 @@ python guardian.py --backfill --backfill-hardhat --backfill-limit 10
 
 # Force re-scan (delete + re-create findings)
 python guardian.py --backfill --force
+
+# Backfill force + Hardhat (full pipeline: re-scan + fork validation)
+python guardian.py --backfill --force --backfill-hardhat
+
+# Backfill with progress feedback every N contracts
+python guardian.py --backfill --backfill-feedback 10
 ```
 
 ### Performance: ×20 optimization
@@ -374,7 +382,7 @@ HardhatValidator groups all findings per contract into a **single fork + single 
 
 Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable (×20).
 
-### Guardian 24/7 Stats (as of 08/06/2026)
+### Guardian 24/7 Stats (as of 09/06/2026)
 
 | Metric | Value |
 |:---|---|
@@ -382,13 +390,13 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 | Verified contracts | **985** |
 | With native balance > 0.001 | **66** |
 | Total BNB across all contracts | **1 746 162** |
-| Total findings | **5 184** |
-| Exploitable (pipeline) | **3 340** |
-| Hardhat tests (batch) | **55** |
+| Total findings | **7 365** |
+| Exploitable (pipeline) | **4 407** |
+| Hardhat tests (fork) | **116** |
 | Confirmed exploits | **0** |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
-> **Key finding:** After 55 Hardhat fork tests on verified contracts with balance, **0 confirmed exploits**. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. The dynamic test generator and specialized contracts fill this gap for high-value targets.
+> **Key finding:** After 116 Hardhat fork tests (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) on verified contracts with balance, **0 confirmed exploits**. The pipeline backfill → Hardhat is fully functional: 33 findings validated on 5 BSC contracts (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2), all FAILED. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts.
 
 ## Testing
 

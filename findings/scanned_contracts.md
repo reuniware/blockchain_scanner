@@ -1,5 +1,5 @@
 # Guardian Auto-Report
-> **manual** — 2026-06-08 19:00:00 UTC
+> **manual** — 2026-06-09 19:00:00 UTC
 
 ## Global Stats
 
@@ -7,10 +7,19 @@
 |--------|-------|
 | Contracts in DB | 24945 |
 | Verified (source available) | 985 |
-| Total findings | 5184 |
-| Exploitable findings | 3340 |
+| Total findings | 7365 |
+| Exploitable findings | 4407 |
 | Hardhat confirmed exploits | 0 |
-| Hardhat test failures | 248 |
+| Hardhat test failures | 116 |
+
+## Session 7 — Nouveautés (09/06/2026)
+
+| Feature | Description |
+|---------|------------|
+| `--backfill --force --backfill-hardhat` | Backfill force + Hardhat fork validation — testé sur 5 contrats BSC |
+| `--backfill-feedback N` | Affiche la progression toutes les N contrats (processed, findings, ETA) |
+| 5 contrats BSC testés | WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2 |
+| 33 findings validés | **0 confirmé** — tous FAILED sur Hardhat fork |
 
 ## Session 6 — Nouveautés
 
