@@ -261,6 +261,31 @@ class FindingsDB:
         """)
         return [dict(r) for r in cur.fetchall()]
 
+    def get_exploitable_not_tested_for_addresses(self, addresses: list[tuple[str, int]]) -> list[dict]:
+        """Get exploitable findings only for specific (address, chain_id) pairs."""
+        if not addresses:
+            return []
+        conn = self.connect()
+        # Build WHERE clause with OR conditions for each (address, chain_id)
+        conditions = " OR ".join(
+            "(contract_addr = ? AND chain_id = ?)" for _ in addresses
+        )
+        params = []
+        for addr, cid in addresses:
+            params.extend([addr, cid])
+        cur = conn.execute(f"""
+            SELECT * FROM findings
+            WHERE exploitable = 1 AND (hardhat_result IS NULL OR hardhat_result = 'PENDING')
+              AND ({conditions})
+            ORDER BY
+                CASE severity
+                    WHEN 'CRITICAL' THEN 0
+                    WHEN 'HIGH' THEN 1
+                    ELSE 2
+                END
+        """, params)
+        return [dict(r) for r in cur.fetchall()]
+
     def get_stats(self) -> dict:
         conn = self.connect()
         stats = {}
@@ -307,14 +332,16 @@ class HardhatValidator:
     4. Checks if state changed (balance, storage) => CONFIRMED or FAILED
     """
 
-    # RPC URLs for forking — derived from exploit_pipeline.CHAIN_REGISTRY
-    RPC_URLS = {k: v[2] for k, v in CHAIN_REGISTRY.items()}
+    # Default RPC URLs from CHAIN_REGISTRY (fallback)
+    DEFAULT_RPC_URLS = {k: v[2] for k, v in CHAIN_REGISTRY.items()}
 
-    def __init__(self, db: FindingsDB, exploit_dir: str = ""):
+    def __init__(self, db: FindingsDB, exploit_dir: str = "", rpc_urls: Optional[dict[int, str]] = None):
         self.db = db
         self.exploit_dir = exploit_dir or os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "exploit"
         )
+        # Use provided RPC URLs (from config.yaml) with fallback to defaults
+        self.rpc_urls = rpc_urls or self.DEFAULT_RPC_URLS
         os.makedirs(self.exploit_dir, exist_ok=True)
 
     def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str) -> str:
@@ -422,39 +449,31 @@ class HardhatValidator:
 
     def _generate_hardhat_script(self, target_addr: str, exploit_file: str,
                                   rpc_url: str, finding_type: str, contract_name: str = "Exploit") -> str:
-        """Generate a Hardhat JavaScript test script that:
-        1. Forks the chain
-        2. Deploys the exploit
-        3. Attempts the attack
-        4. Reports success/failure
-        """
+        """Generate a single-finding Hardhat script (kept for backward compat)."""
         return f"""
 const hre = require("hardhat");
+const {{ ethers }} = hre;
 
 async function main() {{
-    // Fork the chain
+    const rpcUrl = "{rpc_url}";
+    const directProvider = new ethers.JsonRpcProvider(rpcUrl);
+    const blockNumber = await directProvider.getBlockNumber();
+    await directProvider.destroy();
+
     await hre.network.provider.request({{
         method: "hardhat_reset",
-        params: [{{
-            forking: {{
-                jsonRpcUrl: "{rpc_url}",
-                blockNumber: await getLatestBlock()
-            }}
-        }}]
+        params: [{{ forking: {{ jsonRpcUrl: rpcUrl, blockNumber }} }}]
     }});
 
-    // Get target contract balance before
     const targetAddr = "{target_addr}";
     const beforeBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
     console.log("Target balance before:", BigInt(beforeBal).toString());
 
-    // Deploy exploit
     const Exploit = await hre.ethers.getContractFactory("{contract_name}");
     const exploit = await Exploit.deploy(targetAddr);
     await exploit.waitForDeployment();
     console.log("Exploit deployed at:", await exploit.getAddress());
 
-    // Attempt attack
     try {{
         const tx = await exploit.attack({{ gasLimit: 500000 }});
         await tx.wait();
@@ -464,10 +483,7 @@ async function main() {{
         process.exit(1);
     }}
 
-    // Check if state changed
     const afterBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
-    console.log("Target balance after:", BigInt(afterBal).toString());
-
     const beforeVal = BigInt(beforeBal);
     const afterVal = BigInt(afterBal);
     if (afterVal < beforeVal) {{
@@ -480,13 +496,85 @@ async function main() {{
     }}
 }}
 
-async function getLatestBlock() {{
-    const block = await hre.network.provider.send("eth_blockNumber", []);
-    return parseInt(block, 16);
+main().catch(e => {{
+    console.error("Script error:", e.message);
+    process.exit(1);
+}});
+"""
+
+    def _generate_combined_script(self, target_addr: str, rpc_url: str,
+                                   findings_contracts: list[tuple[str, str]]) -> str:
+        """Generate a single Hardhat script that tests ALL findings of a contract.
+
+        One fork, one compile, one Hardhat run — tests N findings in series.
+        Reports per-finding via indexed FINDING_RESULT lines to avoid name collisions.
+
+        Args:
+            target_addr: Contract address to attack
+            rpc_url: RPC URL for the chain
+            findings_contracts: List of (finding_name, exploit_contract_name) tuples
+        """
+        attacks_js = []
+        for i, (finding_name, contract_name) in enumerate(findings_contracts):
+            # Escape backticks and special chars for JS template literal safety
+            safe_name = finding_name.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+            attacks_js.append(f"""
+    try {{
+        const Factory{i} = await hre.ethers.getContractFactory("{contract_name}");
+        const inst{i} = await Factory{i}.deploy(targetAddr);
+        await inst{i}.waitForDeployment();
+
+        const balPre{i} = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+        const tx{i} = await inst{i}.attack({{ gasLimit: 500000 }});
+        await tx{i}.wait();
+        const balPost{i} = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+
+        const drained = BigInt(balPre{i}) - BigInt(balPost{i});
+        if (drained > 0n) {{
+            console.log(`FINDING_RESULT:{i}|{safe_name}|CONFIRMED|Drained ${{drained.toString()}} wei`);
+        }} else {{
+            console.log(`FINDING_RESULT:{i}|{safe_name}|FAILED|No funds drained`);
+        }}
+    }} catch (e) {{
+        console.log(`FINDING_RESULT:{i}|{safe_name}|FAILED|${{e.message?.substring(0, 200) || "Unknown error"}}`);
+    }}""")
+
+        attacks_block = "\n".join(attacks_js)
+
+        return f"""
+const hre = require("hardhat");
+const {{ ethers }} = hre;
+
+async function main() {{
+    const rpcUrl = "{rpc_url}";
+    const targetAddr = "{target_addr}";
+
+    // 1. Fork once at latest block
+    const directProvider = new ethers.JsonRpcProvider(rpcUrl);
+    const blockNumber = await directProvider.getBlockNumber();
+    await directProvider.destroy();
+
+    await hre.network.provider.request({{
+        method: "hardhat_reset",
+        params: [{{ forking: {{ jsonRpcUrl: rpcUrl, blockNumber }} }}]
+    }});
+    console.log("FORK_READY");
+
+    // 2. Record initial balance
+    const initialBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+    console.log("BALANCE_BEFORE:", BigInt(initialBal).toString());
+
+    // 3. Test each finding sequentially
+{attacks_block}
+
+    // 4. Final balance
+    const finalBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+    console.log("BALANCE_AFTER:", BigInt(finalBal).toString());
+    console.log("COMBINED_DONE");
 }}
 
 main().catch(e => {{
-    console.error("Script error:", e.message);
+    console.error("FATAL:", e.message);
     process.exit(1);
 }});
 """
@@ -534,8 +622,8 @@ main().catch(e => {{
             self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", evidence)
             return False, evidence
 
-        # Step 2: Get RPC URL
-        rpc_url = self.RPC_URLS.get(chain_id)
+        # Step 2: Get RPC URL (from config if available, fallback to CHAIN_REGISTRY)
+        rpc_url = self.rpc_urls.get(chain_id)
         if not rpc_url:
             evidence = f"No RPC URL for chain {chain_id}"
             self.db.update_hardhat_result(contract_addr, chain_id, finding_name, "FAILED", evidence)
@@ -635,19 +723,236 @@ main().catch(e => {{
                 except Exception:
                     pass
 
+    async def validate_contract(self, findings: list[dict]) -> list[dict]:
+        """Validate ALL exploitable findings for ONE contract in a single Hardhat run.
+
+        Generates all necessary .sol files, compiles once, runs one Hardhat
+        script that forks once and tests all findings sequentially.
+
+        Args:
+            findings: List of finding dicts (must all share same contract_addr + chain_id)
+
+        Returns:
+            List of result dicts with contract, finding, result, evidence.
+        """
+        if not findings:
+            return []
+
+        # All findings must be for the same contract
+        contract_addr = findings[0]["contract_addr"]
+        chain_id = findings[0]["chain_id"]
+        assert all(f["contract_addr"] == contract_addr and f["chain_id"] == chain_id for f in findings), \
+            "validate_contract: all findings must be for the same contract"
+
+        # Check Hardhat availability
+        hardhat_ok = await self._check_hardhat_available()
+        if not hardhat_ok:
+            evidence = "Hardhat not available in exploit/ directory"
+            results = []
+            for f in findings:
+                self.db.update_hardhat_result(
+                    contract_addr, chain_id, f["finding_name"], "FAILED", evidence
+                )
+                results.append({"contract": contract_addr, "finding": f["finding_name"],
+                                "result": "FAILED", "evidence": evidence})
+            return results
+
+        rpc_url = self.rpc_urls.get(chain_id)
+        if not rpc_url:
+            return [{
+                "contract": contract_addr, "finding": f["finding_name"],
+                "result": "FAILED", "evidence": f"No RPC URL for chain {chain_id}"
+            } for f in findings]
+
+        # Mark all as PENDING
+        for f in findings:
+            self.db.update_hardhat_result(
+                contract_addr, chain_id, f["finding_name"], "PENDING",
+                f"Testing started at {datetime.utcnow().isoformat()}"
+            )
+
+        contracts_dir = os.path.join(self.exploit_dir, "contracts")
+        scripts_dir = os.path.join(self.exploit_dir, "scripts")
+        os.makedirs(contracts_dir, exist_ok=True)
+        os.makedirs(scripts_dir, exist_ok=True)
+
+        test_file = os.path.join(scripts_dir, "guardian_combined_test.js")
+
+        try:
+            # 1. Generate ALL exploit .sol files (one per finding, named differently)
+            exploit_contracts: list[tuple[str, str, str]] = []  # (finding_name, contract_name, sol_code)
+            for finding in findings:
+                sol_code = self._generate_exploit_contract(
+                    contract_addr, finding["finding_name"], finding["finding_name"]
+                )
+                name_match = re.search(r"contract\s+(\w+)", sol_code)
+                contract_name = name_match.group(1) if name_match else "Exploit"
+                exploit_contracts.append((finding["finding_name"], contract_name, sol_code))
+
+            # Write each .sol file with unique name
+            sol_files = []
+            for fn, cname, sol in exploit_contracts:
+                sol_path = os.path.join(contracts_dir, f"{cname}.sol")
+                sol_files.append(sol_path)
+                with open(sol_path, "w") as f:
+                    f.write(sol)
+
+            # 2. Compile ONCE (Hardhat compiles all .sol in contracts/)
+            logger.info(f"[HARDHAT] Compiling {len(exploit_contracts)} exploit(s) for {contract_addr[:14]}..")
+            compile_proc = await asyncio.create_subprocess_exec(
+                _NPX, "hardhat", "compile",
+                cwd=self.exploit_dir,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+                creationflags=_CREATION_FLAGS,
+            )
+            _, stderr = await asyncio.wait_for(compile_proc.communicate(), timeout=60)
+            if compile_proc.returncode != 0:
+                err = stderr.decode("utf-8", errors="replace")[:500] if stderr else "compilation failed"
+                results = []
+                for finding in findings:
+                    self.db.update_hardhat_result(
+                        contract_addr, chain_id, finding["finding_name"],
+                        "FAILED", f"Compilation error: {err}"
+                    )
+                    results.append({
+                        "contract": contract_addr, "finding": finding["finding_name"],
+                        "result": "FAILED", "evidence": err[:200]
+                    })
+                return results
+
+            # 3. Generate and run combined JS script
+            findings_contracts = [(fn, cn) for fn, cn, _ in exploit_contracts]
+            combined_js = self._generate_combined_script(
+                contract_addr, rpc_url, findings_contracts
+            )
+            with open(test_file, "w") as f:
+                f.write(combined_js)
+
+            logger.info(f"[HARDHAT] Testing {len(findings)} finding(s) on {contract_addr[:14]}.. (single fork)")
+            test_proc = await asyncio.create_subprocess_exec(
+                _NPX, "hardhat", "run", "scripts/guardian_combined_test.js",
+                cwd=self.exploit_dir,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                creationflags=_CREATION_FLAGS,
+            )
+            stdout, _ = await asyncio.wait_for(test_proc.communicate(), timeout=180)
+            output = stdout.decode("utf-8", errors="replace")
+
+            # 4. Parse per-finding results from indexed FINDING_RESULT:N| lines
+            results = []
+            result_by_idx = {}  # index -> (result, evidence)
+            for line in output.split("\n"):
+                if line.startswith("FINDING_RESULT:"):
+                    # Format: FINDING_RESULT:N|name|result|evidence
+                    rest = line[len("FINDING_RESULT:"):]
+                    parts = rest.split("|", 3)
+                    if len(parts) == 4:
+                        idx = parts[0].strip()
+                        fn_result = parts[2].strip()
+                        fn_evidence = parts[3].strip()[:2000]
+                        if idx.isdigit():
+                            result_by_idx[int(idx)] = (fn_result, fn_evidence)
+
+            for idx, finding in enumerate(findings):
+                fn_name = finding["finding_name"]
+                if idx in result_by_idx:
+                    fn_result, fn_evidence = result_by_idx[idx]
+                else:
+                    fn_result = "FAILED"
+                    fn_evidence = f"No FINDING_RESULT for idx {idx} in output"
+
+                self.db.update_hardhat_result(
+                    contract_addr, chain_id, fn_name, fn_result, fn_evidence
+                )
+                results.append({
+                    "contract": contract_addr,
+                    "finding": fn_name,
+                    "result": fn_result,
+                    "evidence": fn_evidence[:200],
+                })
+
+                if fn_result == "CONFIRMED":
+                    logger.critical(f"[!!!] EXPLOIT CONFIRMED on {contract_addr[:14]}.. via {fn_name}!")
+
+            return results
+
+        except asyncio.TimeoutError:
+            evidence = "Hardhat combined test timed out after 180s"
+            results = []
+            for finding in findings:
+                self.db.update_hardhat_result(
+                    contract_addr, chain_id, finding["finding_name"], "FAILED", evidence
+                )
+                results.append({
+                    "contract": contract_addr, "finding": finding["finding_name"],
+                    "result": "FAILED", "evidence": evidence[:200]
+                })
+            return results
+        except Exception as e:
+            error_msg = f"Hardhat combined validation error: {e}"
+            logger.error(f"[HARDHAT] {error_msg}")
+            results = []
+            for finding in findings:
+                self.db.update_hardhat_result(
+                    contract_addr, chain_id, finding["finding_name"], "FAILED", error_msg
+                )
+                results.append({
+                    "contract": contract_addr, "finding": finding["finding_name"],
+                    "result": "FAILED", "evidence": error_msg[:200]
+                })
+            return results
+        finally:
+            # Cleanup generated files
+            for fp in [test_file] + sol_files:
+                try:
+                    if os.path.exists(fp):
+                        os.remove(fp)
+                except Exception:
+                    pass
+
     async def validate_all_pending(self) -> list[dict]:
-        """Validate all pending exploitable findings (runs sequentially)."""
+        """Validate all pending exploitable findings in the DB.
+
+        Groups findings by contract for batch validation (1 fork per contract).
+        """
         pending = self.db.get_exploitable_not_tested()
-        results = []
-        for finding in pending:
-            confirmed, evidence = await self.validate_finding(finding)
-            results.append({
-                "contract": finding["contract_addr"],
-                "finding": finding["finding_name"],
-                "result": "CONFIRMED" if confirmed else "FAILED",
-                "evidence": evidence[:200],
-            })
-        return results
+        # Group by (contract_addr, chain_id)
+        groups: dict[tuple[str, int], list[dict]] = {}
+        for f in pending:
+            key = (f["contract_addr"], f["chain_id"])
+            groups.setdefault(key, []).append(f)
+
+        all_results = []
+        for (addr, cid), contract_findings in groups.items():
+            results = await self.validate_contract(contract_findings)
+            all_results.extend(results)
+        return all_results
+
+    async def validate_for_addresses(self, addresses: list[tuple[str, int]]) -> list[dict]:
+        """Validate exploitable findings only for specific (address, chain_id) pairs.
+
+        Groups findings by contract for batch validation (1 fork per contract).
+
+        Args:
+            addresses: List of (contract_address, chain_id) tuples to validate.
+
+        Returns:
+            List of result dicts with contract, finding, result, evidence.
+        """
+        pending = self.db.get_exploitable_not_tested_for_addresses(addresses)
+        # Group by (contract_addr, chain_id)
+        groups: dict[tuple[str, int], list[dict]] = {}
+        for f in pending:
+            key = (f["contract_addr"], f["chain_id"])
+            groups.setdefault(key, []).append(f)
+
+        all_results = []
+        for (addr, cid), contract_findings in groups.items():
+            results = await self.validate_contract(contract_findings)
+            all_results.extend(results)
+        return all_results
 
 # ---------------------------------------------------------------------------
 # Guardian — Main Engine (clean callback architecture)
@@ -668,7 +973,15 @@ class Guardian:
         self.config_path = config_path
         self.config = self._load_config()
         self.db = FindingsDB()
-        self.hardhat = HardhatValidator(self.db)
+
+        # Build RPC URLs from config.yaml (includes Infura secret) for Hardhat fork
+        rpc_urls: dict[int, str] = {}
+        for chain_key, chain_cfg in self.config.get("chains", {}).items():
+            cid = chain_cfg.get("chain_id")
+            rpc = chain_cfg.get("rpc_http", "")
+            if cid and rpc:
+                rpc_urls[cid] = rpc
+        self.hardhat = HardhatValidator(self.db, rpc_urls=rpc_urls or None)
         self.orchestrator: Optional[ScannerOrchestrator] = None
         self.running = False
         self.stop_event = asyncio.Event()
@@ -728,6 +1041,7 @@ class Guardian:
 
         processed = 0
         errors = 0
+        processed_addresses: list[tuple[str, int]] = []  # (address, chain_id) for Hardhat scope
 
         for idx, contract in enumerate(contracts, 1):
             addr = contract["address"]
@@ -765,6 +1079,7 @@ class Guardian:
                     self.db.upsert_contract(contract_rec)
                     logger.info(f"  -> 0 finding(s)")
                     processed += 1
+                    processed_addresses.append((addr, chain_id))
                     continue
 
                 # Store contract
@@ -798,6 +1113,7 @@ class Guardian:
                     logger.warning(f"  [!] EXPLOITABLE: {report.total_exploitable} sur {addr[:14]}..")
 
                 processed += 1
+                processed_addresses.append((addr, chain_id))
 
             except Exception as e:
                 logger.error(f"[BACKFILL] Erreur sur {addr[:14]}..: {e}")
@@ -805,12 +1121,12 @@ class Guardian:
 
         await pipeline.close()
 
-        # Optionally run Hardhat fork validation on all exploitable findings
+        # Optionally run Hardhat fork validation (SCOPED to contracts just processed)
         if hardhat:
-            pending = self.db.get_exploitable_not_tested()
+            pending = self.db.get_exploitable_not_tested_for_addresses(processed_addresses)
             if pending:
                 logger.info(f"[BACKFILL-HARDHAT] Validation de {len(pending)} finding(s) exploitable(s) sur Hardhat fork...")
-                hardhat_results = await self.hardhat.validate_all_pending()
+                hardhat_results = await self.hardhat.validate_for_addresses(processed_addresses)
                 confirmed = [r for r in hardhat_results if r["result"] == "CONFIRMED"]
                 for r in confirmed:
                     self.stats["exploits_confirmed"] += 1
@@ -830,7 +1146,7 @@ class Guardian:
                         f.write(f"\n{'='*60}\n")
                 logger.info(f"[BACKFILL-HARDHAT] Hardhat termine: {len(confirmed)} confirme(s) / {len(hardhat_results)} test(s)")
             else:
-                logger.info("[BACKFILL-HARDHAT] Aucun finding exploitable a valider")
+                logger.info("[BACKFILL-HARDHAT] Aucun finding exploitable a valider sur les contrats du backfill")
 
         logger.info("=" * 60)
         logger.info(f"  BACKFILL TERMINE: {processed} traites, {errors} erreurs")
