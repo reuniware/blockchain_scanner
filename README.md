@@ -86,6 +86,9 @@ Two dedicated scanners for Binance Smart Chain block analysis:
 |:---|:---|
 | `python scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments |
 | `python scan_bsc_500.py` | Scan 500 BSC blocks, auto-verify contracts, run exploit pipeline on verified |
+| `python scan_historical.py --blocks 500000` | Scan **500,000 blocks** (~1 month BSC) concurrently for historical contracts |
+| `python scan_historical.py --reverify` | Re-check unverified DB contracts (now verified?) |
+| `python scan_historical.py --from-block 5000000 --to-block 15000000 --exploit` | Scan specific historical range + auto-exploit |
 
 These scripts:
 - Fetch blocks via `bsc-dataseed1.binance.org` (free public RPC)
@@ -430,6 +433,7 @@ blockchain_scanner/
   pool_scanner.py            # DEX pool scanner via DEX Screener API
   scan_bsc_recent.py         # Scan 100 recent BSC blocks for new contracts
   scan_bsc_500.py            # Scan 500 BSC blocks + auto exploit pipeline
+  scan_historical.py         # Historical block scanner: millions of blocks concurrent + DB re-verify
   requirements.txt           # Python dependencies
   .gitignore                 # Git ignore rules
   README.md                  # This file

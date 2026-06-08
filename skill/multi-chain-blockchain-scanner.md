@@ -26,6 +26,7 @@ blockchain_scanner/
   pool_scanner.py                    # DEX pool scanner via DEX Screener API
   scan_bsc_recent.py                 # Scan 100 BSC blocks for new deployments
   scan_bsc_500.py                    # Scan 500 BSC blocks + auto exploit pipeline
+  scan_historical.py                 # Scan millions of historical BSC blocks concurrently
   scanner/
     base.py                          # BaseScanner ABC
     evm_scanner.py                   # EVM chains

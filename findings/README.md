@@ -49,6 +49,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 |:---|---|:---|
 | **`guardian.py`** | Usine de détection 24/7 sur 8 chaînes EVM | `python guardian.py` |
 | **`pool_scanner.py`** | Scan pools DEX avec TVL via DEX Screener | `python pool_scanner.py` |
+| **`scan_historical.py`** | Scan historique de blocs BSC (concurrent) + re-vérification DB | `python scan_historical.py --blocks 500000` |
 
 ### Résultats Guardian (65s de scan live)
 
