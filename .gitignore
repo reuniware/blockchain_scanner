@@ -36,5 +36,8 @@ exploit/scripts/guardian_combined_test.js
 guardian_data.db-shm
 guardian_data.db-wal
 
+# Mythril virtual environment
+.mythril-env/
+
 # Windows reserved filename (accidental file creation)
 nul

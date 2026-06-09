@@ -1,6 +1,13 @@
 name: Release
 
 on:
+  workflow_dispatch:  # Déclenchement manuel depuis l'interface GitHub
+    inputs:
+      tag:
+        description: 'Version tag (ex: v1.1.0)'
+        required: true
+        type: string
+        default: 'v'
   push:
     tags:
       - 'v*'  # Déclenché par git tag v1.0.0, v1.1.0, etc.

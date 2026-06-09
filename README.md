@@ -1,5 +1,7 @@
 # Scanner de Transactions Multi-Chain Blockchain
 
+[![CI](https://github.com/TSTAC/blockchain_scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/TSTAC/blockchain_scanner/actions/workflows/ci.yml)
+
 Surveillance en temps réel des transactions et blocs sur **6 blockchains** — Ethereum, Polygon, BSC, Arbitrum, Solana et Bitcoin. Aucune clé API requise pour la surveillance de base des blocs (endpoints publics gratuits). Une clé API Etherscan optionnelle permet la vérification du code source des contrats et l'analyse des vulnérabilités.
 
 ## Démarrage rapide
