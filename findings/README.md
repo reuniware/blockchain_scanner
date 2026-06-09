@@ -36,6 +36,17 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - Affiche un résumé toutes les N contrats (processed, findings, exploitables, errors, ETA)
 - Permet de suivre l'avancement des longs backfills
 
+#### Bugfixes HardhatValidator — 4 bugs corrigés
+
+| Bug | Cause racine | Fix |
+|:---|---|:---|
+| **`No FINDING_RESULT for idx X`** | Signer Hardhat sans ETH sur le fork → TX échouent | Whale impersonation (Binance) → 50 ETH à l'attaquant |
+| **`tx0.wait is not a function`** | `pure` → ethers v6 retourne string | `bool attacked` → transaction réelle |
+| **Noms dupliqués** | Timestamp → collision même seconde | Index unique `Exploit_{idx}` |
+| **Script ne termine pas** | Pas de `process.exit(0)` | `.then(() => process.exit(0))` ajouté |
+
+**Testé :** Backfill force + Hardhat sur WBNB — `No funds drained` au lieu de `No FINDING_RESULT` ✅
+
 #### Stats mises à jour
 - Findings : **5 184 → 7 365** (+2 181)
 - Exploitables : **3 340 → 4 407** (+1 067)

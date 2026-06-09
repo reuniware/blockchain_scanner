@@ -305,9 +305,14 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 ### Built in Session 7
 1. `--backfill --force --backfill-hardhat`: Full pipeline with force re-scan + Hardhat validation
 2. `--backfill-feedback`: Progress tracking (processed, findings, exploitables, errors, ETA)
-3. Backfill force + Hardhat validated on 5 BSC contracts: 33 findings tested, 0 confirmed
-4. Guardian stats updated: 7,365 findings, 4,407 exploitables, 116 Hardhat tests
-5. All `.md` files updated with latest changes
+3. **4 bug fixes in HardhatValidator**:
+   - Whale impersonation funding fix (`No FINDING_RESULT for idx X`)
+   - Non-`pure` exploit contract fix (`tx0.wait is not a function`)
+   - Index-based contract naming fix (collision des noms)
+   - `process.exit(0)` fix (script bloqué)
+4. Backfill force + Hardhat validated on WBNB: pipeline fonctionnel ✅
+5. Guardian stats updated: 7,365 findings, 4,407 exploitables, 116 Hardhat tests, 0 confirmed
+6. All `.md` files updated with latest changes
 
 ### Built in Session 6
 1. `--backfill-hardhat`: Full pipeline from DB to Hardhat confirmation

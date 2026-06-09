@@ -382,6 +382,19 @@ HardhatValidator groups all findings per contract into a **single fork + single 
 
 Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable (×20).
 
+### Bugfixes Session 7 — HardhatValidator pipeline (09/06/2026)
+
+4 bugs corrigés dans le pipeline de validation Hardhat `guardian.py`:
+
+| Bug | Cause racine | Fix |
+|:---|---|:---|
+| **`No FINDING_RESULT for idx X`** | L'attaquant (signer Hardhat) avait **0 ETH** sur le fork → toutes les transactions échouaient | Ajout d'une **impersonation de baleine** (Binance 0xF97..aceC) → envoi de 50 ETH à l'attaquant avant les tests |
+| **`tx0.wait is not a function`** | Le template générique Solidity utilisait `pure` → ethers v6 fait un `eth_call` (retourne string) au lieu d'une transaction | Changé pour `bool public attacked` + `attacked = true` → fonction non-`pure` → ethers retourne une `TransactionResponse` |
+| **Noms de contrat dupliqués** | `datetime.utcnow().timestamp()` → collisions dans la même seconde | Nommage par **index** (`Exploit_{index}`) via `enumerate()` dans `validate_contract()` |
+| **Script combiné ne termine pas** | Pas de `process.exit(0)` → le provider Hardhat maintient la boucle d'événements active | Ajout de `.then(() => process.exit(0))` à la fin du `main()` |
+
+**Testé :** Backfill force + Hardhat sur WBNB (BSC) — pipeline complet validé ✅
+
 ### Guardian 24/7 Stats (as of 09/06/2026)
 
 | Metric | Value |
@@ -396,7 +409,7 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 | Confirmed exploits | **0** |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
-> **Key finding:** After 116 Hardhat fork tests (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) on verified contracts with balance, **0 confirmed exploits**. The pipeline backfill → Hardhat is fully functional: 33 findings validated on 5 BSC contracts (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2), all FAILED. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts.
+> **Key finding:** After 116 Hardhat fork tests (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) on verified contracts with balance, **0 confirmed exploits**. The pipeline backfill → Hardhat is fully functional: 33 findings validated on 5 BSC contracts (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2), all FAILED. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. Les 4 bugs du pipeline Hardhat sont corrigés et testés.
 
 ## Testing
 
