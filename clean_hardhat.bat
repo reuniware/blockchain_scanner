@@ -28,16 +28,6 @@ for /F "skip=2 tokens=2 delims=," %%i in ('wmic process where "name='node.exe' a
     )
 )
 
-REM Methode 2: PowerShell (complement si wmic echoue)
-powershell -Command "
-    $procs = Get-CimInstance Win32_Process -Filter """name='node.exe'""" | Where-Object { $_.CommandLine -match 'hardhat' };
-    if ($procs) {
-        Write-Host ('[KILL] ' + $procs.Count + ' processus Hardhat trouves');
-        $procs | ForEach-Object { taskkill /F /T /PID $_.ProcessId 2>&1 | Out-Null };
-    } else {
-        Write-Host '[OK] Aucun processus Hardhat trouve';
-    }
-" 2>nul
 
 echo [HARDHAT] Nettoyage termine.
 goto end
@@ -45,18 +35,22 @@ goto end
 :check
 echo [HARDHAT] Verification des processus node.exe lies a Hardhat...
 echo.
-powershell -Command "
-    $procs = Get-CimInstance Win32_Process -Filter """name='node.exe'""" | Where-Object { $_.CommandLine -match 'hardhat' };
-    if ($procs) {
-        Write-Host ('[!] ' + $procs.Count + ' processus Hardhat en cours:');
-        $procs | ForEach-Object {
-            $cmd = $_.CommandLine.Substring(0, [Math]::Min(120, $_.CommandLine.Length));
-            Write-Host ('    PID ' + $_.ProcessId + ' -> ' + $cmd);
-        };
-    } else {
-        Write-Host '[OK] Aucun processus Hardhat en cours.';
-    }
-" 2>nul
+
+REM Lister les processus Hardhat via wmic (sans tuer)
+set FOUND=0
+for /F "skip=2 tokens=2 delims=," %%i in ('wmic process where "name='node.exe' and CommandLine like '%%hardhat%%'" get ProcessId /format:csv 2^>nul') do (
+    if not "%%i"=="" (
+        set FOUND=1
+        echo   [PID %%i]
+    )
+)
+
+if "%FOUND%"=="0" (
+    echo [OK] Aucun processus Hardhat en cours.
+) else (
+    echo.
+    echo  ^>^> Utilisez clean_hardhat.bat pour les tuer.
+)
 goto end
 
 :loop

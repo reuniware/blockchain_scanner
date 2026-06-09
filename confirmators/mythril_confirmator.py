@@ -27,12 +27,11 @@ import asyncio
 import json
 import logging
 import os
-import platform
+
 import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime
 from typing import Optional
 
 logger = logging.getLogger("mythril-confirmator")
@@ -40,9 +39,28 @@ logger = logging.getLogger("mythril-confirmator")
 # Prevent console windows on Windows
 _CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
-# Default paths to try for finding mythril CLI
-_MYTH_COMMANDS = ["myth", "mythril"]
-_NPX_CMD = "npx.cmd" if platform.system() == "Windows" else "npx"
+
+def _try_mythril_cmd(cmd: list[str], label: str, cwd: Optional[str] = None) -> Optional[list[str]]:
+    """Try running a Mythril command and check it responds.
+
+    Returns the command list if successful, None otherwise.
+    Mythril CLI uses `version` subcommand (not --version flag).
+    """
+    try:
+        result = subprocess.run(
+            cmd + ["version"],
+            cwd=cwd,
+            capture_output=True, text=True, timeout=10,
+            creationflags=_CREATION_FLAGS,
+        )
+        stdout = result.stdout.lower()
+        if result.returncode == 0 and "mythril" in stdout and "v" in stdout:
+            logger.info(f"[MYTHRIL] Found via {label}")
+            return cmd
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        pass
+    return None
+
 
 # Mapping Mythril severity to our severity scale
 _SEVERITY_MAP = {
@@ -114,6 +132,14 @@ class MythrilConfirmator:
         self.db = db
         self._command: Optional[list[str]] = None
 
+        # Detect venv Python path (project-root/.mythril-env)
+        self._venv_python: Optional[str] = None
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(base_dir)  # one level up from confirmators/
+        venv_python = os.path.join(project_root, ".mythril-env", "Scripts", "python.exe")
+        if os.path.isfile(venv_python):
+            self._venv_python = venv_python
+
         # RPC URLs per chain (fallback — user can override)
         self.rpc_urls = {
             1: "https://eth.llamarpc.com",
@@ -134,50 +160,34 @@ class MythrilConfirmator:
         # 1. Try system `myth` command
         myth_path = shutil.which("myth")
         if myth_path:
-            try:
-                result = subprocess.run(
-                    [myth_path, "--version"],
-                    capture_output=True, text=True, timeout=10,
-                    creationflags=_CREATION_FLAGS,
-                )
-                if result.returncode == 0:
-                    self._command = [myth_path]
-                    logger.info(f"[MYTHRIL] Found system command: {myth_path}")
-                    return True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
+            result = _try_mythril_cmd([myth_path], f"system command: {myth_path}")
+            if result:
+                self._command = result
+                return True
 
         # 2. Try system `mythril` command
         mythril_path = shutil.which("mythril")
         if mythril_path:
-            try:
-                result = subprocess.run(
-                    [mythril_path, "--version"],
-                    capture_output=True, text=True, timeout=10,
-                    creationflags=_CREATION_FLAGS,
-                )
-                if result.returncode == 0:
-                    self._command = [mythril_path]
-                    logger.info(f"[MYTHRIL] Found system command: {mythril_path}")
-                    return True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
+            result = _try_mythril_cmd([mythril_path], f"system command: {mythril_path}")
+            if result:
+                self._command = result
+                return True
 
-        # 3. Try `python -m mythril` from mythril_dir
+        # 3. Try project venv (.mythril-env/Scripts/python.exe -m mythril)
+        if self._venv_python:
+            cmd = [self._venv_python, "-m", "mythril"]
+            result = _try_mythril_cmd(cmd, f"venv: {self._venv_python}")
+            if result:
+                self._command = result
+                return True
+
+        # 4. Try `python -m mythril` from mythril_dir
         if self.mythril_dir and os.path.isdir(self.mythril_dir):
-            try:
-                result = subprocess.run(
-                    [sys.executable, "-m", "mythril", "--version"],
-                    cwd=self.mythril_dir,
-                    capture_output=True, text=True, timeout=10,
-                    creationflags=_CREATION_FLAGS,
-                )
-                if result.returncode == 0:
-                    self._command = [sys.executable, "-m", "mythril"]
-                    logger.info(f"[MYTHRIL] Found via python -m mythril in {self.mythril_dir}")
-                    return True
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
+            cmd = [sys.executable, "-m", "mythril"]
+            result = _try_mythril_cmd(cmd, f"python -m mythril in {self.mythril_dir}", cwd=self.mythril_dir)
+            if result:
+                self._command = result
+                return True
 
         logger.warning("[MYTHRIL] Mythril not available. Install: pip install mythril")
         return False
@@ -424,13 +434,13 @@ async def _main():
 
     issues = await confirmator.analyze_address(args.address, args.chain, args.rpc)
 
-    print(f"\\n{'=' * 60}")
+    print(f"\n{'=' * 60}")
     print(f"  RESULTS: {len(issues)} issue(s)")
     print(f"{'=' * 60}")
 
     for idx, issue in enumerate(issues, 1):
         proof = " [PROOF]" if issue.get("has_tx_sequence") else ""
-        print(f"\\n  [{idx}] [{issue['severity']}] {issue['title']}{proof}")
+        print(f"\n  [{idx}] [{issue['severity']}] {issue['title']}{proof}")
         print(f"       Contract: {issue['contract']}  Function: {issue['function']}")
         print(f"       {issue['description'][:200]}")
 
