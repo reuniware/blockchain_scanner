@@ -99,6 +99,22 @@ Examples:
              "'confirmed' (stop only after pipeline confirms exploit), "
              "'none' (never auto-stop, manual only)",
     )
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Launch the web dashboard (FastAPI web UI)",
+    )
+    parser.add_argument(
+        "--dashboard-port",
+        type=int,
+        default=8080,
+        help="Dashboard port (default: 8080)",
+    )
+    parser.add_argument(
+        "--dashboard-host",
+        default="127.0.0.1",
+        help="Dashboard host (default: 127.0.0.1)",
+    )
 
     args = parser.parse_args()
     return args
@@ -442,6 +458,26 @@ def main() -> None:
     if args.list_chains:
         config = load_config(args.config)
         list_chains(config)
+
+    if args.dashboard:
+        try:
+            from dashboard import app
+            import uvicorn
+            print(f"\n{'=' * 60}")
+            print(f"  Blockchain Scanner Dashboard")
+            print(f"  http://{args.dashboard_host}:{args.dashboard_port}")
+            print(f"{'=' * 60}\n")
+            uvicorn.run(
+                "dashboard.app:app",
+                host=args.dashboard_host,
+                port=args.dashboard_port,
+                log_level="info",
+            )
+        except ImportError as e:
+            print(f"[ERROR] Dashboard dependencies missing: {e}")
+            print("  Install: pip install fastapi uvicorn jinja2")
+            sys.exit(1)
+        return
 
     try:
         asyncio.run(main_async(args))
