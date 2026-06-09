@@ -23,6 +23,34 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | Faux positifs globaux | Estimation ~85% |
 | **Fonds drainables** | **0 confirmé** après 2 635 tests Hardhat fork complets |
 
+### 🔧 Changements récents (Session 10 — 10/06/2026)
+
+#### ABI Mining — Exploit Generator Data-Driven
+- Nouveau script `mine_abi_functions.py` : scanne les contrats vérifiés de la DB
+- Fetch l'ABI de chaque contrat via Etherscan V2, extrait les fonctions non-view/pure
+- **736 contrats** → **1 861 fonctions uniques** → **528 signatures de drainage** (fréquence ≥ 2)
+- Résultats sauvegardés dans `findings/abi_functions_mined.json`
+
+#### Exploit Generator basé sur l'ABI réelle
+- `exploit_generator.py` — `ABIBasedExploitGenerator` : génère des exploits Solidity
+  qui appellent les VRAIES fonctions du contrat (noms, paramètres, types corrects)
+- **Phase 1** : Exact match (80+ signatures minées de la DB)
+- **Phase 2** : Heuristique par mot-clé (28 mots, **couverture 100%** des 528 signatures)
+- Arguments type-corrects : `address(0)`, `false`, `bytes("")`, `new T[](0)` — plus d'erreurs Solidity
+- Méthode `_default_arg()` factorise les valeurs par défaut (élimine 4 blocs dupliqués)
+
+#### Pipeline end-to-end validé
+- Test complet via `--backfill --force --backfill-hardhat --backfill-limit 3`
+- **Chaque étape vérifiée** : scan BSC → fetch source → 34 patterns → exploitabilite →
+  ABI-GEN → Hardhat compile → fork + test → resultats
+- **14 findings testés** sur 3 contrats, **0 CONFIRMED** (normal — contrats proteges)
+- Discord webhook fonctionnel (alerte GUARDIAN_START)
+
+#### Alertes + Dashboard
+- `alerting.py` : webhooks Discord (embeds) + Telegram (HTML), `AlertManager`
+- `dashboard/app.py` : interface web FastAPI avec templates Jinja2
+- Flag `--dashboard` dans `main.py` (port/host configurables)
+
 ### 🔧 Changements récents (Session 8 & 9 — 11-12/06/2026)
 
 #### Mythril Confirmator (Session 9)

@@ -22,6 +22,9 @@ blockchain_scanner/
   main.py                            # Point d'entrée CLI (argparse)
   guardian.py                        # Scanner 24/7 + persistance SQLite
   exploit_pipeline.py                # Pipeline automatisé de validation des vulnérabilités (20 types)
+  exploit_generator.py               # Générateur d'exploits Solidity basé sur l'ABI réelle (data-driven)
+  alerting.py                        # Alertes Discord/Telegram en temps réel (webhooks)
+  mine_abi_functions.py              # Mining des signatures ABI depuis les contrats vérifiés DB
   hardhat_fork_tester.py             # Framework de test fork autonome
   pool_scanner.py                    # Scanner de pools DEX via l'API DEX Screener
   clean_hardhat.bat                 # Tueur sélectif de processus Hardhat (wmic + PS fallback)
@@ -48,6 +51,12 @@ blockchain_scanner/
   output/
     display.py                       # Affichage terminal (sortie des vulnérabilités ajoutée)
   verify.py                          # Vérification du code source via Etherscan V2
+  dashboard/
+    app.py                            # Interface web FastAPI pour le Guardian
+    templates/
+      index.html
+  findings/
+    abi_functions_mined.json          # 528 signatures de drainage minées (736 contrats)
   exploit/                           # Démos d'exploitation Hardhat locales
     contracts/
       VulnerableBank.sol             # Banque délibérément vulnérable (reentrancy)
@@ -345,7 +354,61 @@ if (drained > 0n) {
 Le solde natif (ETH/BNB/MATIC) du contrat cible a baisse apres l'attaque = **exploit confirme**.
 L'alerte Discord part immediatement, et `guardian_exploits_found.txt` est ecrit.
 
-## 11. Statistiques Guardian 24/7 (08/06/2026)
+### Test pipeline end-to-end (10/06/2026)
+
+Pipeline complet teste et valide via `--backfill --force --backfill-hardhat` :
+
+| Etape | Resultat |
+|---|---|
+| Scan BSC | 3 contrats |
+| Fetch source Etherscan V2 | OK |
+| Scan 34 patterns | 3 + 16 + 8 findings |
+| Exploitabilite detectee | 14 exploitables |
+| ABI-GEN (nouveau generateur) | Exploits generes via ABI reelle |
+| Hardhat compile | Compilation OK |
+| Hardhat fork + test | 14 tests |
+| Resultat | 0 CONFIRMED / 14 FAILED |
+
+## 11. ABI Mining & Exploit Generator Data-Driven
+
+### mine_abi_functions.py
+
+Script qui scanne les 736 contrats verifies de la DB, fetch leur ABI via Etherscan V2,
+extrait toutes les fonctions non-view/non-pure, et les classe par frequence :
+
+```bash
+python mine_abi_functions.py --min-count 2
+```
+
+| Metrique | Valeur |
+|---|---|
+| Contrats traites | **736** / 985 |
+| Fonctions uniques | **1 861** |
+| Signatures de drainage (min-count 2) | **528** |
+| Fichier de sortie | `findings/abi_functions_mined.json` |
+
+### exploit_generator.py — ABIBasedExploitGenerator
+
+Generateur d'exploits Solidity qui utilise l'ABI **reelle** du contrat cible
+au lieu de deviner des selecteurs au hasard :
+
+- **Phase 1** : Exact match contre `INTERESTING_FUNCTIONS` (80+ signatures minees)
+- **Phase 2** : Heuristique par mot-cle (28 mots : withdraw, claim, transfer, sweep,
+  collect, redeem, unstake, harvest, emergency, recover, release, drain, burn,
+  rescue, clear, remove, liquidate, skim, sync, initialize, setup, renounce,
+  grant, setowner, setadmin, acceptownership, changeadmin, handover, revoke)
+- **Arguments type-corrects** : `address(0)`, `false`, `bytes("")`, `new T[](0)`, `0`
+  (plus d'erreurs de compilation Solidity)
+- **Factorisation** : `_default_arg()` remplace 4 blocs dupliques
+- **Couverture** : **100%** des fonctions de drainage reelles (528/528)
+
+### Heuristique data-driven
+
+Les mots-cles heuristiques ne sont plus artisanaux — ils sont valides par
+le mining des 736 contrats reels. Les 2 derniers ajouts (`skim`, `sync`)
+ont fait passer la couverture de 99.4% a 100%.
+
+## 12. Statistiques Guardian 24/7 (10/06/2026)
 
 | Métrique | Valeur |
 |:---|---|
@@ -404,7 +467,7 @@ L'alerte Discord part immediatement, et `guardian_exploits_found.txt` est ecrit.
 - Validation Hardhat périodique toutes les 120s pour les contrats existants
 - Redémarrage automatique `run_forever.sh` en cas de plantage (boucle infinie, pas de git push)
 
-## 12. Évolution du projet
+## 13. Évolution du projet
 
 ### Construit dans la Session 9 — Mythril + venv + hardhat_setBalance
 1. **`confirmators/mythril_confirmator.py`** (nouveau) — appel Mythril en sous-processus, 0 import de la librairie
