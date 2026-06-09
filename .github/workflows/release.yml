@@ -156,6 +156,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Supprimer la release existante si elle existe (permet de retagger)
+          gh release delete "$TAG" --yes 2>/dev/null || true
+
           gh release create "$TAG" \
             --title "Blockchain Scanner v${TAG#v}" \
             --notes-file release_notes.md \
