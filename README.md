@@ -73,6 +73,11 @@ python main.py
 | `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
 | `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` | Backfill progress feedback every N contracts (default: 5) |
 | `python guardian.py --backfill --force --backfill-hardhat` | Force re-scan (delete + recreate findings) + Hardhat validation |
+| `clean_hardhat.bat` | Kill only Hardhat-related node processes (safe for Codebuff) |
+| `clean_hardhat.bat --check` | List Hardhat processes without killing |
+| `clean_hardhat.bat --loop` | Monitor and auto-clean every 10s |
+| `run_forever.bat` | Auto-restart loop with Hardhat cleanup on each restart |
+| `run_guardian.bat --stop` | Stop guardian + clean up orphaned Hardhat processes |
 | `bash run_forever.sh` | Auto-restart loop (infinite, logs, no git push) |
 | `python dump_results.py` | Export DB stats to findings/scanned_contracts.md |
 
@@ -369,6 +374,19 @@ python guardian.py --backfill --force --backfill-hardhat
 python guardian.py --backfill --backfill-feedback 10
 ```
 
+### Hardhat Process Management — `clean_hardhat.bat` (NEW)
+
+`kill_all_node_processes()` in `guardian.py` was changed from **`taskkill /F /IM node.exe`** (kills ALL node.exe — including Codebuff) to **`wmic` with WQL filter** (only kills node.exe processes whose command line contains `"hardhat"`).
+
+For manual cleanup, `clean_hardhat.bat` provides 3 modes:
+| Command | Description |
+|:---|:---|
+| `clean_hardhat.bat` | Immediate selective kill via wmic + PowerShell fallback |
+| `clean_hardhat.bat --check` | List Hardhat processes without killing |
+| `clean_hardhat.bat --loop` | Monitor every 10s and auto-clean |
+
+Both `run_forever.bat` and `run_guardian.bat` now call `clean_hardhat.bat` automatically before restart and on stop, preventing orphan accumulation.
+
 ### Performance: ×20 optimization
 
 HardhatValidator groups all findings per contract into a **single fork + single compile + single run**, instead of one per finding:
@@ -381,6 +399,19 @@ HardhatValidator groups all findings per contract into a **single fork + single 
 | **~60s/finding** | **~60s + ~10s/finding supplémentaire** |
 
 Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable (×20).
+
+### Bugfixes Session 8 — Process management + hardhat cleanup (10/06/2026)
+
+| Bug | Cause racine | Fix |
+|:---|---|:---|
+| **`taskkill /F /IM node.exe` tue Codebuff** | Tuait TOUS les node.exe (Codebuff inclus) → écritures bizarres dans la console | Remplacé par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé) |
+| **Processus Hardhat orphelins persistants** | Les scripts run_forever/run_guardian ne nettoyaient pas les orphelins entre les runs | Création de `clean_hardhat.bat` + appel automatique dans `run_forever.bat` et `run_guardian.bat` |
+
+**Fichiers créés/modifiés :**
+- `clean_hardhat.bat` (nouveau) — script de nettoyage sélectif (wmic + PowerShell)
+- `guardian.py` — `kill_all_node_processes()` réécrit avec `wmic` WQL filter
+- `run_forever.bat` — nettoyage automatique avant chaque redémarrage
+- `run_guardian.bat` — nettoyage automatique à l'arrêt
 
 ### Bugfixes Session 7 — HardhatValidator pipeline (09/06/2026)
 
@@ -527,7 +558,10 @@ pip install -r requirements.txt
 ```
 blockchain_scanner/
   main.py                    # CLI entry point
-  guardian.py                # 24/7 scanner + SQLite DB
+  guardian.py                # 24/7 scanner + SQLite DB + Hardhat process management
+  clean_hardhat.bat          # Selective Hardhat process killer (safe for Codebuff)
+  run_forever.bat            # Auto-restart loop with Hardhat cleanup
+  run_guardian.bat           # Start/Stop guardian with Hardhat cleanup
   config.yaml                # Configuration (chains, filters, API keys)
   verify.py                  # Contract source code verification (Etherscan V2)
   exploit_pipeline.py        # Automated vulnerability validation pipeline

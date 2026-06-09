@@ -69,6 +69,11 @@ if exist guardian.pid (
 )
 REM Backup kill all python guardian instances
 taskkill /F /IM python.exe /FI "WINDOWTITLE eq guardian" 2>nul >nul
+
+REM Nettoyage des Hardhat orphelins (ne touche PAS a Codebuff)
+echo [GUARDIAN] Nettoyage des processus Hardhat orphelins...
+call clean_hardhat.bat
+
 echo [OK] Guardian arrete.
 echo   Voir les logs: type guardian_output.log
 goto end

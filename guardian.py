@@ -194,15 +194,53 @@ class FindingsDB:
     def update_hardhat_result(self, contract_addr: str, chain_id: int,
                                finding_name: str, result: str, evidence: str = ""):
         conn = self.connect()
-        conn.execute("""
+        cur = conn.execute("""
             UPDATE findings SET hardhat_result = ?, hardhat_evidence = ?
             WHERE contract_addr = ? AND chain_id = ? AND finding_name = ?
         """, (result, evidence, contract_addr, chain_id, finding_name))
-        conn.execute("""
+        if cur.rowcount == 0:
+            logger.warning(
+                f"[DB] update_hardhat_result: 0 rows affected for "
+                f"{contract_addr[:14]}.. finding='{finding_name}' (trying by id fallback...)"
+            )
+        cur2 = conn.execute("""
             UPDATE contracts SET hardhat_tested = 1,
                 hardhat_confirmed = CASE WHEN ? = 'CONFIRMED' THEN 1 ELSE 0 END
             WHERE address = ? AND chain_id = ?
         """, (result, contract_addr, chain_id))
+        if cur2.rowcount == 0:
+            logger.warning(
+                f"[DB] update_hardhat_result: 0 rows affected for contract "
+                f"{contract_addr[:14]}.. chain={chain_id}"
+            )
+        conn.commit()
+
+    def update_hardhat_result_by_id(self, finding_id: int,
+                                       contract_addr: str, chain_id: int,
+                                       result: str, evidence: str = ""):
+        """Update hardhat result using finding ID (more robust than finding_name).
+
+        Also updates the contracts table to mark hardhat_tested=1.
+        """
+        conn = self.connect()
+        cur = conn.execute("""
+            UPDATE findings SET hardhat_result = ?, hardhat_evidence = ?
+            WHERE id = ?
+        """, (result, evidence, finding_id))
+        if cur.rowcount == 0:
+            logger.warning(f"[DB] update_hardhat_result_by_id: 0 rows affected for id={finding_id}")
+        else:
+            # Also update contracts table (same as update_hardhat_result does)
+            cur2 = conn.execute("""
+                UPDATE contracts SET hardhat_tested = 1,
+                    hardhat_confirmed = CASE WHEN ? = 'CONFIRMED' THEN 1 ELSE 0 END
+                WHERE address = ? AND chain_id = ?
+            """, (result, contract_addr, chain_id))
+            if cur2.rowcount == 0:
+                logger.warning(
+                    f"[DB] update_hardhat_result_by_id: 0 rows affected for contract "
+                    f"{contract_addr[:14]}.. chain={chain_id}"
+                )
         conn.commit()
 
     def get_contract(self, address: str, chain_id: int) -> Optional[dict]:
@@ -343,6 +381,99 @@ class HardhatValidator:
         # Use provided RPC URLs (from config.yaml) with fallback to defaults
         self.rpc_urls = rpc_urls or self.DEFAULT_RPC_URLS
         os.makedirs(self.exploit_dir, exist_ok=True)
+        # Track spawned subprocesses so we can kill them on timeout/shutdown
+        self._processes: set[asyncio.subprocess.Process] = set()
+
+    async def _run_and_track(self, *args, **kwargs) -> asyncio.subprocess.Process:
+        """Spawn a subprocess and track it for later cleanup."""
+        proc = await asyncio.create_subprocess_exec(*args, **kwargs)
+        self._processes.add(proc)
+        return proc
+
+    async def _kill_process(self, proc: Optional[asyncio.subprocess.Process]) -> None:
+        """Safely kill a single tracked subprocess."""
+        if proc is not None and proc.returncode is None:
+            try:
+                proc.kill()
+                await asyncio.wait_for(proc.wait(), timeout=5)
+            except Exception:
+                pass
+        self._processes.discard(proc)
+
+    async def cleanup_all_processes(self) -> None:
+        """Kill ALL tracked subprocesses (zombie node.exe prevention)."""
+        processes = list(self._processes)
+        for proc in processes:
+            try:
+                if proc.returncode is None:
+                    proc.kill()
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+            except Exception:
+                pass
+        self._processes.clear()
+        logger.info("[PROC] All tracked subprocesses cleaned up")
+
+    @staticmethod
+    def kill_all_node_processes() -> None:
+        """Emergency cleanup: kill only Hardhat-related node processes (Windows) or node (Unix).
+
+        On Windows, uses wmic with a WQL filter (CommandLine LIKE '%%hardhat%%')
+        to selectively kill only node.exe processes launched by Hardhat/npx.
+        Does NOT use 'taskkill /F /IM node.exe' which kills ALL node processes
+        including Codebuff itself.
+        """
+        if sys.platform == "win32":
+            try:
+                # Use wmic WQL to find only node.exe processes whose
+                # command line contains "hardhat" (selective kill).
+                # Also catch the parent npx process which spawns hardhat.
+                result = subprocess.run(
+                    [
+                        "wmic", "process", "where",
+                        "name='node.exe' and (CommandLine like '%hardhat%' or CommandLine like '%npx%hardhat%')",
+                        "get", "ProcessId", "/format:csv"
+                    ],
+                    capture_output=True, text=True, timeout=10,
+                    creationflags=_CREATION_FLAGS,
+                )
+                pids = []
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    if not line or "ProcessId" in line or "Node" in line:
+                        continue
+                    parts = line.split(",")
+                    pid = parts[-1].strip()
+                    if pid.isdigit():
+                        pids.append(pid)
+
+                if pids:
+                    for pid in pids:
+                        try:
+                            subprocess.run(
+                                ["taskkill", "/F", "/T", "/PID", pid],
+                                creationflags=_CREATION_FLAGS,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                timeout=5,
+                            )
+                        except Exception:
+                            pass
+                    logger.warning(f"[PROC] Killed {len(pids)} Hardhat node process(es)")
+                else:
+                    logger.info("[PROC] No Hardhat-related node processes found")
+            except Exception as e:
+                logger.warning(f"[PROC] Error during selective kill: {e}")
+        else:
+            try:
+                subprocess.run(
+                    ["pkill", "-f", "node.*hardhat"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                )
+                logger.warning("[PROC] Killed node/hardhat processes")
+            except Exception:
+                pass
 
     def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0) -> str:
         """Generate a Solidity exploit contract for a given finding type.
@@ -807,10 +938,17 @@ main().then(() => process.exit(0)).catch(e => {{
 
         # Mark all as PENDING
         for f in findings:
-            self.db.update_hardhat_result(
-                contract_addr, chain_id, f["finding_name"], "PENDING",
-                f"Testing started at {datetime.utcnow().isoformat()}"
-            )
+            finding_id = f.get("id")
+            if finding_id:
+                self.db.update_hardhat_result_by_id(
+                    finding_id, contract_addr, chain_id, "PENDING",
+                    f"Testing started at {datetime.utcnow().isoformat()}"
+                )
+            else:
+                self.db.update_hardhat_result(
+                    contract_addr, chain_id, f["finding_name"], "PENDING",
+                    f"Testing started at {datetime.utcnow().isoformat()}"
+                )
 
         contracts_dir = os.path.join(self.exploit_dir, "contracts")
         scripts_dir = os.path.join(self.exploit_dir, "scripts")
@@ -899,15 +1037,21 @@ main().then(() => process.exit(0)).catch(e => {{
 
             for idx, finding in enumerate(findings):
                 fn_name = finding["finding_name"]
+                finding_id = finding.get("id")
                 if idx in result_by_idx:
                     fn_result, fn_evidence = result_by_idx[idx]
                 else:
                     fn_result = "FAILED"
                     fn_evidence = f"No FINDING_RESULT for idx {idx} in output"
 
-                self.db.update_hardhat_result(
-                    contract_addr, chain_id, fn_name, fn_result, fn_evidence
-                )
+                if finding_id:
+                    self.db.update_hardhat_result_by_id(
+                        finding_id, contract_addr, chain_id, fn_result, fn_evidence
+                    )
+                else:
+                    self.db.update_hardhat_result(
+                        contract_addr, chain_id, fn_name, fn_result, fn_evidence
+                    )
                 results.append({
                     "contract": contract_addr,
                     "finding": fn_name,

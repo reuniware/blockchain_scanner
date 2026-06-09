@@ -24,6 +24,9 @@ blockchain_scanner/
   exploit_pipeline.py                # Automated vuln validation pipeline (20 types)
   hardhat_fork_tester.py             # Standalone fork testing framework
   pool_scanner.py                    # DEX pool scanner via DEX Screener API
+  clean_hardhat.bat                 # Selective Hardhat process killer (wmic + PS fallback)
+  run_forever.bat                   # Auto-restart loop with Hardhat cleanup
+  run_guardian.bat                  # Start/Stop guardian with Hardhat cleanup
   scan_bsc_recent.py                 # Scan 100 BSC blocks for new deployments
   scan_bsc_500.py                    # Scan 500 BSC blocks + auto exploit pipeline
   scan_historical.py                 # Scan millions of historical BSC blocks concurrently
@@ -301,6 +304,13 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 - `run_forever.sh` auto-restart on crash (infinite loop, no git push)
 
 ## 11. Project Evolution
+
+### Built in Session 8 — Process Management + Hardhat Cleanup
+1. **`kill_all_node_processes()` fix**: Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill)
+2. **`clean_hardhat.bat`** (nouveau) : script standalone avec 3 modes (kill, check, loop), double méthode wmic + PowerShell
+3. **`run_forever.bat`** (modifié) : appelle `call clean_hardhat.bat` avant chaque redémarrage et en début de boucle
+4. **`run_guardian.bat`** (modifié) : appelle `call clean_hardhat.bat` à l'arrêt (`--stop`)
+5. Tous les `.md` mis à jour
 
 ### Built in Session 7
 1. `--backfill --force --backfill-hardhat`: Full pipeline with force re-scan + Hardhat validation
