@@ -19,8 +19,6 @@ env:
   # - workflow_dispatch : utilise l'input tag (saisie manuelle)
   # - push tag : utilise github.ref_name (ex: v1.1.0)
   TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-  # Version sans le préfixe v
-  VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   check-version:
