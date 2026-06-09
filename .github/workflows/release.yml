@@ -163,3 +163,9 @@ jobs:
 
           echo "✅ Release $TAG créée avec artefacts :"
           ls -la dist/
+
+      - name: Publier sur PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          verbose: true
