@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: write  # Nécessaire pour créer la GitHub Release
-  id-token: write  # Nécessaire pour PyPI (OpenID Connect / trusted publishing)
 
 env:
   # Déterminer le tag selon le déclencheur
