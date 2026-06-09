@@ -305,6 +305,13 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 
 ## 11. Project Evolution
 
+### Built in Session 9 — Log level + clean_hardhat.bat fix + backfill force hardhat
+1. **`--log-level` CLI arg** sur `guardian.py` : `DEBUG|INFO|WARNING|ERROR` pour contrôler la verbosité des logs
+2. **`run_guardian.bat`** (modifié) : utilise `--log-level WARNING` par défaut (logs 100x plus petits)
+3. **`clean_hardhat.bat`** (fix) : blocs PowerShell retirés (problèmes de quoting avec cmd /c), remplacés par wmic pur
+4. **Stats DB mises à jour** : 24,945 contrats, 8,109 findings, 4,943 exploitables, 2,635 tests Hardhat
+5. **Backfill force + Hardhat** lancé pour re-scanner et re-tester tous les contrats de la DB
+
 ### Built in Session 8 — Process Management + Hardhat Cleanup
 1. **`kill_all_node_processes()` fix**: Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill). Retourne maintenant un dict `{killed, error}`.
 2. **`clean_hardhat.bat`** (nouveau) : script standalone avec 3 modes (kill, check, loop), double méthode wmic + PowerShell

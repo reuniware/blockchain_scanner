@@ -73,6 +73,7 @@ python main.py
 | `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
 | `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` | Backfill progress feedback every N contracts (default: 5) |
 | `python guardian.py --backfill --force --backfill-hardhat` | Force re-scan (delete + recreate findings) + Hardhat validation |
+| `python guardian.py --log-level WARNING` | Reduce log verbosity (default: INFO, use WARNING for less noise) |
 | `python guardian.py --cleanup` | Kill all Hardhat-related node processes (selective, safe for Codebuff) |
 | `clean_hardhat.bat` | Kill only Hardhat-related node processes (safe for Codebuff) |
 | `clean_hardhat.bat --check` | List Hardhat processes without killing |
@@ -411,11 +412,14 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 | **Processus Hardhat orphelins persistants** | Les scripts run_forever/run_guardian ne nettoyaient pas les orphelins entre les runs | Création de `clean_hardhat.bat` + appel automatique dans `run_forever.bat` et `run_guardian.bat` |
 | **Orphelins créés entre les tests Hardhat** | validate_finding() et validate_contract() spawnent de nouveaux Hardhat sans nettoyer les anciens | Auto-cleanup `kill_all_node_processes()` au début de chaque test Hardhat dans guardian.py |
 
+| **Orphelins créés entre les tests Hardhat** | validate_finding() et validate_contract() spawnent de nouveaux Hardhat sans nettoyer les anciens | Auto-cleanup `kill_all_node_processes()` au début de chaque test Hardhat dans guardian.py |
+| **Logs 296 MB — trop verbeux** | logging.INFO incluait chaque bloc/transaction en continu | Ajout de `--log-level` CLI (DEBUG\|INFO\|WARNING\|ERROR) + run_guardian.bat utilise WARNING par défaut |
+
 **Fichiers créés/modifiés :**
-- `clean_hardhat.bat` (nouveau) — script de nettoyage sélectif (wmic + PowerShell)
-- `guardian.py` — `kill_all_node_processes()` réécrit avec `wmic` WQL filter + retourne dict + auto-cleanup dans validate_finding/validate_contract + `--cleanup` CLI flag
+- `clean_hardhat.bat` (nouveau) — script de nettoyage sélectif (wmic pur, plus de PowerShell)
+- `guardian.py` — `kill_all_node_processes()` réécrit avec `wmic` WQL filter + retourne dict + auto-cleanup dans validate_finding/validate_contract + `--cleanup` CLI flag + `--log-level` CLI flag
 - `run_forever.bat` — nettoyage automatique avant chaque redémarrage
-- `run_guardian.bat` — nettoyage automatique à l'arrêt
+- `run_guardian.bat` — nettoyage automatique à l'arrêt + `--log-level WARNING`
 
 ### Bugfixes Session 7 — HardhatValidator pipeline (09/06/2026)
 
@@ -430,17 +434,15 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 
 **Testé :** Backfill force + Hardhat sur WBNB (BSC) — pipeline complet validé ✅
 
-### Guardian 24/7 Stats (as of 09/06/2026)
+### Guardian 24/7 Stats (as of 11/06/2026)
 
 | Metric | Value |
 |:---|---|
 | Contracts in DB | **24 945** |
 | Verified contracts | **985** |
-| With native balance > 0.001 | **66** |
-| Total BNB across all contracts | **1 746 162** |
-| Total findings | **7 365** |
-| Exploitable (pipeline) | **4 407** |
-| Hardhat tests (fork) | **116** |
+| Total findings | **8 109** |
+| Exploitable (pipeline) | **4 943** |
+| Hardhat tests (fork) | **2 635** |
 | Confirmed exploits | **0** |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
