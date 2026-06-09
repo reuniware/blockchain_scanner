@@ -395,10 +395,10 @@ Mythril ([ConsenSys/mythril](https://github.com/ConsenSys/mythril)) est intégr�
 ```bash
 # Créer le venv Python 3.12 et installer Mythril
 python -m venv .mythril-env
-.myhtril-env/Scripts/python.exe -m pip install mythril
+.mythril-env/Scripts/python.exe -m pip install mythril
 
 # Résultat : mythril v0.24.8 dans le venv
-.myhtril-env/Scripts/python.exe -m mythril version
+.mythril-env/Scripts/python.exe -m mythril version
 ```
 
 **Utilisation :**
