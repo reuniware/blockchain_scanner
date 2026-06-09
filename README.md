@@ -73,6 +73,7 @@ python main.py
 | `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
 | `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` | Backfill progress feedback every N contracts (default: 5) |
 | `python guardian.py --backfill --force --backfill-hardhat` | Force re-scan (delete + recreate findings) + Hardhat validation |
+| `python guardian.py --cleanup` | Kill all Hardhat-related node processes (selective, safe for Codebuff) |
 | `clean_hardhat.bat` | Kill only Hardhat-related node processes (safe for Codebuff) |
 | `clean_hardhat.bat --check` | List Hardhat processes without killing |
 | `clean_hardhat.bat --loop` | Monitor and auto-clean every 10s |
@@ -387,6 +388,8 @@ For manual cleanup, `clean_hardhat.bat` provides 3 modes:
 
 Both `run_forever.bat` and `run_guardian.bat` now call `clean_hardhat.bat` automatically before restart and on stop, preventing orphan accumulation.
 
+Additionally, `validate_finding()` and `validate_contract()` in `guardian.py` now call `HardhatValidator.kill_all_node_processes()` **before** spawning any new Hardhat test, ensuring a clean slate before every fork test.
+
 ### Performance: ×20 optimization
 
 HardhatValidator groups all findings per contract into a **single fork + single compile + single run**, instead of one per finding:
@@ -406,10 +409,11 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 |:---|---|:---|
 | **`taskkill /F /IM node.exe` tue Codebuff** | Tuait TOUS les node.exe (Codebuff inclus) → écritures bizarres dans la console | Remplacé par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé) |
 | **Processus Hardhat orphelins persistants** | Les scripts run_forever/run_guardian ne nettoyaient pas les orphelins entre les runs | Création de `clean_hardhat.bat` + appel automatique dans `run_forever.bat` et `run_guardian.bat` |
+| **Orphelins créés entre les tests Hardhat** | validate_finding() et validate_contract() spawnent de nouveaux Hardhat sans nettoyer les anciens | Auto-cleanup `kill_all_node_processes()` au début de chaque test Hardhat dans guardian.py |
 
 **Fichiers créés/modifiés :**
 - `clean_hardhat.bat` (nouveau) — script de nettoyage sélectif (wmic + PowerShell)
-- `guardian.py` — `kill_all_node_processes()` réécrit avec `wmic` WQL filter
+- `guardian.py` — `kill_all_node_processes()` réécrit avec `wmic` WQL filter + retourne dict + auto-cleanup dans validate_finding/validate_contract + `--cleanup` CLI flag
 - `run_forever.bat` — nettoyage automatique avant chaque redémarrage
 - `run_guardian.bat` — nettoyage automatique à l'arrêt
 

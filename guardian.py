@@ -414,13 +414,16 @@ class HardhatValidator:
         logger.info("[PROC] All tracked subprocesses cleaned up")
 
     @staticmethod
-    def kill_all_node_processes() -> None:
+    def kill_all_node_processes() -> dict:
         """Emergency cleanup: kill only Hardhat-related node processes (Windows) or node (Unix).
 
         On Windows, uses wmic with a WQL filter (CommandLine LIKE '%%hardhat%%')
         to selectively kill only node.exe processes launched by Hardhat/npx.
         Does NOT use 'taskkill /F /IM node.exe' which kills ALL node processes
         including Codebuff itself.
+
+        Returns:
+            Dict with "killed" (int) count and "error" (str or None).
         """
         if sys.platform == "win32":
             try:
@@ -459,10 +462,13 @@ class HardhatValidator:
                         except Exception:
                             pass
                     logger.warning(f"[PROC] Killed {len(pids)} Hardhat node process(es)")
+                    return {"killed": len(pids), "error": None}
                 else:
                     logger.info("[PROC] No Hardhat-related node processes found")
+                    return {"killed": 0, "error": None}
             except Exception as e:
                 logger.warning(f"[PROC] Error during selective kill: {e}")
+                return {"killed": 0, "error": str(e)}
         else:
             try:
                 subprocess.run(
@@ -472,8 +478,9 @@ class HardhatValidator:
                     timeout=5,
                 )
                 logger.warning("[PROC] Killed node/hardhat processes")
-            except Exception:
-                pass
+                return {"killed": -1, "error": None}
+            except Exception as e:
+                return {"killed": 0, "error": str(e)}
 
     def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0) -> str:
         """Generate a Solidity exploit contract for a given finding type.
@@ -770,6 +777,7 @@ main().then(() => process.exit(0)).catch(e => {{
         """Try to validate an exploitable finding on Hardhat fork.
 
         Uses the existing exploit/ directory (already has deps, CommonJS config).
+        Cleans up any orphaned Hardhat processes before spawning new ones.
 
         Returns:
             (confirmed: bool, evidence: str)
@@ -781,6 +789,11 @@ main().then(() => process.exit(0)).catch(e => {{
         severity = finding["severity"]
 
         logger.info(f"[HARDHAT] Testing {finding_name} [{severity}] on {contract_addr[:14]}..")
+
+        # Step 0: Auto-cleanup orphaned Hardhat processes before spawning
+        result = HardhatValidator.kill_all_node_processes()
+        if result.get("killed", 0) > 0:
+            logger.info(f"[HARDHAT] Pre-test cleanup: killed {result['killed']} orphan(s)")
 
         self.db.update_hardhat_result(
             contract_addr, chain_id, finding_name, "PENDING",
@@ -900,6 +913,7 @@ main().then(() => process.exit(0)).catch(e => {{
 
         Generates all necessary .sol files, compiles once, runs one Hardhat
         script that forks once and tests all findings sequentially.
+        Cleans up any orphaned Hardhat processes before spawning new ones.
 
         Args:
             findings: List of finding dicts (must all share same contract_addr + chain_id)
@@ -915,6 +929,11 @@ main().then(() => process.exit(0)).catch(e => {{
         chain_id = findings[0]["chain_id"]
         assert all(f["contract_addr"] == contract_addr and f["chain_id"] == chain_id for f in findings), \
             "validate_contract: all findings must be for the same contract"
+
+        # Step 0: Auto-cleanup orphaned Hardhat processes before spawning
+        result = HardhatValidator.kill_all_node_processes()
+        if result.get("killed", 0) > 0:
+            logger.info(f"[HARDHAT] Pre-test cleanup: killed {result['killed']} orphan(s)")
 
         # Check Hardhat availability
         hardhat_ok = await self._check_hardhat_available()
@@ -1803,6 +1822,16 @@ async def main_async(args):
     if args.health:
         sys.exit(Guardian.check_health())
 
+    if getattr(args, "cleanup", False):
+        logger.info("[HARDHAT] --cleanup: killing all Hardhat-related node processes...")
+        result = HardhatValidator.kill_all_node_processes()
+        killed = result.get("killed", 0)
+        if killed > 0:
+            logger.info(f"[HARDHAT] --cleanup: {killed} Hardhat process(es) killed")
+        else:
+            logger.info("[HARDHAT] --cleanup: No Hardhat processes found")
+        return
+
     force_hardhat = getattr(args, "force_hardhat", False)
     guardian = Guardian(config_path=args.config, force_hardhat=force_hardhat)
 
@@ -1856,6 +1885,8 @@ def main():
                         help="After backfill, run Hardhat fork tests on all exploitable findings to confirm them")
     parser.add_argument("--backfill-feedback", type=int, default=5,
                         help="Print progress summary every N contracts during backfill (default: 5, 0 = no feedback)")
+    parser.add_argument("--cleanup", action="store_true",
+                        help="Kill all Hardhat-related node.exe processes (selective, does NOT affect Codebuff)")
     args = parser.parse_args()
 
     try:

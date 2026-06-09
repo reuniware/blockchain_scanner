@@ -306,11 +306,13 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 ## 11. Project Evolution
 
 ### Built in Session 8 — Process Management + Hardhat Cleanup
-1. **`kill_all_node_processes()` fix**: Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill)
+1. **`kill_all_node_processes()` fix**: Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill). Retourne maintenant un dict `{killed, error}`.
 2. **`clean_hardhat.bat`** (nouveau) : script standalone avec 3 modes (kill, check, loop), double méthode wmic + PowerShell
 3. **`run_forever.bat`** (modifié) : appelle `call clean_hardhat.bat` avant chaque redémarrage et en début de boucle
 4. **`run_guardian.bat`** (modifié) : appelle `call clean_hardhat.bat` à l'arrêt (`--stop`)
-5. Tous les `.md` mis à jour
+5. **`--cleanup` CLI flag** sur `guardian.py` : `python guardian.py --cleanup` tue sélectivement les processus Hardhat depuis Python
+6. **Auto-cleanup dans validate_finding() et validate_contract()** : chaque test Hardhat commence par `kill_all_node_processes()` pour garantir un état propre
+7. Tous les `.md` mis à jour
 
 ### Built in Session 7
 1. `--backfill --force --backfill-hardhat`: Full pipeline with force re-scan + Hardhat validation
