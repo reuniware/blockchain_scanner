@@ -50,7 +50,6 @@ jobs:
   test:
     name: Tests (Mythril patterns)
     runs-on: ubuntu-latest
-    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
