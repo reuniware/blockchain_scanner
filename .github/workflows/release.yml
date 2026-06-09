@@ -165,7 +165,11 @@ jobs:
           ls -la dist/
 
       - name: Publier sur PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          verbose: true
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          pip install twine
+          twine upload --verbose dist/*.whl dist/*.tar.gz
+          echo "✅ Package publié sur PyPI !"
+          echo "   https://pypi.org/project/blockchain-scanner/"
