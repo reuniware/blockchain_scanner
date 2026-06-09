@@ -7,13 +7,20 @@ on:
         description: 'Version tag (ex: v1.1.0)'
         required: true
         type: string
-        default: 'v'
   push:
     tags:
       - 'v*'  # Déclenché par git tag v1.0.0, v1.1.0, etc.
 
 permissions:
   contents: write  # Nécessaire pour créer la GitHub Release
+
+env:
+  # Déterminer le tag selon le déclencheur
+  # - workflow_dispatch : utilise l'input tag (saisie manuelle)
+  # - push tag : utilise github.ref_name (ex: v1.1.0)
+  TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  # Version sans le préfixe v
+  VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   check-version:
@@ -30,21 +37,20 @@ jobs:
         id: extract
         run: |
           VERSION=$(grep '^VERSION =' main.py | sed "s/VERSION = //;s/\"//g")
-          TAG="${GITHUB_REF_NAME#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version dans main.py : $VERSION"
-          echo "Tag git : $TAG"
+          echo "Tag : ${TAG#v}"
 
       - name: Vérifier que le tag correspond à la version
         run: |
           VERSION=$(grep '^VERSION =' main.py | sed "s/VERSION = //;s/\"//g")
-          TAG="${GITHUB_REF_NAME#v}"
-          if [ "$VERSION" != "$TAG" ]; then
+          TAG_WITHOUT_V="${TAG#v}"
+          if [ "$VERSION" != "$TAG_WITHOUT_V" ]; then
             echo "⚠️  Mismatch: main.py version=$VERSION mais tag=$TAG"
-            echo "   Tu dois mettre à jour VERSION dans main.py avant de tagger."
+            echo "   Tu dois mettre à jour VERSION dans main.py avant de release."
             exit 1
           fi
-          echo "✅ Version main.py ($VERSION) == Tag ($TAG)"
+          echo "✅ Version main.py ($VERSION) == Tag ($TAG_WITHOUT_V)"
 
   test:
     name: Tests
@@ -84,9 +90,8 @@ jobs:
           fetch-depth: 0  # Nécessaire pour git log des tags
 
       - name: Générer les notes de release
-        id: notes
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG_WITHOUT_V="${TAG#v}"
 
           # Trouver le tag précédent pour le changelog
           PREV_TAG=$(git tag --sort=-version:refname | head -2 | tail -1 || echo "")
@@ -94,7 +99,7 @@ jobs:
             RANGE=""
             PREV_TAG="début"
           else
-            RANGE="${PREV_TAG}..${GITHUB_REF_NAME}"
+            RANGE="${PREV_TAG}..${TAG}"
           fi
 
           # Compter les commits depuis le dernier tag
@@ -104,7 +109,7 @@ jobs:
             COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "?")
           fi
 
-          echo "## Scanner Blockchain v${TAG}" > release_notes.md
+          echo "## Scanner Blockchain v${TAG_WITHOUT_V}" > release_notes.md
           echo "" >> release_notes.md
           echo "### 🚀 Changements" >> release_notes.md
           echo "" >> release_notes.md
@@ -145,8 +150,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-
           gh release create "$TAG" \
             --title "Blockchain Scanner v${TAG#v}" \
             --notes-file release_notes.md
