@@ -389,6 +389,6 @@ blockchain_scanner/
 
 ## 📖 Voir aussi
 
-- [CHANGELOG.md](CHANGELOG.md) — Notes de versions techniques détaillées
-- [findings/README.md](findings/README.md) — Catalogue des contrats analysés
-- [skill/multi-chain-blockchain-scanner.md](skill/multi-chain-blockchain-scanner.md) — Documentation complète
+- [CHANGELOG.md](https://github.com/reuniware/blockchain_scanner/blob/master/CHANGELOG.md) — Notes de versions techniques détaillées
+- [findings/README.md](https://github.com/reuniware/blockchain_scanner/tree/master/findings) — Catalogue des contrats analysés
+- [skill/multi-chain-blockchain-scanner.md](https://github.com/reuniware/blockchain_scanner/tree/master/skill) — Documentation complète
