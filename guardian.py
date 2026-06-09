@@ -49,6 +49,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scanner.orchestrator import ScannerOrchestrator
 from analysis.vulnerability_scanner import VulnerabilityFinding
 from exploit_pipeline import ExploitPipeline, CHAIN_REGISTRY
+from confirmators.mythril_confirmator import MythrilConfirmator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1184,7 +1185,8 @@ class Guardian:
       - Validates exploitable findings via HardhatValidator
     """
 
-    def __init__(self, config_path: str = "config.yaml", force_hardhat: bool = False):
+    def __init__(self, config_path: str = "config.yaml", force_hardhat: bool = False,
+                 with_mythril: bool = False, mythril_dir: str = ""):
         self.config_path = config_path
         self.config = self._load_config()
         self.db = FindingsDB()
@@ -1204,12 +1206,24 @@ class Guardian:
         self.force_hardhat = force_hardhat
         self._hardhat_task: Optional[asyncio.Task] = None
 
+        # Mythril confirmator (optional — no import dependency)
+        self.with_mythril = with_mythril
+        self.mythril: Optional[MythrilConfirmator] = None
+        if with_mythril:
+            self.mythril = MythrilConfirmator(mythril_dir=mythril_dir, db=self.db)
+            if self.mythril.is_available():
+                logger.info(f"[MYTHRIL] Confirmator ready via: {' '.join(self.mythril._command)}")
+            else:
+                logger.warning("[MYTHRIL] --with-mythril specified but Mythril CLI not found")
+                self.mythril = None
+
         # Stats (cumulative across runs)
         self.stats = {
             "started_at": None,
             "contracts_checked": 0,
             "vulns_found": 0,
             "exploits_confirmed": 0,
+            "mythril_issues": 0,
             "chains_active": 0,
         }
 
@@ -1220,7 +1234,8 @@ class Guardian:
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
-    async def run_backfill(self, force: bool = False, limit: int = 0, hardhat: bool = False, feedback_interval: int = 5):
+    async def run_backfill(self, force: bool = False, limit: int = 0, hardhat: bool = False,
+                            feedback_interval: int = 5, mythril: bool = False):
         """Backfill: run exploit pipeline on all verified contracts in the DB.
 
         Reads contracts from the database, fetches their source code,
@@ -1232,6 +1247,7 @@ class Guardian:
             limit: Max contracts to process (0 = no limit).
             hardhat: If True, run Hardhat fork tests on exploitable findings after backfill.
             feedback_interval: Print progress summary every N contracts (0 = no feedback).
+            mythril: If True, run Mythril confirmation on contracts after backfill.
         """
         logger.info("=" * 60)
         logger.info("  GUARDIAN — BACKFILL: Reprise de tous les contrats verifies")
@@ -1388,10 +1404,50 @@ class Guardian:
             else:
                 logger.info("[BACKFILL-HARDHAT] Aucun finding exploitable a valider sur les contrats du backfill")
 
+        # Optionally run Mythril confirmation on processed contracts
+        if mythril and self.mythril:
+            logger.info(f"[BACKFILL-MYTHRIL] Running symbolic execution on {len(processed_addresses)} contract(s)...")
+            for addr, cid in processed_addresses:
+                chain_info = CHAIN_REGISTRY.get(cid)
+                rpc = chain_info[2] if chain_info else ""
+                chain_name = chain_info[1] if chain_info else f"chain-{cid}"
+                try:
+                    mythril_issues = await self.mythril.analyze_address(addr, cid, rpc)
+                    for issue in mythril_issues:
+                        self.stats["mythril_issues"] += 1
+                        proof = " [PROOF]" if issue.get("has_tx_sequence") else ""
+                        logger.warning(
+                            f"[BACKFILL-MYTHRIL] [{issue['severity']}]{proof} {issue['title']} "
+                            f"on {addr[:14]}.."
+                        )
+                        if issue.get("has_tx_sequence"):
+                            self.stats["exploits_confirmed"] += 1
+                            logger.critical(
+                                f"[!!!] MYTHRIL CONFIRMED EXPLOIT on {addr[:14]}.. "
+                                f"via {issue['title']}!"
+                            )
+                            self.db.log_event("MYTHRIL", chain_name,
+                                f"CONFIRMED on {addr} via {issue['title']}")
+                            alarm_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                "guardian_exploits_found.txt"
+                            )
+                            with open(alarm_path, "a") as f:
+                                f.write(f"\n{'='*60}")
+                                f.write(f"\n[BACKFILL MYTHRIL CONFIRMED] at {datetime.utcnow().isoformat()}")
+                                f.write(f"\nContract: {addr} on {chain_name} ({cid})")
+                                f.write(f"\nIssue: {issue['title']} (SWC-{issue['swc_id']})")
+                                f.write(f"\nSeverity: {issue['severity']}")
+                                f.write(f"\n{'='*60}\n")
+                except Exception as e:
+                    logger.error(f"[BACKFILL-MYTHRIL] Error on {addr[:14]}..: {e}")
+
         logger.info("=" * 60)
         logger.info(f"  BACKFILL TERMINE: {processed} traites, {errors} erreurs")
         if hardhat:
             logger.info("  Hardhat execute")
+        if mythril:
+            logger.info("  Mythril execute")
         logger.info("=" * 60)
 
     async def _on_unverified_contract(
@@ -1533,6 +1589,44 @@ class Guardian:
             elif found_exploitable:
                 logger.info(f"[HARDHAT] Skipping: balance={contract.bnb_balance:.4f} (< 0.001, use --force-hardhat to override)")
 
+        # Mythril confirmation (optional — only if --with-mythril)
+        if self.mythril and report and report.findings:
+            logger.info(f"[MYTHRIL] Analyzing {addr[:14]}.. with symbolic execution...")
+            try:
+                chain_info = CHAIN_REGISTRY.get(chain_id)
+                rpc = chain_info[2] if chain_info else ""
+                mythril_issues = await self.mythril.analyze_address(addr, chain_id, rpc)
+                for issue in mythril_issues:
+                    # Log each Mythril finding
+                    proof = " [PROOF]" if issue.get("has_tx_sequence") else ""
+                    logger.warning(
+                        f"[MYTHRIL] [{issue['severity']}] {issue['title']}{proof} "
+                        f"on {addr[:14]}.."
+                    )
+                    self.stats["mythril_issues"] += 1
+                    # If Mythril found a tx_sequence (proof), it's a confirmed exploit
+                    if issue.get("has_tx_sequence"):
+                        self.stats["exploits_confirmed"] += 1
+                        logger.critical(
+                            f"[!!!] MYTHRIL CONFIRMED EXPLOIT on {addr[:14]}.. "
+                            f"via {issue['title']}!"
+                        )
+                        self.db.log_event("MYTHRIL", chain_name,
+                            f"CONFIRMED on {addr} via {issue['title']}")
+                        alarm_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            "guardian_exploits_found.txt"
+                        )
+                        with open(alarm_path, "a") as f:
+                            f.write(f"\n{'='*60}")
+                            f.write(f"\n[MYTHRIL CONFIRMED] at {datetime.utcnow().isoformat()}")
+                            f.write(f"\nContract: {addr} on {chain_name} ({chain_id})")
+                            f.write(f"\nIssue: {issue['title']} (SWC-{issue['swc_id']})")
+                            f.write(f"\nSeverity: {issue['severity']}")
+                            f.write(f"\n{'='*60}\n")
+            except Exception as e:
+                logger.error(f"[MYTHRIL] Error confirming {addr[:14]}..: {e}")
+
     async def start(self, target_chains: list[str] | None = None, force_hardhat: bool = False):
         """Start the guardian — runs forever until interrupted.
         
@@ -1551,6 +1645,8 @@ class Guardian:
             logger.info(f"  Chaines ciblees: {', '.join(target_chains)}")
         if force_hardhat:
             logger.info("  [FORCE] Hardhat force mode: testing ALL exploitable findings (balance=0 included)")
+        if self.mythril:
+            logger.info("  [MYTHRIL] Symbolic execution confirmator active")
         logger.info("=" * 60)
 
         self.stats["started_at"] = datetime.utcnow().isoformat()
@@ -1847,8 +1943,17 @@ async def main_async(args):
             logger.info("[HARDHAT] --cleanup: No Hardhat processes found")
         return
 
+    # Mythril confirmation (independent — calls myth CLI via subprocess)
+    with_mythril = getattr(args, "with_mythril", False)
+    mythril_dir = getattr(args, "mythril_dir", "") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "mythril"
+    )
+    if with_mythril:
+        logger.info("[MYTHRIL] --with-mythril enabled, searching for Mythril CLI...")
+
     force_hardhat = getattr(args, "force_hardhat", False)
-    guardian = Guardian(config_path=args.config, force_hardhat=force_hardhat)
+    guardian = Guardian(config_path=args.config, force_hardhat=force_hardhat,
+                        with_mythril=with_mythril, mythril_dir=mythril_dir)
 
     if args.status:
         guardian.print_status()
@@ -1862,7 +1967,11 @@ async def main_async(args):
         backfill_limit = getattr(args, "backfill_limit", 0) or 0
         backfill_hardhat = getattr(args, "backfill_hardhat", False)
         feedback = getattr(args, "backfill_feedback", 0) or 0
-        await guardian.run_backfill(force=args.force, limit=backfill_limit, hardhat=backfill_hardhat, feedback_interval=feedback)
+        await guardian.run_backfill(
+            force=args.force, limit=backfill_limit,
+            hardhat=backfill_hardhat, feedback_interval=feedback,
+            mythril=with_mythril
+        )
         return
 
     # Parse target chains if specified
@@ -1900,6 +2009,10 @@ def main():
                         help="After backfill, run Hardhat fork tests on all exploitable findings to confirm them")
     parser.add_argument("--backfill-feedback", type=int, default=5,
                         help="Print progress summary every N contracts during backfill (default: 5, 0 = no feedback)")
+    parser.add_argument("--with-mythril", action="store_true",
+                        help="Enable Mythril symbolic execution confirmation (calls myth CLI via subprocess)")
+    parser.add_argument("--mythril-dir", default="",
+                        help="Path to Mythril repo for 'python -m mythril' fallback (default: ../mythril)")
     parser.add_argument("--cleanup", action="store_true",
                         help="Kill all Hardhat-related node.exe processes (selective, does NOT affect Codebuff)")
     parser.add_argument("--log-level", default="INFO",
