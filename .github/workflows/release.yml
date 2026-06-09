@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
-      tag: ${{ steps.extract.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,7 +25,6 @@ jobs:
           VERSION=$(grep '^VERSION =' main.py | sed "s/VERSION = //;s/\"//g")
           TAG="${GITHUB_REF_NAME#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Version dans main.py : $VERSION"
           echo "Tag git : $TAG"
 
@@ -99,7 +97,6 @@ jobs:
             COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "?")
           fi
 
-          # Extraire les stats du projet (sortie du scanner)
           echo "## Scanner Blockchain v${TAG}" > release_notes.md
           echo "" >> release_notes.md
           echo "### 🚀 Changements" >> release_notes.md
@@ -123,22 +120,19 @@ jobs:
           echo "- **Node (Hardhat) :** 18+" >> release_notes.md
           echo "" >> release_notes.md
 
-          # Ajouter les infos du projet
           echo "### 🔧 Prérequis" >> release_notes.md
           echo "" >> release_notes.md
-          echo "\`\`\`bash" >> release_notes.md
+          echo '```bash' >> release_notes.md
           echo "pip install -r requirements.txt" >> release_notes.md
-          echo "\`\`\`" >> release_notes.md
+          echo '```' >> release_notes.md
           echo "" >> release_notes.md
 
           echo "### 🏁 Démarrage rapide" >> release_notes.md
           echo "" >> release_notes.md
-          echo "\`\`\`bash" >> release_notes.md
+          echo '```bash' >> release_notes.md
           echo "python main.py" >> release_notes.md
-          echo "\`\`\`" >> release_notes.md
+          echo '```' >> release_notes.md
           echo "" >> release_notes.md
-
-          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
 
       - name: Créer la GitHub Release
         env:
@@ -148,7 +142,6 @@ jobs:
 
           gh release create "$TAG" \
             --title "Blockchain Scanner v${TAG#v}" \
-            --notes-file release_notes.md \
-            --verify-tag
+            --notes-file release_notes.md
 
           echo "✅ Release $TAG créée sur GitHub"
