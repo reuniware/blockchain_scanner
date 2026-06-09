@@ -583,14 +583,29 @@ class HardhatValidator:
                 f"// SPDX-License-Identifier: UNLICENSED\n"
                 f"pragma solidity ^0.8.0;\n\n"
                 f"contract {contract_name} {{\n"
-                f"    address public target;\n"
+                f"    address payable public target;\n"
+                f"    address public owner;\n"
                 f"    bool public attacked;\n\n"
                 f"    constructor(address _target) {{\n"
-                f"        target = _target;\n"
+                f"        target = payable(_target);\n"
+                f"        owner = msg.sender;\n"
                 f"    }}\n\n"
                 f"    function attack() external {{\n"
-                f"        // Write to storage to make this a real transaction (not view/pure)\n"
-                f"        // This ensures ethers v6 returns a TransactionResponse, not a string\n"
+                f"        require(msg.sender == owner, \"!owner\");\n"
+                f"        // Low-level calls with common function selectors:\n"
+                f"        // - 0x853828b6 = withdrawAll()\n"
+                f"        // - 0x4e71d92d = claim()\n"
+                f"        // - 0x3d18b912 = getReward()\n"
+                f"        // - 0x2e1a7d4d = withdraw(uint256)\n"
+                f"        // Low-level calls don't revert if function doesn't exist\n"
+                f"        // solhint-disable-next-line avoid-low-level-calls\n"
+                f"        (bool s1,) = target.call(abi.encodeWithSignature(\"withdrawAll()\")); s1;\n"
+                f"        // solhint-disable-next-line avoid-low-level-calls\n"
+                f"        (bool s2,) = target.call(abi.encodeWithSignature(\"claim()\")); s2;\n"
+                f"        // solhint-disable-next-line avoid-low-level-calls\n"
+                f"        (bool s3,) = target.call(abi.encodeWithSignature(\"getReward()\")); s3;\n"
+                f"        // solhint-disable-next-line avoid-low-level-calls\n"
+                f"        (bool s4,) = target.call(abi.encodeWithSignature(\"withdraw(uint256)\", 0)); s4;\n"
                 f"        attacked = true;\n"
                 f"    }}\n"
                 f"}}\n"
@@ -650,7 +665,6 @@ main().catch(e => {{
     process.exit(1);
 }});
 """
-
     def _generate_combined_script(self, target_addr: str, rpc_url: str,
                                    findings_contracts: list[tuple[str, str]]) -> str:
         """Generate a single Hardhat script that tests ALL findings of a contract.
@@ -659,8 +673,7 @@ main().catch(e => {{
         Reports per-finding via indexed FINDING_RESULT lines to avoid name collisions.
 
         Key fixes:
-        - Funds the attacker via whale impersonation (critical: default Hardhat accounts
-          have NO ETH on a fork)
+        - Funds the attacker via hardhat_setBalance (works on ALL chains, no whale needed)
         - Uses non-view attack functions to ensure ethers v6 returns TransactionResponse
         - Each attack wrapped in try-catch so one failure doesn't block others
         - process.exit(0) at the end to prevent hanging
@@ -717,26 +730,23 @@ async function main() {{
     }});
     console.log("FORK_READY");
 
-    // 2. Fund the attacker account (IMPORTANT: Hardhat signer has no ETH on fork!)
+    // 2. Fund the attacker using hardhat_setBalance (WORKS ON ALL CHAINS)
+    //    No whale impersonation needed -- direct balance manipulation via Hardhat RPC.
     const [signer] = await ethers.getSigners();
     try {{
-        const whaleAddr = "0xF977814e90dA44bFA03b6295A0616a897441aceC";
         await hre.network.provider.request({{
-            method: "hardhat_impersonateAccount",
-            params: [whaleAddr]
+            method: "hardhat_setBalance",
+            params: [signer.address, "0x56BC75E2D63100000"]  // 100 ETH in wei
         }});
-        const whaleSigner = await ethers.getSigner(whaleAddr);
-        await whaleSigner.sendTransaction({{
-            to: signer.address,
-            value: ethers.parseEther("50.0")
-        }});
-        await hre.network.provider.request({{
-            method: "hardhat_stopImpersonatingAccount",
-            params: [whaleAddr]
-        }});
-        console.log("ATTACKER_FUNDED: 50 ETH");
+        console.log("ATTACKER_FUNDED: 100 ETH (hardhat_setBalance)");
     }} catch (e) {{
         console.log("ATTACKER_FUND_WARN: " + (e.message || String(e)).substring(0, 100));
+    }}
+
+    // Verify attacker has funds
+    const attackerBal = await ethers.provider.getBalance(signer.address);
+    if (attackerBal < ethers.parseEther("0.1")) {{
+        console.log("ATTACKER_BALANCE_TOO_LOW: " + ethers.formatEther(attackerBal) + " ETH");
     }}
 
     // 3. Record initial balance
