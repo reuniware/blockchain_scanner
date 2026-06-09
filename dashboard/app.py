@@ -58,7 +58,22 @@ def get_db() -> Optional[sqlite3.Connection]:
     return conn
 
 
-def get_stats() -> dict[str, Any]:
+def _row_to_dict(row) -> dict:
+    """Convert sqlite3.Row to a plain dict with safe values for Jinja2.
+    
+    sqlite3.Row can sometimes return nested Row objects that Jinja2
+    can't cache, causing 'unhashable type: dict' errors.
+    """
+    d = {}
+    for key in row.keys():
+        val = row[key]
+        if hasattr(val, 'keys') and hasattr(val, '__getitem__'):
+            val = _row_to_dict(val) if not isinstance(val, (dict,)) else dict(val)
+        d[key] = val
+    return d
+
+
+def get_stats() -> dict:
     """Aggregate stats from the database."""
     stats = {
         "contracts_total": 0,
@@ -126,7 +141,7 @@ def get_stats() -> dict[str, Any]:
             ORDER BY bnb_balance DESC
             LIMIT 20
         """)
-        stats["top_contracts"] = [dict(r) for r in cur.fetchall()]
+        stats["top_contracts"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         # Recent exploits (confirmed)
         cur = conn.execute("""
@@ -139,7 +154,7 @@ def get_stats() -> dict[str, Any]:
             ORDER BY f.id DESC
             LIMIT 20
         """)
-        stats["recent_exploits"] = [dict(r) for r in cur.fetchall()]
+        stats["recent_exploits"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         # Pattern stats
         cur = conn.execute("""
@@ -153,7 +168,7 @@ def get_stats() -> dict[str, Any]:
             ORDER BY cnt DESC
             LIMIT 40
         """)
-        stats["pattern_stats"] = [dict(r) for r in cur.fetchall()]
+        stats["pattern_stats"] = [_row_to_dict(r) for r in cur.fetchall()]
 
         # Latest scan time
         cur = conn.execute("SELECT MAX(scanned_at) as latest FROM contracts")
@@ -180,13 +195,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Templates
+# Templates — module-level singleton (Jinja2 cache is per-environment)
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 TEMPLATES_DIR.mkdir(exist_ok=True)
 
-
-def get_templates():
-    return Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 # ---------------------------------------------------------------------------
@@ -198,10 +211,10 @@ def get_templates():
 async def index(request: Request):
     """Main dashboard page."""
     stats = get_stats()
-    templates = get_templates()
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "stats": stats},
+        request=request,
+        name="index.html",
+        context={"request": request, "stats": stats},
     )
 
 
