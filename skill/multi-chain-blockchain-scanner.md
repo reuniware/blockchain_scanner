@@ -248,7 +248,104 @@ npx hardhat compile
 npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc 0.05
 ```
 
-## 10. Statistiques Guardian 24/7 (08/06/2026)
+## 10. Cycle continu du Guardian (runtime)
+
+Quand le Guardian tourne sur BSC (ou toute autre chaine EVM), voici le flux complet :
+
+```text
+                    +------------------------------+
+                    |   WebSocket BSC PublicNode    |
+                    |   wss://bsc.publicnode.com    |
+                    +--------------+---------------+
+                                   |
+                    +--------------v---------------+
+                    |  EVMScanner._listen()         |
+                    |  Recoit les subscriptions :   |
+                    |  - newHeads (chaque bloc ~3s) |
+                    |  - logs (Transfer ERC-20)     |
+                    +--------------+---------------+
+                                   |
+                    +--------------v---------------+
+                    |  _on_event() -> asyncio.Queue  |
+                    |  Evenement mis en file        |
+                    +--------------+---------------+
+                                   |
+                    +--------------v---------------+
+                    |  _process_events()            |
+                    |  Pour chaque evenement :       |
+                    |  1. Filtre (min_value, etc.)  |
+                    |  2. Affiche (Rich)            |
+                    |  3. Verifie contrat (async)   |
+                    +--------------+---------------+
+                                   |
+          +------------------------+------------------------+
+          v                        v                        v
+   +-------------+     +-------------------+     +-------------------+
+   | BLOCK event |     | TRANSFER event    |     | CONTRACT_DEPLOY   |
+   |             |     | (ERC-20 Transfer) |     | (new contract)    |
+   | -> Verifie  |     | -> Verifie si     |     | -> Recupere       |
+   |    nouveaux |     |    contrat verifie|     |    receipt + addr |
+   |    contrats |     |    (Etherscan V2) |     | -> Verifie src    |
+   +------+------+     +--------+----------+     +--------+----------+
+          |                      |                        |
+          +----------------------+------------------------+
+                                 |
+                    +------------v---------------+
+                    |  _verify_contract()         |
+                    |  Etherscan V2 API :         |
+                    |  -> Source verifiee ?       |
+                    |  -> Si OUI : scan vuln      |
+                    |  -> Si NON : callback       |
+                    |    on_unverified_contract   |
+                    +------------+---------------+
+                                 |
+                    +------------v---------------+
+                    |  _scan_vulnerabilities()     |
+                    |  1. eth_getCode (EOA check) |
+                    |  2. Fetch source code        |
+                    |  3. analyze_contract()       |
+                    |     34 patterns              |
+                    |  4. callback Guardian        |
+                    |     on_contract_checked()    |
+                    +------------+---------------+
+                                 |
+                    +------------v---------------+
+                    |  Guardian._on_contract_checked|
+                    |  1. Stocke contrat DB        |
+                    |  2. Pipeline exploitabilite  |
+                    |  3. Stocke findings DB        |
+                    |  4. Si CRITICAL/HIGH + bal>0:|
+                    |     -> Hardhat fork IMMEDIAT |
+                    |     -> Si CONFIRMED :        |
+                    |        alerte Discord +      |
+                    |        fichier alarme        |
+                    +-----------------------------+
+```
+
+### Boucles paralleles independantes
+
+| Boucle | Frequence | Role |
+|---|---|---|
+| **Scanner BSC** | ~3s par bloc | Detecte nouveaux blocs, transactions, contrats |
+| **Stats** | 60s | Affiche les compteurs DB |
+| **Hardhat periodique** | 120s | Teste les findings exploitables en attente |
+| **Hardhat immediat** | Au fil de l'eau | Test UN contrat des qu'un CRITICAL/HIGH est trouve avec balance > 0.001 |
+
+### Decision CONFIRMED vs FAILED
+
+Dans le script Hardhat combine, un exploit est **CONFIRMED** si et seulement si :
+
+```javascript
+const drained = balPre - balPost;
+if (drained > 0n) {
+    console.log(`FINDING_RESULT:0|Reentrancy|CONFIRMED|Drained ${drained} wei`);
+}
+```
+
+Le solde natif (ETH/BNB/MATIC) du contrat cible a baisse apres l'attaque = **exploit confirme**.
+L'alerte Discord part immediatement, et `guardian_exploits_found.txt` est ecrit.
+
+## 11. Statistiques Guardian 24/7 (08/06/2026)
 
 | Métrique | Valeur |
 |:---|---|
@@ -307,7 +404,7 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 - Validation Hardhat périodique toutes les 120s pour les contrats existants
 - Redémarrage automatique `run_forever.sh` en cas de plantage (boucle infinie, pas de git push)
 
-## 11. Évolution du projet
+## 12. Évolution du projet
 
 ### Construit dans la Session 9 — Mythril + venv + hardhat_setBalance
 1. **`confirmators/mythril_confirmator.py`** (nouveau) — appel Mythril en sous-processus, 0 import de la librairie

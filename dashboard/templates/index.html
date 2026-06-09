@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Scanner Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #1c2128;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-orange: #d29922;
+            --accent-purple: #bc8cff;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 span { font-size: 1.4rem; }
+        .subtitle { color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: var(--shadow);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        .card .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .card .value.critical { color: var(--accent-red); }
+        .card .value.high { color: var(--accent-orange); }
+        .card .value.ok { color: var(--accent-green); }
+        .card .value.info { color: var(--accent-blue); }
+        
+        .card-danger { border-left: 3px solid var(--accent-red); }
+        .card-warning { border-left: 3px solid var(--accent-orange); }
+        .card-success { border-left: 3px solid var(--accent-green); }
+        .card-info { border-left: 3px solid var(--accent-blue); }
+
+        .section { margin-bottom: 24px; }
+        .section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background: var(--bg-secondary);
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-variant-numeric: tabular-nums;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(88,166,255,0.05); }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-critical { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+        .badge-high { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
+        .badge-medium { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+        .badge-low { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+        .badge-confirmed { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+        .badge-failed { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+        .badge-pending { background: rgba(210,153,34,0.15); color: var(--accent-orange); }
+        .severity-bar {
+            display: flex;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .severity-bar .seg { transition: width 0.5s; }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .timestamp { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+        .addr { font-family: monospace; font-size: 0.8rem; color: var(--accent-blue); }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .mt-4 { margin-top: 4px; }
+        .mt-8 { margin-top: 8px; }
+        i { font-style: normal; }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            table { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1><span>🔍</span> Blockchain Scanner</h1>
+    <div class="subtitle">
+        {% if stats.latest_scan %}
+        Dernier scan: {{ stats.latest_scan[:19] }} &middot;
+        {% endif %}
+        {% if stats.db_exists %}
+        Base de données active
+        {% else %}
+        <span style="color: var(--accent-orange)">⚠️ Base de données non trouvée</span>
+        {% endif %}
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid">
+        <div class="card card-info">
+            <div class="label">📦 Contrats</div>
+            <div class="value info">{{ stats.contracts_total }}</div>
+            <div class="subtitle mt-4">{{ stats.contracts_verified }} vérifiés</div>
+        </div>
+        <div class="card card-warning">
+            <div class="label">⚠️ Findings</div>
+            <div class="value high">{{ stats.findings_total }}</div>
+            <div class="subtitle mt-4">dont {{ stats.findings_exploitable }} exploitables</div>
+        </div>
+        <div class="card card-danger">
+            <div class="label">🔴 CRITICAL / HIGH</div>
+            <div class="value critical">
+                {{ stats.severity_breakdown.get('CRITICAL', 0) }} / {{ stats.severity_breakdown.get('HIGH', 0) }}
+            </div>
+            <div class="subtitle mt-4">CRITICAL / HIGH</div>
+        </div>
+        <div class="card card-success">
+            <div class="label">✅ Tests Hardhat</div>
+            <div class="value ok">{{ stats.exploits_confirmed + stats.exploits_failed }}</div>
+            <div class="subtitle mt-4">
+                {{ stats.exploits_confirmed }} confirmés &middot;
+                {{ stats.exploits_failed }} échoués &middot;
+                {{ stats.exploits_pending }} en attente
+            </div>
+        </div>
+    </div>
+
+    <!-- Severity Bar -->
+    {% if stats.severity_breakdown %}
+    <div class="severity-bar">
+        {% set total = stats.severity_breakdown.get('CRITICAL', 0) +
+                       stats.severity_breakdown.get('HIGH', 0) +
+                       stats.severity_breakdown.get('MEDIUM', 0) +
+                       stats.severity_breakdown.get('LOW', 0) %}
+        {% if total > 0 %}
+        <div class="seg" style="width: {{ (stats.severity_breakdown.get('CRITICAL', 0) / total * 100)|round(1) }}%; background: var(--accent-red);" title="CRITICAL: {{ stats.severity_breakdown.get('CRITICAL', 0) }}"></div>
+        <div class="seg" style="width: {{ (stats.severity_breakdown.get('HIGH', 0) / total * 100)|round(1) }}%; background: var(--accent-orange);" title="HIGH: {{ stats.severity_breakdown.get('HIGH', 0) }}"></div>
+        <div class="seg" style="width: {{ (stats.severity_breakdown.get('MEDIUM', 0) / total * 100)|round(1) }}%; background: var(--accent-blue);" title="MEDIUM: {{ stats.severity_breakdown.get('MEDIUM', 0) }}"></div>
+        <div class="seg" style="width: {{ (stats.severity_breakdown.get('LOW', 0) / total * 100)|round(1) }}%; background: var(--text-muted);" title="LOW: {{ stats.severity_breakdown.get('LOW', 0) }}"></div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+        <!-- Top Contracts -->
+        <div class="section">
+            <h2>🏦 Top contrats par balance</h2>
+            {% if stats.top_contracts %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Adresse</th>
+                        <th>Chaîne</th>
+                        <th>Balance</th>
+                        <th>Findings</th>
+                        <th>Exploitables</th>
+                        <th>Hardhat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in stats.top_contracts[:10] %}
+                    <tr>
+                        <td class="addr">{{ c.address[:14] }}..</td>
+                        <td>{{ c.chain_name or '?' }}</td>
+                        <td>{{ "%.4f"|format(c.bnb_balance or 0) }}</td>
+                        <td>{{ c.finding_count }}</td>
+                        <td>{{ c.exploitable_count }}</td>
+                        <td>
+                            {% if c.hardhat_confirmed %}
+                            <span class="badge badge-confirmed">✅</span>
+                            {% elif c.hardhat_tested %}
+                            <span class="badge badge-failed">❌</span>
+                            {% else %}
+                            <span class="badge badge-pending">⏳</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">Aucun contrat scanné</div>
+            {% endif %}
+        </div>
+
+        <!-- Recent Exploits -->
+        <div class="section">
+            <h2>🚨 Exploits confirmés</h2>
+            {% if stats.recent_exploits %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Contrat</th>
+                        <th>Finding</th>
+                        <th>Chaîne</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in stats.recent_exploits[:10] %}
+                    <tr>
+                        <td class="addr">{{ e.contract_addr[:14] }}..</td>
+                        <td>
+                            <span class="badge badge-{{ e.severity|lower }}">{{ e.severity }}</span>
+                            {{ e.finding_name[:40] }}
+                        </td>
+                        <td>{{ e.chain_name or '?' }}</td>
+                        <td class="timestamp">{{ e.created_at[:19] if e.created_at else '?' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div style="font-size: 2rem; margin-bottom: 8px;">🛡️</div>
+                Aucun exploit confirmé — les contrats sont bien protégés
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pattern Stats -->
+    <div class="section">
+        <h2>📊 Patterns de vulnérabilité</h2>
+        {% if stats.pattern_stats %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Pattern</th>
+                    <th>Total</th>
+                    <th>🔴 CRITICAL</th>
+                    <th>🟠 HIGH</th>
+                    <th>🟡 MEDIUM</th>
+                    <th>💀 Exploitables</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in stats.pattern_stats[:20] %}
+                <tr>
+                    <td>{{ p.finding_name[:50] }}</td>
+                    <td><strong>{{ p.cnt }}</strong></td>
+                    <td>{% if p.critical > 0 %}<span style="color: var(--accent-red);">{{ p.critical }}</span>{% else %}0{% endif %}</td>
+                    <td>{% if p.high > 0 %}<span style="color: var(--accent-orange);">{{ p.high }}</span>{% else %}0{% endif %}</td>
+                    <td>{{ p.medium }}</td>
+                    <td>{% if p.exploitable > 0 %}<span style="color: var(--accent-red); font-weight: 600;">{{ p.exploitable }}</span>{% else %}0{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">Aucun pattern trouvé</div>
+        {% endif %}
+    </div>
+
+    <!-- API Info -->
+    <div style="text-align: center; margin-top: 32px; padding: 16px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border);">
+        <a href="/api/stats" style="color: var(--accent-blue);">API JSON</a> &middot;
+        <a href="/api/findings" style="color: var(--accent-blue);">Findings API</a> &middot;
+        <a href="/api/contracts" style="color: var(--accent-blue);">Contracts API</a> &middot;
+        Auto-refresh toutes les 30s
+    </div>
+</div>
+
+<script>
+// Auto-refresh stats every 30 seconds
+setTimeout(() => { location.reload(); }, 30000);
+</script>
+</body>
+</html>

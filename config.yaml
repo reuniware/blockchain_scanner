@@ -27,6 +27,13 @@ global:
   # Avec cle API : ~5 requetes/seconde, toutes chaines confondues.
   explorer_api_key: "47JTF3MC7RJ24NSZGTIXNT84KFBQDHWY8E"  # Votre cle Etherscan V2 unique (toutes chaines)
 
+# --- Alerting (notifications en temps reel) ---
+alerting:
+  discord_webhook_url: "https://discord.com/api/webhooks/1514011993898487908/qYxGZ0FPKiT-0ZpG8TF-r1Uo2F9WQutwYf9Ekx1yZUjvgrldohTD4K_6Kt6PRBkgonzV"
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+  min_severity: "HIGH"  # CRITICAL, HIGH, MEDIUM, LOW
+
 # --- Chain-specific configurations ---
 chains:
 

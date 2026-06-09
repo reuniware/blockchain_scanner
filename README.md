@@ -185,6 +185,21 @@ guardian --backfill
 guardian --backfill --backfill-hardhat --backfill-limit 10
 ```
 
+**Fonctionnement en temps réel :**
+
+```
+WebSocket BSC (~3s/bloc)
+  → Nouveau bloc détecté
+  → Vérification des contrats (Etherscan V2)
+  → Si vérifié : scan 34 patterns de vulnérabilité
+  → Pipeline d'exploitabilité (version, unchecked, proxy)
+  → Si CRITICAL/HIGH avec balance > 0 : test Hardhat fork IMMÉDIAT
+  → Si CONFIRMÉ : alerte Discord + fichier alarme
+
+Boucle périodique (120s) : test les findings exploitables en attente
+Boucle stats (60s) : affiche les compteurs
+```
+
 **Statistiques réelles (au 11/06/2026) :**
 - **24 945** contrats dans la base
 - **985** contrats vérifiés scannés

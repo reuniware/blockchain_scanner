@@ -72,6 +72,28 @@ class ScannerOrchestrator:
         self._last_vuln_chain_id: Optional[int] = None
         self._last_source_code: Optional[str] = None  # Cache source for exploit pipeline
 
+        # Contract verification (lazy-init in start())
+        api_key = self.global_config.get("explorer_api_key", "")
+        self.verifier: SourceCodeVerifier = SourceCodeVerifier(api_key=api_key)
+        self._verifying: set[str] = set()  # Addresses currently being verified
+
+        # Vulnerability scanning state
+        self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}  # addr_key -> findings
+        self._scanning_vulns: set[str] = set()  # Addresses currently being scanned
+
+        # EOA detection
+        self._eoa_cache: set[str] = set()  # Confirmed EOA addresses
+        self._checking_eoa: set[str] = set()  # Addresses currently being checked
+        # RPC HTTP URLs for each chain (for eth_getCode / EOA checks)
+        self._chain_rpc_map: dict[int, str] = {
+            cfg["chain_id"]: cfg.get("rpc_http", "")
+            for cfg in self.chains_config.values()
+            if cfg.get("chain_id") and cfg.get("rpc_http")
+        }
+
+        # Fire-and-forget task tracking (for cleanup on stop())
+        self._fire_and_forget: set[asyncio.Task] = set()
+
     @property
     def next_pending_vuln(self) -> Optional[dict]:
         """Get the next pending vulnerability awaiting pipeline confirmation."""
@@ -109,51 +131,7 @@ class ScannerOrchestrator:
             else:
                 self.pending_vuln_event.clear()
 
-        self.scanners: dict[str, BaseScanner] = {}
-        self.display: Optional[DisplayManager] = None
-        self.filter: Optional[TransactionFilter] = None
 
-        # Stats aggregation
-        self.total_stats: dict[str, dict[str, int]] = {}
-
-        # Event queue for async processing (unbounded to avoid dropping events)
-        self._event_queue: asyncio.Queue[TransactionEvent] = asyncio.Queue()
-        self._processor_task: Optional[asyncio.Task] = None
-
-        # Auto-stop: set when a vulnerability is found (for user-facing "stop on first vuln" mode)
-        self.vulnerability_found_event: asyncio.Event = asyncio.Event()
-        self._found_vulnerability: Optional[VulnerabilityFinding] = None
-        self._last_vuln_address: Optional[str] = None
-        self._last_vuln_chain_id: Optional[int] = None
-        self._last_source_code: Optional[str] = None  # Cache source for exploit pipeline
-
-        # Source code verifier (checks if contracts are verified on block explorers)
-        # A single Etherscan API V2 key works for ALL chains (60+ chains)
-        explorer_key = self.global_config.get("explorer_api_key") or ""
-        self.verifier = SourceCodeVerifier(api_key=explorer_key)
-
-        # Cache of contract verification lookups already queued or in progress
-        self._verifying: set[str] = set()
-
-        # Cache of vulnerability scan results to avoid re-scanning
-        self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}
-        self._scanning_vulns: set[str] = set()
-
-        # Cache of EOA checks (addresses confirmed to have no bytecode)
-        self._eoa_cache: set[str] = set()
-        self._checking_eoa: set[str] = set()
-
-        # Build chain_id -> rpc_http mapping from config for EOA checks
-        self._chain_rpc_map: dict[int, str] = {}
-        for chain_key, chain_cfg in self.chains_config.items():
-            cid = chain_cfg.get("chain_id")
-            rpc = chain_cfg.get("rpc_http", "")
-            if cid and rpc:
-                self._chain_rpc_map[cid] = rpc
-
-        # Fire-and-forget tasks (verify, vuln scan) — tracked so they can be
-        # cancelled on shutdown instead of leaking.
-        self._fire_and_forget: set[asyncio.Task] = set()
 
     @property
     def found_vulnerability(self) -> Optional[VulnerabilityFinding]:
