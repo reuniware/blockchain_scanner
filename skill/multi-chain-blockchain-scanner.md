@@ -36,6 +36,10 @@ blockchain_scanner/
     bitcoin_scanner.py               # Bitcoin
     solana_scanner.py                # Solana
     orchestrator.py                  # Scanner + vuln scan lifecycle
+  confirmators/
+    __init__.py                      # Confirmator package
+    mythril_confirmator.py           # Mythril symbolic execution (subprocess, 0 import dep)
+  .mythril-env/                      # Venv Python 3.12 + mythril 0.24.8
   analysis/
     vulnerability_scanner.py         # Solidity vuln scanner (20 patterns)
     __init__.py
@@ -366,6 +370,14 @@ npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc
 10. First --all scan: 136 pools, 126 scanned
 11. Discovery: 100% false positive rate on contracts with balance
 12. Proxy fallback in exploit_pipeline
+
+### Built in Session 9 — Mythril confirmator + venv setup + hardhat_setBalance
+1. **`confirmators/mythril_confirmator.py`** (nouveau) — appel Mythril en sous-processus, 0 import de la librairie
+2. **Bytecode-based approach** : `eth_getCode` → temp file → `myth analyze --bin <file> -o jsonv2` (plus fiable que `--rpc`)
+3. **Venv auto-détection** : `.mythril-env/Scripts/python.exe` avec Python 3.12 + mythril 0.24.8
+4. **Flags CLI** : `--with-mythril`, `--mythril-dir` sur `guardian.py`
+5. **Fix Hardhat** : `hardhat_setBalance` remplace whale impersonation, template exploit low-level `.call()`
+6. **Code mort supprimé** : `WHALE_ADDRESSES`, `MythrilIssue` dataclass, imports inutilisés
 
 ### Older Changes
 

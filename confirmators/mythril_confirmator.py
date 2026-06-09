@@ -9,6 +9,7 @@ Key design:
   - ZERO import dependency on Mythril's Python libraries
   - Communicates via subprocess + JSON pipe (standard Unix philosophy)
   - Falls back gracefully if Mythril is not installed
+  - Fetches bytecode via our own RPC call (more reliable than Mythril's --rpc)
   - Results stored in the same DB as Hardhat tests
 
 Usage:
@@ -24,14 +25,15 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import httpx
 import json
 import logging
 import os
-
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Optional
 
 logger = logging.getLogger("mythril-confirmator")
@@ -111,11 +113,9 @@ _SWC_KNOWN_NAMES = {
 class MythrilConfirmator:
     """Calls Mythril CLI as an external subprocess (0 import dependency).
 
-    Architecture:
-      - Finds the `myth` command (or `python -m mythril`) on the system
-      - Calls `myth analyze -a <addr> -o jsonv2` with optional RPC
-      - Parses the JSON output into MythrilIssue objects
-      - Stores results in the Guardian DB (optional)
+    Rather than relying on Mythril's built-in RPC support (which is buggy
+    with non-Ethereum chains), we fetch the contract bytecode ourselves
+    via eth_getCode and pass it to Mythril's --bin flag for analysis.
 
     The confirmator is **optional** — if Mythril is not installed,
     `is_available()` returns False and all calls gracefully return [].
@@ -135,12 +135,12 @@ class MythrilConfirmator:
         # Detect venv Python path (project-root/.mythril-env)
         self._venv_python: Optional[str] = None
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(base_dir)  # one level up from confirmators/
+        project_root = os.path.dirname(base_dir)
         venv_python = os.path.join(project_root, ".mythril-env", "Scripts", "python.exe")
         if os.path.isfile(venv_python):
             self._venv_python = venv_python
 
-        # RPC URLs per chain (fallback — user can override)
+        # RPC URLs per chain (used to FETCH BYTECODE, not passed to Mythril)
         self.rpc_urls = {
             1: "https://eth.llamarpc.com",
             56: "https://bsc-dataseed1.binance.org",
@@ -192,9 +192,42 @@ class MythrilConfirmator:
         logger.warning("[MYTHRIL] Mythril not available. Install: pip install mythril")
         return False
 
+    async def _fetch_bytecode(self, address: str, rpc_url: str) -> Optional[str]:
+        """Fetch contract bytecode from RPC using eth_getCode.
+
+        Returns hex bytecode string (0x-prefixed) or None on failure.
+        Uses httpx (already a dependency) to make the JSON-RPC call.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                payload = {
+                    "jsonrpc": "2.0",
+                    "method": "eth_getCode",
+                    "params": [address, "latest"],
+                    "id": 1,
+                }
+                resp = await client.post(rpc_url, json=payload)
+                if resp.status_code != 200:
+                    logger.warning(f"[MYTHRIL] eth_getCode returned {resp.status_code}")
+                    return None
+                data = resp.json()
+                bytecode = data.get("result", "")
+                if not bytecode or bytecode == "0x":
+                    logger.warning(f"[MYTHRIL] No bytecode at {address[:14]}.. (EOA or unverified)")
+                    return None
+                return bytecode
+        except Exception as e:
+            logger.warning(f"[MYTHRIL] Failed to fetch bytecode: {e}")
+            return None
+
     async def analyze_address(self, address: str, chain_id: int = 1,
                                rpc_url: str = "", timeout: int = 180) -> list[dict]:
         """Run Mythril analysis on a contract address.
+
+        Fetches the contract bytecode via eth_getCode (our own RPC call),
+        then passes it to Mythril via --bin for analysis. This approach
+        is more reliable than Mythril's built-in --rpc which has issues
+        with non-Ethereum chains and SSL/TLS handling.
 
         Args:
             address: Contract address to analyze (0x-prefixed hex).
@@ -212,14 +245,33 @@ class MythrilConfirmator:
         rpc = rpc_url or self.rpc_urls.get(chain_id, "https://eth.llamarpc.com")
         addr_short = address[:14]
 
-        logger.info(f"[MYTHRIL] Analyzing {addr_short}.. on chain {chain_id} (rpc={rpc[:40]}..)")
+        logger.info(f"[MYTHRIL] Analyzing {addr_short}.. on chain {chain_id}")
 
+        # Step 1: Fetch bytecode ourselves (reliable, works on all chains)
+        bytecode = await self._fetch_bytecode(address, rpc)
+        if not bytecode:
+            return [{
+                "title": "Bytecode Fetch Failed",
+                "severity": "INFO",
+                "swc_id": "N/A",
+                "description": f"Could not fetch bytecode for {address[:14]}.. from {rpc[:40]}..",
+                "contract": "", "function": "",
+                "has_tx_sequence": False,
+                "source": "Mythril",
+            }]
+
+        # Step 2: Save bytecode to temp file and run Mythril --bin
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".hex", delete=False)
+        tmp_path = tmp.name
         try:
+            tmp.write(bytecode)
+            tmp.close()
+
+            logger.info(f"[MYTHRIL] Analyzing bytecode ({len(bytecode)//2} bytes) via --bin")
             proc = await asyncio.create_subprocess_exec(
                 *self._command,
                 "analyze",
-                "-a", address,
-                "--rpc", rpc,
+                "--bin", tmp_path,
                 "-o", "jsonv2",
                 cwd=self.mythril_dir or None,
                 stdout=asyncio.subprocess.PIPE,
@@ -233,7 +285,6 @@ class MythrilConfirmator:
 
             if proc.returncode != 0:
                 logger.warning(f"[MYTHRIL] Process exited with code {proc.returncode}: {err_output}")
-                # Mythril returns non-zero even on success sometimes — try to parse anyway
 
             issues = self._parse_jsonv2_output(output)
             logger.info(f"[MYTHRIL] {addr_short}..: {len(issues)} issue(s) found")
@@ -246,14 +297,18 @@ class MythrilConfirmator:
                 "severity": "INFO",
                 "swc_id": "N/A",
                 "description": f"Mythril analysis timed out after {timeout}s",
-                "contract": "",
-                "function": "",
+                "contract": "", "function": "",
                 "has_tx_sequence": False,
                 "source": "Mythril",
             }]
         except Exception as e:
             logger.error(f"[MYTHRIL] Error analyzing {addr_short}..: {e}")
             return []
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
     async def analyze_bytecode(self, bytecode_path: str,
                                 timeout: int = 120) -> list[dict]:
@@ -425,7 +480,6 @@ async def _main():
 
     if not confirmator.is_available():
         print("[FAIL] Mythril not available")
-        # Print discovery paths for debugging
         print(f"  Checked: myth, mythril, python -m mythril in {args.mythril_dir}")
         return
 

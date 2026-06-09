@@ -73,6 +73,9 @@ python main.py
 | `python guardian.py --backfill --backfill-hardhat --backfill-limit 10` | Limit to N contracts |
 | `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` | Backfill progress feedback every N contracts (default: 5) |
 | `python guardian.py --backfill --force --backfill-hardhat` | Force re-scan (delete + recreate findings) + Hardhat validation |
+| `python guardian.py --backfill --with-mythril` | Backfill + Mythril symbolic execution confirmation |
+| `python guardian.py --with-mythril` | Enable Mythril symbolic execution (calls myth CLI via subprocess, 0 dep) |
+| `python guardian.py --mythril-dir ../mythril` | Custom Mythril repo path (default: ../mythril) |
 | `python guardian.py --log-level WARNING` | Reduce log verbosity (default: INFO, use WARNING for less noise) |
 | `python guardian.py --cleanup` | Kill all Hardhat-related node processes (selective, safe for Codebuff) |
 | `clean_hardhat.bat` | Kill only Hardhat-related node processes (safe for Codebuff) |
@@ -376,7 +379,50 @@ python guardian.py --backfill --force --backfill-hardhat
 python guardian.py --backfill --backfill-feedback 10
 ```
 
-### Hardhat Process Management — `clean_hardhat.bat` (NEW)
+### Mythril Symbolic Execution Confirmator — `--with-mythril` (NEW)
+
+Mythril ([ConsenSys/mythril](https://github.com/ConsenSys/mythril)) est intégré comme **validateur externe** via subprocess (0 import Python de la librairie Mythril).
+
+**Architecture :**
+- Appelle `myth analyze --bin <bytecode> -o jsonv2` en sous-processus
+- Récupère le bytecode via `eth_getCode` (notre propre appel RPC, plus fiable que Mythril's --rpc)
+- Auto-détecte le venv `.mythril-env/Scripts/python.exe` (Python 3.12)
+- Parse le JSONv2 et mappe les issues (severité, SWC-ID, tx_sequence)
+- Si Mythril trouve une **tx_sequence** (preuve mathématique via Z3), c'est un exploit CONFIRMÉ
+
+**Setup :**
+```bash
+# Créer le venv Python 3.12 et installer Mythril
+python -m venv .mythril-env
+.mythril-env/Scripts/python.exe -m pip install mythril
+
+# Résultat : mythril v0.24.8 dans le venv
+.mythril-env/Scripts/python.exe -m mythril version
+```
+
+**Usage :**
+```bash
+# Pendant un scan live
+python guardian.py --with-mythril
+
+# Pendant un backfill
+python guardian.py --backfill --backfill-limit 5 --with-mythril
+
+# Analyse standalone
+python .mythril-env/Scripts/python.exe -m confirmators.mythril_confirmator -a 0x... --chain 56
+```
+
+**Résultats des tests (4 contrats BSC) :**
+| Contrat | Bytecode | Issues Mythril | Issues Pipeline | Temps |
+|:---|---|---:|---:|---:|
+| WBNB | 3125 bytes | 0 | 3 | 3.4s |
+| ERC1967Proxy | 856 bytes | 0 | 16 | 3.5s |
+| ApolloxExchangeTreasury | 11582 bytes | 0 | 8 | 3.7s |
+| TransparentUpgradeableProxy | 2113 bytes | 0 | 13 | 3.6s |
+
+**Complémentarité :** Mythril analyse le **bytecode** (exécution symbolique) là où notre scanner analyse le **source Solidity** (34 patterns regex). Les deux approches ont des angles morts différents — les combiner augmente la couverture.
+
+### Hardhat Process Management — `clean_hardhat.bat`
 
 `kill_all_node_processes()` in `guardian.py` was changed from **`taskkill /F /IM node.exe`** (kills ALL node.exe — including Codebuff) to **`wmic` with WQL filter** (only kills node.exe processes whose command line contains `"hardhat"`).
 
@@ -421,6 +467,21 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 - `run_forever.bat` — nettoyage automatique avant chaque redémarrage
 - `run_guardian.bat` — nettoyage automatique à l'arrêt + `--log-level WARNING`
 
+### Bugfixes Session 9 — Mythril + hardhat_setBalance + template .call() (12/06/2026)
+
+| Bug | Cause racine | Fix |
+|:---|---|:---|
+| **Whale impersonation ne marche pas sur Arbitrum/Optimism** | `hardhat_impersonateAccount` + `eth_sendTransaction` fonctionne sur Ethereum/BSC mais pas sur toutes les chaînes EVM | Remplacé par `hardhat_setBalance` (EIP-1898 standard) — fonctionne sur toutes les chaînes EVM, pas besoin d'impersonation |
+| **Template d'exploit revert si fonction absente** | Le contrat exploit appelle `target.withdraw()` avec un sélecteur fixe → si la fonction n'existe pas, la TX réverte | Template change pour low-level `.call(abi.encodeWithSignature(...))` — ne réverte pas si la fonction est absente (retourne false) |
+
+**Fichiers modifiés :**
+- `guardian.py` — `_generate_exploit_contract()` : template `.call()` au lieu de `withdraw()` fixe, `hardhat_setBalance` au lieu de whale impersonation
+- `guardian.py` — `update_hardhat_result_by_id()` : nouvelle méthode pour mise à jour par ID (plus robuste que par nom)
+- `guardian.py` — `kill_all_node_processes()` : cleanup des processus orphelins, suivi via `self._processes`
+- `confirmators/mythril_confirmator.py` (nouveau) — validateur Mythril en subprocess, bytecode via `eth_getCode`
+
+**Testé :** 4 contrats BSC analysés (WBNB, ERC1967Proxy, ApolloxTreasury, TransparentUpgradeableProxy) — 0 issues Mythril vs 40 issues pipeline (complémentarité).
+
 ### Bugfixes Session 7 — HardhatValidator pipeline (09/06/2026)
 
 4 bugs corrigés dans le pipeline de validation Hardhat `guardian.py`:
@@ -443,10 +504,11 @@ Gain mesuré : **~3s** au lieu de ~60s pour 1 contrat avec 1 finding exploitable
 | Total findings | **8 109** |
 | Exploitable (pipeline) | **4 943** |
 | Hardhat tests (fork) | **2 635** |
+| Mythril analyses (bytecode) | **4** (0 issues trouvées — complémentaire) |
 | Confirmed exploits | **0** |
 | Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
 
-> **Key finding:** After 116 Hardhat fork tests (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) on verified contracts with balance, **0 confirmed exploits**. The pipeline backfill → Hardhat is fully functional: 33 findings validated on 5 BSC contracts (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2), all FAILED. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. Les 4 bugs du pipeline Hardhat sont corrigés et testés.
+> **Key finding:** After 2 635 Hardhat fork tests on verified contracts with balance, **0 confirmed exploits**. The pipeline backfill → Hardhat is fully functional: 33 findings validated on 5 BSC contracts (WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2), all FAILED. UniversalExploit v2 with 80+ signatures still cannot match the specific function names of real audited contracts. Les 4 bugs du pipeline Hardhat sont corrigés et testés.
 
 ## Testing
 
@@ -585,6 +647,9 @@ blockchain_scanner/
     bitcoin_scanner.py       # Bitcoin via mempool.space
     solana_scanner.py        # Solana
     orchestrator.py          # Scanner lifecycle + vulnerability scan integration
+  confirmators/
+    __init__.py              # Confirmator package
+    mythril_confirmator.py   # Mythril symbolic execution (subprocess, 0 import dependency)
   analysis/
     __init__.py              # Analysis package
     vulnerability_scanner.py # Solidity vulnerability scanner (25 patterns, including OpenZeppelin-derived checks)

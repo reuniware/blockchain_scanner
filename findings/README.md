@@ -8,12 +8,12 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 |:---|---:|
 | Contrats dans la DB Guardian | **24 945** |
 | Contrats vérifiés analysés | **985** |
-| Findings totaux cumulés | **7 365** |
-| Exploitables (théorique - pipeline) | **4 407** |
+| Findings totaux cumulés | **8 109** |
+| Exploitables (théorique - pipeline) | **4 943** |
 | Types de vulnérabilités détectées | **29** (+9 OpenZeppelin checks) |
 | Tests Hardhat fork (batch) | **55** (tous les contrats vérifiés avec balance) |
-| Tests Hardhat fork (backfill force) | **55** (5 contrats BSC, 33 findings) |
-| Tests Hardhat fork (total) | **116** |
+| Tests Hardhat fork (backfill force) | **2 580** (985 contrats, 8 109 findings) |
+| Tests Hardhat fork (total) | **2 635** |
 | Tests fork PredictionV2 | **5 scripts** (oracle, reentrancy, delegatecall, txorigin, treasury) |
 | Tests générés dynamiquement | **1** (généré depuis les findings DB) |
 | Contrats avec balance > 0.001 | **66** |
@@ -21,7 +21,23 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 | Exploitables (validé empiriquement) | 1 pattern (CEI reentrancy CampaignWrapper — faux positif réel) |
 | Faux positifs sur contrats avec balance | ~100% (aucun confirmé après 55 tests) |
 | Faux positifs globaux | Estimation ~85% |
-| **Fonds drainables** | **0 confirmé** après 116 tests Hardhat fork complets |
+| **Fonds drainables** | **0 confirmé** après 2 635 tests Hardhat fork complets |
+
+### 🔧 Changements récents (Session 8 & 9 — 11-12/06/2026)
+
+#### Mythril Confirmator (Session 9)
+- Nouveau module `confirmators/mythril_confirmator.py` — appel Mythril en sous-processus (0 import)
+- Bytecode-based approach : `eth_getCode` → temp file → `myth analyze --bin <file> -o jsonv2`
+- Plus fiable que Mythril's `--rpc` buggé sur les chaînes non-Ethereum
+- Auto-détection du venv `.mythril-env` (Python 3.12 + mythril 0.24.8)
+- Flag `--with-mythril` dans guardian.py (scan live + backfill)
+- Testé sur 4 contrats BSC : 0 issues Mythril vs 40 issues pipeline (complémentarité)
+- 0 dépendance sur la librairie Mythril (subprocess uniquement)
+
+#### Hardhat fixes (Session 9)
+- `hardhat_setBalance` remplace whale impersonation (marche sur toutes les chaînes)
+- Template d'exploit par défaut utilise low-level `.call()` (pas de revert si fonction absente)
+- Code mort supprimé : `WHALE_ADDRESSES`, `MythrilIssue` dataclass, imports inutilisés
 
 ### 🔧 Changements récents (Session 7 — 09/06/2026)
 

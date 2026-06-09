@@ -1,5 +1,5 @@
 # Guardian Auto-Report
-> **manual** — 2026-06-09 19:00:00 UTC
+> **manual** — 2026-06-12 12:00:00 UTC
 
 ## Global Stats
 
@@ -7,10 +7,21 @@
 |--------|-------|
 | Contracts in DB | 24945 |
 | Verified (source available) | 985 |
-| Total findings | 7365 |
-| Exploitable findings | 4407 |
+| Total findings | 8109 |
+| Exploitable findings | 4943 |
+| Mythril analyses (bytecode) | 4 (0 issues, complémentaire) |
 | Hardhat confirmed exploits | 0 |
-| Hardhat test failures | 116 |
+| Hardhat test failures | 2635 |
+
+## Session 9 — Nouveautés (12/06/2026)
+
+| Feature | Description |
+|---------|------------|
+| `--with-mythril` | Mythril symbolic execution confirmator (subprocess, 0 import dep) |
+| `confirmators/mythril_confirmator.py` | Nouveau module — bytecode via eth_getCode + `myth analyze --bin` |
+| `.mythril-env` | Venv Python 3.12 + mythril 0.24.8 auto-détecté |
+| 4 contrats BSC testés | 0 issues Mythril vs 40 issues pipeline (complémentarité bytecode vs source) |
+| Hardhat fix: hardhat_setBalance | Remplace whale impersonation, marche sur toutes les chaînes |
 
 ## Session 7 — Nouveautés (09/06/2026)
 
