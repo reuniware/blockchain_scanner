@@ -1819,6 +1819,11 @@ class Guardian:
 # ---------------------------------------------------------------------------
 
 async def main_async(args):
+    # Set log level from CLI arg
+    log_level = getattr(args, "log_level", "INFO").upper()
+    logging.getLogger().setLevel(log_level)
+    logger.info(f"[GUARDIAN] Log level set to {log_level}")
+
     if args.health:
         sys.exit(Guardian.check_health())
 
@@ -1887,6 +1892,9 @@ def main():
                         help="Print progress summary every N contracts during backfill (default: 5, 0 = no feedback)")
     parser.add_argument("--cleanup", action="store_true",
                         help="Kill all Hardhat-related node.exe processes (selective, does NOT affect Codebuff)")
+    parser.add_argument("--log-level", default="INFO",
+                        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                        help="Set logging level (default: INFO, use WARNING to reduce log volume)")
     args = parser.parse_args()
 
     try:

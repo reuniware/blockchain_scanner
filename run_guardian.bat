@@ -28,8 +28,8 @@ if exist guardian.pid (
     timeout /t 1 /nobreak >nul
 )
 
-REM Start in background
-start /B python guardian.py > guardian_output.log 2>&1
+REM Start in background with reduced logging
+start /B python guardian.py --log-level WARNING > guardian_output.log 2>&1
 
 REM Save PID
 set PID=!ERRORLEVEL!
