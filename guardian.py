@@ -31,7 +31,7 @@ import sqlite3
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 # Cross-platform npm/npx commands (Python subprocess doesn't resolve .cmd on Windows)
@@ -350,7 +350,7 @@ class FindingsDB:
         conn = self.connect()
         conn.execute(
             "INSERT INTO scan_log (timestamp, event_type, chain_name, message) VALUES (?, ?, ?, ?)",
-            (datetime.utcnow().isoformat(), event_type, chain_name, message[:500])
+            (datetime.now(timezone.utc).isoformat(), event_type, chain_name, message[:500])
         )
         conn.commit()
 
@@ -420,8 +420,10 @@ class HardhatValidator:
         self._processes.clear()
         logger.info("[PROC] All tracked subprocesses cleaned up")
 
-    @staticmethod
-    def kill_all_node_processes() -> dict:
+    async def _kill_all_node_processes_async(self) -> dict:
+        """Async wrapper for kill_all_node_processes to avoid blocking the event loop."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, HardhatValidator.kill_all_node_processes)
         """Emergency cleanup: kill only Hardhat-related node processes (Windows) or node (Unix).
 
         On Windows, uses wmic with a WQL filter (CommandLine LIKE '%%hardhat%%')
@@ -816,13 +818,13 @@ main().then(() => process.exit(0)).catch(e => {{
         logger.info(f"[HARDHAT] Testing {finding_name} [{severity}] on {contract_addr[:14]}..")
 
         # Step 0: Auto-cleanup orphaned Hardhat processes before spawning
-        result = HardhatValidator.kill_all_node_processes()
+        result = await self._kill_all_node_processes_async()
         if result.get("killed", 0) > 0:
             logger.info(f"[HARDHAT] Pre-test cleanup: killed {result['killed']} orphan(s)")
 
         self.db.update_hardhat_result(
             contract_addr, chain_id, finding_name, "PENDING",
-            f"Testing started at {datetime.utcnow().isoformat()}"
+            f"Testing started at {datetime.now(timezone.utc).isoformat()}"
         )
 
         # Step 1: Check Hardhat availability (in exploit/ dir with existing deps)
@@ -956,7 +958,7 @@ main().then(() => process.exit(0)).catch(e => {{
             "validate_contract: all findings must be for the same contract"
 
         # Step 0: Auto-cleanup orphaned Hardhat processes before spawning
-        result = HardhatValidator.kill_all_node_processes()
+        result = await self._kill_all_node_processes_async()
         if result.get("killed", 0) > 0:
             logger.info(f"[HARDHAT] Pre-test cleanup: killed {result['killed']} orphan(s)")
 
@@ -986,12 +988,12 @@ main().then(() => process.exit(0)).catch(e => {{
             if finding_id:
                 self.db.update_hardhat_result_by_id(
                     finding_id, contract_addr, chain_id, "PENDING",
-                    f"Testing started at {datetime.utcnow().isoformat()}"
+                    f"Testing started at {datetime.now(timezone.utc).isoformat()}"
                 )
             else:
                 self.db.update_hardhat_result(
                     contract_addr, chain_id, f["finding_name"], "PENDING",
-                    f"Testing started at {datetime.utcnow().isoformat()}"
+                    f"Testing started at {datetime.now(timezone.utc).isoformat()}"
                 )
 
         contracts_dir = os.path.join(self.exploit_dir, "contracts")
@@ -1054,7 +1056,7 @@ main().then(() => process.exit(0)).catch(e => {{
                 f.write(combined_js)
 
             logger.info(f"[HARDHAT] Testing {len(findings)} finding(s) on {contract_addr[:14]}.. (single fork)")
-            test_proc = await asyncio.create_subprocess_exec(
+            test_proc = await self._run_and_track(
                 _NPX, "hardhat", "run", "scripts/guardian_combined_test.js",
                 cwd=self.exploit_dir,
                 stdout=asyncio.subprocess.PIPE,
@@ -1299,7 +1301,7 @@ class Guardian:
         total_findings = 0
         total_exploitables = 0
         processed_addresses: list[tuple[str, int]] = []  # (address, chain_id) for Hardhat scope
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         for idx, contract in enumerate(contracts, 1):
             addr = contract["address"]
@@ -1330,7 +1332,7 @@ class Guardian:
                         verified=True,
                         source_length=report.source_length if report else 0,
                         sol_version=report.solidity_version if report else None,
-                        scanned_at=datetime.utcnow().isoformat(),
+                        scanned_at=datetime.now(timezone.utc).isoformat(),
                         finding_count=0,
                         bnb_balance=bal,
                     )
@@ -1347,7 +1349,7 @@ class Guardian:
                     verified=True,
                     source_length=report.source_length,
                     sol_version=report.solidity_version,
-                    scanned_at=datetime.utcnow().isoformat(),
+                    scanned_at=datetime.now(timezone.utc).isoformat(),
                     finding_count=len(report.findings),
                     exploitable_count=report.total_exploitable,
                     bnb_balance=bal,
@@ -1362,7 +1364,7 @@ class Guardian:
                         line_numbers=finding.line_numbers,
                         exploitable=validation.theoretically_exploitable,
                         exploit_notes=validation.exploit_notes,
-                        created_at=datetime.utcnow().isoformat(),
+                        created_at=datetime.now(timezone.utc).isoformat(),
                     )
                     self.db.add_finding(finding_rec)
 
@@ -1384,7 +1386,7 @@ class Guardian:
 
             # Progress feedback every N contracts
             if feedback_interval > 0 and processed > 0 and processed % feedback_interval == 0:
-                elapsed = (datetime.utcnow() - start_time).total_seconds()
+                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
                 rate = processed / elapsed if elapsed > 0 else 0
                 eta_secs = (total - idx) / rate if rate > 0 else 0
                 logger.info(
@@ -1433,7 +1435,7 @@ class Guardian:
                     )
                     with open(alarm_path, "a") as f:
                         f.write(f"\n{'='*60}")
-                        f.write(f"\n[BACKFILL] EXPLOITS CONFIRMED at {datetime.utcnow().isoformat()}")
+                        f.write(f"\n[BACKFILL] EXPLOITS CONFIRMED at {datetime.now(timezone.utc).isoformat()}")
                         for r in confirmed:
                             f.write(f"\n  - {r['contract']} via {r['finding']}: {r['evidence'][:200]}")
                         f.write(f"\n{'='*60}\n")
@@ -1471,7 +1473,7 @@ class Guardian:
                             )
                             with open(alarm_path, "a") as f:
                                 f.write(f"\n{'='*60}")
-                                f.write(f"\n[BACKFILL MYTHRIL CONFIRMED] at {datetime.utcnow().isoformat()}")
+                                f.write(f"\n[BACKFILL MYTHRIL CONFIRMED] at {datetime.now(timezone.utc).isoformat()}")
                                 f.write(f"\nContract: {addr} on {chain_name} ({cid})")
                                 f.write(f"\nIssue: {issue['title']} (SWC-{issue['swc_id']})")
                                 f.write(f"\nSeverity: {issue['severity']}")
@@ -1496,7 +1498,7 @@ class Guardian:
             return
         contract = ContractRecord(
             address=addr, chain_id=chain_id, chain_name=chain_name,
-            verified=False, scanned_at=datetime.utcnow().isoformat(),
+            verified=False, scanned_at=datetime.now(timezone.utc).isoformat(),
         )
         self.db.upsert_contract(contract)
         self.stats["contracts_checked"] += 1
@@ -1545,7 +1547,7 @@ class Guardian:
             verified=True,
             source_length=len(source_code),
             sol_version=report.solidity_version if report else None,
-            scanned_at=datetime.utcnow().isoformat(),
+            scanned_at=datetime.now(timezone.utc).isoformat(),
             finding_count=len(findings),
         )
 
@@ -1578,7 +1580,7 @@ class Guardian:
                     line_numbers=finding.line_numbers,
                     exploitable=validation.theoretically_exploitable,
                     exploit_notes=validation.exploit_notes,
-                    created_at=datetime.utcnow().isoformat(),
+                    created_at=datetime.now(timezone.utc).isoformat(),
                 )
                 self.db.add_finding(finding_record)
 
@@ -1642,7 +1644,7 @@ class Guardian:
                                     )
                                     with open(alarm_path, "a") as f:
                                         f.write(f"\n{'='*60}")
-                                        f.write(f"\n[!!!] EXPLOIT CONFIRMED at {datetime.utcnow().isoformat()}")
+                                        f.write(f"\n[!!!] EXPLOIT CONFIRMED at {datetime.now(timezone.utc).isoformat()}")
                                         f.write(f"\nContract: {r['contract']}")
                                         f.write(f"\nChain: {chain_name} ({chain_id})")
                                         f.write(f"\nFinding: {r['finding']}")
@@ -1687,7 +1689,7 @@ class Guardian:
                         )
                         with open(alarm_path, "a") as f:
                             f.write(f"\n{'='*60}")
-                            f.write(f"\n[MYTHRIL CONFIRMED] at {datetime.utcnow().isoformat()}")
+                            f.write(f"\n[MYTHRIL CONFIRMED] at {datetime.now(timezone.utc).isoformat()}")
                             f.write(f"\nContract: {addr} on {chain_name} ({chain_id})")
                             f.write(f"\nIssue: {issue['title']} (SWC-{issue['swc_id']})")
                             f.write(f"\nSeverity: {issue['severity']}")
@@ -1708,7 +1710,7 @@ class Guardian:
         logger.info("  GUARDIAN — Usine de detection automatisee 24/7")
         logger.info("=" * 60)
         logger.info(f"  Base de donnees: {self.db.db_path}")
-        logger.info(f"  Demarrage: {datetime.utcnow().isoformat()}")
+        logger.info(f"  Demarrage: {datetime.now(timezone.utc).isoformat()}")
         if target_chains:
             logger.info(f"  Chaines ciblees: {', '.join(target_chains)}")
         if force_hardhat:
@@ -1717,7 +1719,7 @@ class Guardian:
             logger.info("  [MYTHRIL] Symbolic execution confirmator active")
         logger.info("=" * 60)
 
-        self.stats["started_at"] = datetime.utcnow().isoformat()
+        self.stats["started_at"] = datetime.now(timezone.utc).isoformat()
         self.running = True
 
         # Connect to DB
@@ -1729,7 +1731,7 @@ class Guardian:
             event_type="GUARDIAN_START",
             severity="HIGH",
             title="🛡️ Guardian demarre",
-            description=f"Scanning {len(target_chains) if target_chains else 'toutes les'} chaine(s) depuis {datetime.utcnow().isoformat()}",
+            description=f"Scanning {len(target_chains) if target_chains else 'toutes les'} chaine(s) depuis {datetime.now(timezone.utc).isoformat()}",
             chain_name=", ".join(target_chains) if target_chains else "all",
             extra_fields={
                 "hardhat": "FORCE" if force_hardhat else "normal",
@@ -1815,7 +1817,7 @@ class Guardian:
                                     )
                                     with open(alarm_path, "a") as f:
                                         f.write(f"\n{'='*60}")
-                                        f.write(f"\n[PERIODIC LOOP] EXPLOIT CONFIRMED at {datetime.utcnow().isoformat()}")
+                                        f.write(f"\n[PERIODIC LOOP] EXPLOIT CONFIRMED at {datetime.now(timezone.utc).isoformat()}")
                                         f.write(f"\nContract: {r['contract']} on {chain_name}")
                                         f.write(f"\nFinding: {r['finding']}")
                                         f.write(f"\nBalance: {balance:.4f}")
@@ -1995,7 +1997,7 @@ class Guardian:
                 last_log = cur.fetchone()[0]
                 if last_log:
                     last_time = datetime.fromisoformat(last_log)
-                    log_age = (datetime.utcnow() - last_time).total_seconds() / 60
+                    log_age = (datetime.now(timezone.utc) - last_time).total_seconds() / 60
                     cnt = conn.execute("SELECT COUNT(*) FROM contracts").fetchone()[0]
                     print(f"     [OK] {cnt} contrats, dernier log: {last_time:%H:%M:%S} ({log_age:.0f} min)")
                 conn.close()

@@ -28,7 +28,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -221,7 +221,7 @@ class PoolAnalyzer:
                     for f, v in zip(report.findings, report.validations)
                 ],
                 "dex_url": pool.url,
-                "scanned_at": datetime.utcnow().isoformat(),
+                "scanned_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Mark as interesting if:
@@ -370,7 +370,7 @@ class PoolScanner:
     def save_results(self, results: list[dict], path: str = "pool_scan_results.json"):
         """Save scan results to JSON file."""
         output = {
-            "scan_timestamp": datetime.utcnow().isoformat(),
+            "scan_timestamp": datetime.now(timezone.utc).isoformat(),
             "total_scanned": len(results),
             "interesting": [r for r in results if r["verdict"].startswith("INTERESSANT")],
             "hardhat_tested": [r for r in results if r.get("hardhat_confirmed") is not None],

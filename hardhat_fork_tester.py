@@ -21,7 +21,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -102,7 +102,7 @@ class HardhatForkTester:
                 address=address, chain=chain_name, chain_id=chain_id,
                 balance_before=0, balance_after=0, drained=0,
                 confirmed=False, evidence=f"No RPC for chain {chain_id}",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
 
         # Step 1: Check Hardhat availability
@@ -112,7 +112,7 @@ class HardhatForkTester:
                 address=address, chain=chain_name, chain_id=chain_id,
                 balance_before=0, balance_after=0, drained=0,
                 confirmed=False, evidence="Hardhat not installed",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
 
         # Step 2: Get current balance via RPC
@@ -127,7 +127,7 @@ class HardhatForkTester:
                 balance_before=balance_before, balance_after=balance_before,
                 drained=0, confirmed=False,
                 evidence=f"Balance too low ({balance_before:.6f})",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
 
         # Step 3: Compile contracts
@@ -139,7 +139,7 @@ class HardhatForkTester:
                 balance_before=balance_before, balance_after=balance_before,
                 drained=0, confirmed=False,
                 evidence="Solidity compilation failed",
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
 
         # Step 4: Run Hardhat fork test
@@ -197,7 +197,7 @@ class HardhatForkTester:
             drained=drained,
             confirmed=confirmed,
             evidence=evidence[:2000],
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
     async def _check_hardhat(self) -> bool:

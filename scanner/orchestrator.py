@@ -57,8 +57,8 @@ class ScannerOrchestrator:
         # Stats aggregation
         self.total_stats: dict[str, dict[str, int]] = {}
 
-        # Event queue for async processing (unbounded to avoid dropping events)
-        self._event_queue: asyncio.Queue[TransactionEvent] = asyncio.Queue()
+        # Event queue for async processing (bounded to prevent OOM)
+        self._event_queue: asyncio.Queue[TransactionEvent] = asyncio.Queue(maxsize=10000)
         self._processor_task: Optional[asyncio.Task] = None
 
         # Auto-stop events
@@ -77,13 +77,15 @@ class ScannerOrchestrator:
         self.verifier: SourceCodeVerifier = SourceCodeVerifier(api_key=api_key)
         self._verifying: set[str] = set()  # Addresses currently being verified
 
-        # Vulnerability scanning state
+        # Vulnerability scanning state (bounded to prevent OOM in 24/7 operation)
         self._vuln_cache: dict[str, list[VulnerabilityFinding]] = {}  # addr_key -> findings
         self._scanning_vulns: set[str] = set()  # Addresses currently being scanned
+        self._MAX_VULN_CACHE = 10000
 
-        # EOA detection
+# EOA detection (bounded to prevent OOM)
         self._eoa_cache: set[str] = set()  # Confirmed EOA addresses
         self._checking_eoa: set[str] = set()  # Addresses currently being checked
+        self._MAX_EOA_CACHE = 50000
         # RPC HTTP URLs for each chain (for eth_getCode / EOA checks)
         self._chain_rpc_map: dict[int, str] = {
             cfg["chain_id"]: cfg.get("rpc_http", "")
@@ -270,7 +272,10 @@ class ScannerOrchestrator:
         This is called synchronously — we put the event on the async queue.
         """
         # Put event on the queue (queue is unbounded, so this won't block)
-        self._event_queue.put_nowait(event)
+        try:
+            self._event_queue.put_nowait(event)
+        except asyncio.QueueFull:
+            pass  # Drop event under backpressure
 
     async def _process_events(self) -> None:
         """Process events from the queue — filter, format, display, verify contracts."""
@@ -396,6 +401,10 @@ class ScannerOrchestrator:
                 is_eoa = (code == "0x" or code == "0x0")
                 if is_eoa:
                     self._eoa_cache.add(addr_key)
+                    # Prune cache if over limit
+                    if len(self._eoa_cache) > self._MAX_EOA_CACHE:
+                        to_remove = set(list(self._eoa_cache)[:len(self._eoa_cache) // 5])
+                        self._eoa_cache -= to_remove
                 return is_eoa
         except Exception as e:
             logger.debug(f"[eoa] Error checking {addr_key}: {e}")
@@ -444,6 +453,12 @@ class ScannerOrchestrator:
             # Analyze the source code for vulnerabilities
             findings = analyze_contract(source_code)
             self._vuln_cache[addr_key] = findings
+            # Prune cache if over limit (remove oldest 20%)
+            if len(self._vuln_cache) > self._MAX_VULN_CACHE:
+                overflow = len(self._vuln_cache) - self._MAX_VULN_CACHE
+                to_remove = list(self._vuln_cache.keys())[:overflow]
+                for k in to_remove:
+                    del self._vuln_cache[k]
 
             if findings:
                 # Display vulnerability warnings

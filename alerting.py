@@ -20,7 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger("alerting")
@@ -58,7 +58,7 @@ class AlertEvent:
     chain_name: str = ""
     contract_balance: float = 0.0
     evidence: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     extra_fields: dict = field(default_factory=dict)
 
 

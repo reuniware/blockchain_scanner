@@ -3,7 +3,7 @@
 import sqlite3
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "guardian_data.db")
 MD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "findings", "scanned_contracts.md")
@@ -51,7 +51,7 @@ chains = c.fetchall()
 conn.close()
 
 # Build markdown
-now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 md = f"""# Guardian Auto-Report
 > **{restart_label}** — {now} UTC
 
