@@ -1,41 +1,285 @@
 {
-  "mined_at": "2026-06-09T21:35:58.517727+00:00",
+  "mined_at": "2026-06-09T21:44:24.998929+00:00",
   "stats": {
-    "contracts_total": 100,
-    "contracts_processed": 73,
+    "contracts_total": 985,
+    "contracts_processed": 736,
     "skipped_no_abi": 0,
-    "skipped_no_contract": 27,
-    "total_unique_functions": 453,
-    "filtered_by_min_count": 84
+    "skipped_no_contract": 249,
+    "total_unique_functions": 1861,
+    "filtered_by_min_count": 528
   },
   "drain_functions": [
     {
       "signature": "transferFrom(address,address,uint256)",
-      "count": 36
+      "count": 477
     },
     {
       "signature": "transfer(address,uint256)",
-      "count": 36
+      "count": 472
     },
     {
       "signature": "transferOwnership(address)",
-      "count": 31
-    },
-    {
-      "signature": "removeLimits()",
-      "count": 7
+      "count": 226
     },
     {
       "signature": "burn(uint256)",
-      "count": 7
+      "count": 127
     },
     {
       "signature": "burnFrom(address,uint256)",
-      "count": 5
+      "count": 89
+    },
+    {
+      "signature": "burn(address,uint256)",
+      "count": 65
+    },
+    {
+      "signature": "redeem(uint256,address,address)",
+      "count": 26
+    },
+    {
+      "signature": "withdraw(uint256,address,address)",
+      "count": 26
+    },
+    {
+      "signature": "removeLimits()",
+      "count": 18
+    },
+    {
+      "signature": "skim(address)",
+      "count": 17
+    },
+    {
+      "signature": "burn(address)",
+      "count": 15
+    },
+    {
+      "signature": "sync()",
+      "count": 15
     },
     {
       "signature": "withdraw(uint256)",
-      "count": 2
+      "count": 14
+    },
+    {
+      "signature": "transferOut(address,address,uint256)",
+      "count": 14
+    },
+    {
+      "signature": "transferOut(address,address,uint256,bool)",
+      "count": 14
+    },
+    {
+      "signature": "transferOutNativeToken(address,uint256)",
+      "count": 14
+    },
+    {
+      "signature": "withdraw(uint256,address)",
+      "count": 8
+    },
+    {
+      "signature": "transferAndCall(address,uint256,bytes)",
+      "count": 8
+    },
+    {
+      "signature": "removeTransferTax()",
+      "count": 7
+    },
+    {
+      "signature": "redeem(uint256,address,address,uint256)",
+      "count": 6
+    },
+    {
+      "signature": "withdraw(uint256,address,address,uint256)",
+      "count": 6
+    },
+    {
+      "signature": "sweepToken(address,uint256,address)",
+      "count": 6
+    },
+    {
+      "signature": "grantMintAndBurnRoles(address)",
+      "count": 6
+    },
+    {
+      "signature": "redeem(uint256)",
+      "count": 6
+    },
+    {
+      "signature": "withdraw(address)",
+      "count": 5
+    },
+    {
+      "signature": "removeMinter(address)",
+      "count": 5
+    },
+    {
+      "signature": "safeTransferFrom(address,address,uint256)",
+      "count": 5
+    },
+    {
+      "signature": "safeTransferFrom(address,address,uint256,bytes)",
+      "count": 5
+    },
+    {
+      "signature": "claim_rewards()",
+      "count": 4
+    },
+    {
+      "signature": "claim_rewards(address)",
+      "count": 4
+    },
+    {
+      "signature": "claim_rewards(address,address)",
+      "count": 4
+    },
+    {
+      "signature": "redeemWithSignature(uint256,address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "withdrawWithSignature(uint256,uint256,address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "grantBurnRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "revokeBurnRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "updateWithdrawQueue(uint256[])",
+      "count": 4
+    },
+    {
+      "signature": "claim(address)",
+      "count": 4
+    },
+    {
+      "signature": "removeAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "removeLimit()",
+      "count": 4
+    },
+    {
+      "signature": "withdrawAll()",
+      "count": 4
+    },
+    {
+      "signature": "claimOwnership()",
+      "count": 4
+    },
+    {
+      "signature": "emitTransfer(address,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "collect(tuple)",
+      "count": 4
+    },
+    {
+      "signature": "claimRewards()",
+      "count": 4
+    },
+    {
+      "signature": "withdraw()",
+      "count": 4
+    },
+    {
+      "signature": "claimFees()",
+      "count": 4
+    },
+    {
+      "signature": "claim(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "claimable_tokens(address)",
+      "count": 3
+    },
+    {
+      "signature": "removeFromBlacklist(address)",
+      "count": 3
+    },
+    {
+      "signature": "bridgeBurn(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "recoverClaim(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "removeNonStakingAccount(address)",
+      "count": 3
+    },
+    {
+      "signature": "setInPrivateTransferMode(bool)",
+      "count": 3
+    },
+    {
+      "signature": "withdrawToken(address,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "recoverERC20(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "withdrawEth()",
+      "count": 3
+    },
+    {
+      "signature": "removeAdapter(address)",
+      "count": 3
+    },
+    {
+      "signature": "redeem(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "burnByYT(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_one_coin(uint256,int128,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_one_coin(uint256,int128,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_imbalance(uint256[],uint256)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_imbalance(uint256[],uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[])",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[],address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[],address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "withdraw_admin_fees()",
+      "count": 3
+    },
+    {
+      "signature": "withdrawVault(address,uint256,address)",
+      "count": 3
     },
     {
       "signature": "withdraw(uint256,uint256[])",
@@ -46,148 +290,1284 @@
       "count": 2
     },
     {
-      "signature": "claim(uint256)",
+      "signature": "withdraw(address,address,uint256)",
       "count": 2
     },
     {
-      "signature": "removeLastOwner(uint256,bytes)",
+      "signature": "claimToken(address,uint256)",
       "count": 2
     },
     {
-      "signature": "removeOwnerAtIndex(uint256,bytes)",
+      "signature": "claimTokens(address)",
       "count": 2
     },
     {
-      "signature": "burn(address,uint256)",
+      "signature": "transferMany(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "setBeforeTransferHook(address)",
+      "count": 2
+    },
+    {
+      "signature": "sweepTokenWithFee(address,uint256,address,uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "interchainTransfer(string,bytes,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "interchainTransferFrom(address,string,bytes,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "transferMintership(address)",
+      "count": 2
+    },
+    {
+      "signature": "setSkimRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "claimRewards(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromRequest(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "withdraw(uint256,bool)",
+      "count": 2
+    },
+    {
+      "signature": "redeem(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "removeBlackList(address)",
+      "count": 2
+    },
+    {
+      "signature": "burn(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "releaseAirdropMode()",
+      "count": 2
+    },
+    {
+      "signature": "releaseAntibotGlobalExemption(address)",
+      "count": 2
+    },
+    {
+      "signature": "releaseAntiwhaleGlobalExemption(address)",
+      "count": 2
+    },
+    {
+      "signature": "harvestAndReport()",
+      "count": 2
+    },
+    {
+      "signature": "shutdownWithdraw(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "minter_burn(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "withdrawBridgeTokens(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "claimPrize(address,uint8,uint32,uint96,address)",
+      "count": 2
+    },
+    {
+      "signature": "claimYieldFeeShares(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setClaimer(address)",
+      "count": 2
+    },
+    {
+      "signature": "transferTokensOut(address,address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromArks(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromBuffer(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "removeArk(address)",
+      "count": 2
+    },
+    {
+      "signature": "setFleetTokenTransferability()",
+      "count": 2
+    },
+    {
+      "signature": "withdrawFromArks(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "withdrawFromBuffer(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "emergencyWithdraw()",
+      "count": 2
+    },
+    {
+      "signature": "removeLimit2()",
+      "count": 2
+    },
+    {
+      "signature": "batchTransfer(address[],uint256[])",
+      "count": 2
+    },
+    {
+      "signature": "disableTransferTax()",
+      "count": 2
+    },
+    {
+      "signature": "_burnFrom(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "collectFees()",
+      "count": 2
+    },
+    {
+      "signature": "removeAlphixHook(address)",
+      "count": 2
+    },
+    {
+      "signature": "transferWithPermit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "claim(address,uint256,address,uint256,tuple,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "setClaimConditions(tuple[],bool)",
+      "count": 2
+    },
+    {
+      "signature": "emergencyWithdraw(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "claimStakingFees()",
+      "count": 2
+    },
+    {
+      "signature": "governanceRecoverUnsupported(address,uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "transferOperator(address)",
       "count": 2
     }
   ],
   "ownership_functions": [
     {
       "signature": "renounceOwnership()",
-      "count": 32
+      "count": 222
     },
     {
       "signature": "admin()",
-      "count": 6
+      "count": 67
     },
     {
       "signature": "changeAdmin(address)",
-      "count": 6
-    },
-    {
-      "signature": "cancelOwnershipHandover()",
-      "count": 2
-    },
-    {
-      "signature": "completeOwnershipHandover(address)",
-      "count": 2
-    },
-    {
-      "signature": "requestOwnershipHandover()",
-      "count": 2
-    },
-    {
-      "signature": "grantRole(bytes32,address)",
-      "count": 2
-    },
-    {
-      "signature": "renounceRole(bytes32,address)",
-      "count": 2
-    },
-    {
-      "signature": "revokeRole(bytes32,address)",
-      "count": 2
-    },
-    {
-      "signature": "initializePair()",
-      "count": 2
-    },
-    {
-      "signature": "addOwnerAddress(address)",
-      "count": 2
-    },
-    {
-      "signature": "addOwnerPublicKey(bytes32,bytes32)",
-      "count": 2
-    },
-    {
-      "signature": "initialize(bytes[])",
-      "count": 2
+      "count": 47
     },
     {
       "signature": "acceptOwnership()",
+      "count": 33
+    },
+    {
+      "signature": "grantRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "renounceRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "revokeRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "initialize(address,bytes)",
+      "count": 27
+    },
+    {
+      "signature": "initialize(address,address)",
+      "count": 12
+    },
+    {
+      "signature": "initialize(address)",
+      "count": 8
+    },
+    {
+      "signature": "cancelOwnershipHandover()",
+      "count": 7
+    },
+    {
+      "signature": "completeOwnershipHandover(address)",
+      "count": 7
+    },
+    {
+      "signature": "requestOwnershipHandover()",
+      "count": 7
+    },
+    {
+      "signature": "initialize(address,bytes,uint8)",
+      "count": 7
+    },
+    {
+      "signature": "setOwner(address)",
+      "count": 7
+    },
+    {
+      "signature": "initializeProxy(address)",
+      "count": 5
+    },
+    {
+      "signature": "setFeeOwner(address)",
+      "count": 5
+    },
+    {
+      "signature": "initialize(string,string,address)",
+      "count": 5
+    },
+    {
+      "signature": "grantMintRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "revokeMintRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "setCCIPAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "addAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "grantRoles(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "renounceRoles(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "revokeRoles(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "initializePair()",
+      "count": 3
+    },
+    {
+      "signature": "initialize(tuple)",
+      "count": 3
+    },
+    {
+      "signature": "initialize()",
+      "count": 3
+    },
+    {
+      "signature": "nominateNewOwner(address)",
+      "count": 3
+    },
+    {
+      "signature": "changeOwner(address)",
+      "count": 2
+    },
+    {
+      "signature": "proxyInitialize(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "acceptTokenOwnership()",
+      "count": 2
+    },
+    {
+      "signature": "proposeNewOwner(address)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(string,string,uint8,address)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,uint8,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "waiveOwnership()",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,address,address,address,uint256,uint256,address,address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "renounceMinter()",
+      "count": 2
+    },
+    {
+      "signature": "revokeMinterRole(address)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,string,address[],address,address,uint128)",
+      "count": 2
+    },
+    {
+      "signature": "_renounceOperator()",
       "count": 2
     }
   ],
   "other_functions": [
     {
       "signature": "approve(address,uint256)",
-      "count": 36
+      "count": 477
     },
     {
       "signature": "decreaseAllowance(address,uint256)",
-      "count": 14
+      "count": 227
     },
     {
       "signature": "increaseAllowance(address,uint256)",
-      "count": 14
-    },
-    {
-      "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
-      "count": 10
-    },
-    {
-      "signature": "upgradeToAndCall(address,bytes)",
-      "count": 9
-    },
-    {
-      "signature": "upgradeTo(address)",
-      "count": 7
-    },
-    {
-      "signature": "implementation()",
-      "count": 6
-    },
-    {
-      "signature": "addBots(address[])",
-      "count": 5
-    },
-    {
-      "signature": "delBots(address[])",
-      "count": 5
-    },
-    {
-      "signature": "openTrading()",
-      "count": 5
+      "count": 227
     },
     {
       "signature": "mint(address,uint256)",
-      "count": 4
+      "count": 145
+    },
+    {
+      "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 125
+    },
+    {
+      "signature": "upgradeToAndCall(address,bytes)",
+      "count": 78
+    },
+    {
+      "signature": "upgradeTo(address)",
+      "count": 72
+    },
+    {
+      "signature": "implementation()",
+      "count": 67
+    },
+    {
+      "signature": "pause()",
+      "count": 38
+    },
+    {
+      "signature": "unpause()",
+      "count": 38
+    },
+    {
+      "signature": "deposit(uint256,address)",
+      "count": 33
+    },
+    {
+      "signature": "mint(uint256,address)",
+      "count": 25
+    },
+    {
+      "signature": "openTrading()",
+      "count": 23
+    },
+    {
+      "signature": "delegate(address)",
+      "count": 20
+    },
+    {
+      "signature": "delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 19
+    },
+    {
+      "signature": "manualSwap()",
+      "count": 18
+    },
+    {
+      "signature": "multicall(bytes[])",
+      "count": 17
+    },
+    {
+      "signature": "forceResumeReceive(uint16,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "lzReceive(uint16,bytes,uint64,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "setConfig(uint16,uint16,uint256,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "setReceiveVersion(uint16)",
+      "count": 17
+    },
+    {
+      "signature": "setSendVersion(uint16)",
+      "count": 17
+    },
+    {
+      "signature": "lzReceive(tuple,bytes32,bytes,address,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "lzReceiveAndRevert(tuple[])",
+      "count": 16
+    },
+    {
+      "signature": "lzReceiveSimulate(tuple,bytes32,bytes,address,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "send(tuple,tuple,address)",
+      "count": 16
+    },
+    {
+      "signature": "setDelegate(address)",
+      "count": 16
+    },
+    {
+      "signature": "setEnforcedOptions(tuple[])",
+      "count": 16
+    },
+    {
+      "signature": "setMsgInspector(address)",
+      "count": 16
+    },
+    {
+      "signature": "setPeer(uint32,bytes32)",
+      "count": 16
+    },
+    {
+      "signature": "setPreCrime(address)",
+      "count": 16
+    },
+    {
+      "signature": "nonblockingLzReceive(uint16,bytes,uint64,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "retryMessage(uint16,bytes,uint64,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "setMinDstGas(uint16,uint16,uint256)",
+      "count": 16
+    },
+    {
+      "signature": "setPrecrime(address)",
+      "count": 16
+    },
+    {
+      "signature": "setTrustedRemote(uint16,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "setTrustedRemoteAddress(uint16,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "mint(address)",
+      "count": 16
+    },
+    {
+      "signature": "swap(uint256,uint256,address,bytes)",
+      "count": 15
+    },
+    {
+      "signature": "deposit(uint256)",
+      "count": 13
+    },
+    {
+      "signature": "mint(uint256)",
+      "count": 13
+    },
+    {
+      "signature": "setPayloadSizeLimit(uint16,uint256)",
+      "count": 13
+    },
+    {
+      "signature": "addBots(address[])",
+      "count": 12
+    },
+    {
+      "signature": "delBots(address[])",
+      "count": 12
+    },
+    {
+      "signature": "callOnOFTReceived(uint16,bytes,uint64,bytes32,address,uint256,bytes,uint256)",
+      "count": 12
+    },
+    {
+      "signature": "decreaseApproval(address,uint256)",
+      "count": 11
+    },
+    {
+      "signature": "increaseApproval(address,uint256)",
+      "count": 11
+    },
+    {
+      "signature": "setMinter(address)",
+      "count": 11
+    },
+    {
+      "signature": "setUseCustomAdapterParams(bool)",
+      "count": 11
+    },
+    {
+      "signature": "reduceFee(uint256)",
+      "count": 10
     },
     {
       "signature": "deposit()",
-      "count": 3
+      "count": 8
+    },
+    {
+      "signature": "manualsend()",
+      "count": 8
+    },
+    {
+      "signature": "onERC721Received(address,address,uint256,bytes)",
+      "count": 8
+    },
+    {
+      "signature": "setName(string)",
+      "count": 8
+    },
+    {
+      "signature": "setAuthority(address)",
+      "count": 7
+    },
+    {
+      "signature": "setCurator(address)",
+      "count": 7
+    },
+    {
+      "signature": "setIsAllocator(address,bool)",
+      "count": 7
+    },
+    {
+      "signature": "setSymbol(string)",
+      "count": 7
+    },
+    {
+      "signature": "sendAndCall(address,uint16,bytes32,uint256,bytes,uint64,tuple)",
+      "count": 7
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes32,uint256,tuple)",
+      "count": 7
+    },
+    {
+      "signature": "addMinter(address)",
+      "count": 7
+    },
+    {
+      "signature": "excludeMultipleAccountsFromFees(address[],bool)",
+      "count": 6
+    },
+    {
+      "signature": "setFee(uint256)",
+      "count": 6
+    },
+    {
+      "signature": "setVault(address)",
+      "count": 6
+    },
+    {
+      "signature": "unlock()",
+      "count": 5
+    },
+    {
+      "signature": "enableTrading()",
+      "count": 5
+    },
+    {
+      "signature": "selfPermit(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitAllowed(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitAllowedIfNecessary(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitIfNecessary(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "unwrapWETH9(uint256,address)",
+      "count": 5
+    },
+    {
+      "signature": "sendAndCall(address,uint16,bytes32,uint256,uint256,bytes,uint64,tuple)",
+      "count": 5
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes32,uint256,uint256,tuple)",
+      "count": 5
+    },
+    {
+      "signature": "setDefaultFeeBp(uint16)",
+      "count": 5
+    },
+    {
+      "signature": "setFeeBp(uint16,bool,uint16)",
+      "count": 5
+    },
+    {
+      "signature": "approveAndCall(address,uint256,bytes)",
+      "count": 5
+    },
+    {
+      "signature": "setNameAndSymbol(string,string)",
+      "count": 5
+    },
+    {
+      "signature": "setApprovalForAll(address,bool)",
+      "count": 5
+    },
+    {
+      "signature": "rescueERC20(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)",
+      "count": 4
+    },
+    {
+      "signature": "onERC1155Received(address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "set_rewards_receiver(address)",
+      "count": 4
+    },
+    {
+      "signature": "addPair(address)",
+      "count": 4
+    },
+    {
+      "signature": "deposit(uint256,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithSignature(uint256,address,uint256,tuple,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithSignatureEIP2612(uint256,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "liquidityCallback(address,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "mint(uint256,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "mintWithSignature(uint256,address,uint256,tuple,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "mintWithSignatureEIP2612(uint256,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "rebalance()",
+      "count": 4
+    },
+    {
+      "signature": "rescueFunds(address)",
+      "count": 4
+    },
+    {
+      "signature": "updateRates()",
+      "count": 4
+    },
+    {
+      "signature": "updateRebalancer(address)",
+      "count": 4
+    },
+    {
+      "signature": "updateRewards(address)",
+      "count": 4
+    },
+    {
+      "signature": "refundETH()",
+      "count": 4
+    },
+    {
+      "signature": "acceptGuardian()",
+      "count": 4
+    },
+    {
+      "signature": "acceptTimelock()",
+      "count": 4
+    },
+    {
+      "signature": "revokePendingGuardian()",
+      "count": 4
+    },
+    {
+      "signature": "revokePendingTimelock()",
+      "count": 4
+    },
+    {
+      "signature": "submitGuardian(address)",
+      "count": 4
+    },
+    {
+      "signature": "submitTimelock(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "addToBlacklist(address)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithPermit(uint256,address,uint256,uint8,bytes32,bytes32)",
+      "count": 4
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes,uint256,address,address,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "inCaseTokensGetStuck(address)",
+      "count": 4
+    },
+    {
+      "signature": "setHandler(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "finishMinting()",
+      "count": 4
+    },
+    {
+      "signature": "setBaseURI(string)",
+      "count": 4
+    },
+    {
+      "signature": "setExchangeNFTFeeRate(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "setListMarketNFTFeeRate(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "setSkipNFT(bool)",
+      "count": 4
+    },
+    {
+      "signature": "setSkipNFTFor(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "setPair(address)",
+      "count": 4
+    },
+    {
+      "signature": "setAutomatedMarketMakerPair(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "rescueERC20(address)",
+      "count": 4
+    },
+    {
+      "signature": "accrueInterest()",
+      "count": 4
+    },
+    {
+      "signature": "uniswapV3SwapCallback(int256,int256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "decreaseLiquidity(tuple)",
+      "count": 4
+    },
+    {
+      "signature": "increaseLiquidity(tuple)",
+      "count": 4
     },
     {
       "signature": "rescueFunds(address,uint256)",
       "count": 3
     },
     {
-      "signature": "multicall(bytes[])",
+      "signature": "setFeeReceiver(address)",
       "count": 3
     },
     {
-      "signature": "manualSwap()",
+      "signature": "setExcludedFromFee(address,bool)",
       "count": 3
     },
     {
-      "signature": "pause()",
-      "count": 2
+      "signature": "unwrap(uint256)",
+      "count": 3
     },
     {
-      "signature": "unpause()",
-      "count": 2
+      "signature": "wrap(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "user_checkpoint(address)",
+      "count": 3
+    },
+    {
+      "signature": "add_reward(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "set_reward_distributor(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "deposit_reward_token(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "delPair(address)",
+      "count": 3
+    },
+    {
+      "signature": "doSwapBack()",
+      "count": 3
+    },
+    {
+      "signature": "setIsFeeExempt(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "blockBots(address[])",
+      "count": 3
+    },
+    {
+      "signature": "manualswap()",
+      "count": 3
+    },
+    {
+      "signature": "setFee(uint256,uint256,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxTxnAmount(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxWalletSize(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMinSwapTokensThreshold(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setTrading(bool)",
+      "count": 3
+    },
+    {
+      "signature": "toggleSwap(bool)",
+      "count": 3
+    },
+    {
+      "signature": "unblockBot(address)",
+      "count": 3
+    },
+    {
+      "signature": "pancakeV3SwapCallback(int256,int256,bytes)",
+      "count": 3
+    },
+    {
+      "signature": "unlockCallback(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setRestrictedAddress(address)",
+      "count": 3
+    },
+    {
+      "signature": "reallocate(tuple[])",
+      "count": 3
+    },
+    {
+      "signature": "setFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "setRateLimiter(address)",
+      "count": 3
+    },
+    {
+      "signature": "setRateLimits(tuple[])",
+      "count": 3
+    },
+    {
+      "signature": "addNonStakingAccount(address)",
+      "count": 3
+    },
+    {
+      "signature": "setGov(address)",
+      "count": 3
+    },
+    {
+      "signature": "setMinter(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "setYieldTrackers(address[])",
+      "count": 3
+    },
+    {
+      "signature": "blacklist(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "name()",
+      "count": 3
+    },
+    {
+      "signature": "totalSupply()",
+      "count": 3
+    },
+    {
+      "signature": "decimals()",
+      "count": 3
+    },
+    {
+      "signature": "balanceOf(address)",
+      "count": 3
+    },
+    {
+      "signature": "symbol()",
+      "count": 3
+    },
+    {
+      "signature": "allowance(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "deposit(uint256,address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "depositAll()",
+      "count": 3
+    },
+    {
+      "signature": "earn()",
+      "count": 3
+    },
+    {
+      "signature": "proposeStrat(address)",
+      "count": 3
+    },
+    {
+      "signature": "upgradeStrat()",
+      "count": 3
+    },
+    {
+      "signature": "excludeFromFees(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "setMintCap(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "startAmplificationParameterUpdate(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "stopAmplificationParameterUpdate()",
+      "count": 3
+    },
+    {
+      "signature": "setTaxAddress(address)",
+      "count": 3
+    },
+    {
+      "signature": "minter_mint(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setTimelock(address)",
+      "count": 3
+    },
+    {
+      "signature": "rescueETH()",
+      "count": 3
+    },
+    {
+      "signature": "setTreasury(address)",
+      "count": 3
+    },
+    {
+      "signature": "emitApproval(address,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "abdicate(bytes4)",
+      "count": 3
+    },
+    {
+      "signature": "addAdapter(address)",
+      "count": 3
+    },
+    {
+      "signature": "allocate(address,bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "deallocate(address,bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseAbsoluteCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseRelativeCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseTimelock(bytes4,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "forceDeallocate(address,bytes,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "increaseAbsoluteCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "increaseRelativeCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "increaseTimelock(bytes4,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "revoke(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setAdapterRegistry(address)",
+      "count": 3
+    },
+    {
+      "signature": "setForceDeallocatePenalty(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setIsSentinel(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "setLiquidityAdapterAndData(address,bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setManagementFee(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setManagementFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxRate(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPerformanceFee(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPerformanceFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "setReceiveAssetsGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setReceiveSharesGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setSendAssetsGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setSendSharesGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "submit(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "mintByYT(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "mint(tuple)",
+      "count": 3
+    },
+    {
+      "signature": "permit(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 3
+    },
+    {
+      "signature": "setFeeSwapper(address)",
+      "count": 3
+    },
+    {
+      "signature": "settokenExt(address)",
+      "count": 3
+    },
+    {
+      "signature": "exchange(int128,int128,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "exchange(int128,int128,uint256,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "exchange_received(int128,int128,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "exchange_received(int128,int128,uint256,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "add_liquidity(uint256[],uint256)",
+      "count": 3
+    },
+    {
+      "signature": "add_liquidity(uint256[],uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "ramp_A(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "stop_ramp_A()",
+      "count": 3
+    },
+    {
+      "signature": "set_new_fee(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "set_ma_exp_time(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "Swapin(bytes32,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "Swapout(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "applyMinter()",
+      "count": 3
+    },
+    {
+      "signature": "applyVault()",
+      "count": 3
+    },
+    {
+      "signature": "changeVault(address)",
+      "count": 3
+    },
+    {
+      "signature": "depositVault(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "initVault(address)",
+      "count": 3
+    },
+    {
+      "signature": "revokeMinter(address)",
+      "count": 3
+    },
+    {
+      "signature": "setVaultOnly(bool)",
+      "count": 3
+    },
+    {
+      "signature": "setContractURI(string)",
+      "count": 3
+    },
+    {
+      "signature": "setPlatformFeeInfo(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPrimarySaleRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "invest()",
+      "count": 3
+    },
+    {
+      "signature": "setLpPair(address)",
+      "count": 3
     },
     {
       "signature": "decayPeriodVote(uint256)",
@@ -234,43 +1614,19 @@
       "count": 2
     },
     {
-      "signature": "addPair(address)",
+      "signature": "excludeFromFee(address)",
       "count": 2
     },
     {
-      "signature": "clearStuckEthBalance()",
+      "signature": "includeInFee(address)",
       "count": 2
     },
     {
-      "signature": "delPair(address)",
+      "signature": "lock(uint256)",
       "count": 2
     },
     {
-      "signature": "doSwapBack()",
-      "count": 2
-    },
-    {
-      "signature": "launch()",
-      "count": 2
-    },
-    {
-      "signature": "rescueToken(address)",
-      "count": 2
-    },
-    {
-      "signature": "setAddLiquidityEnabled(bool)",
-      "count": 2
-    },
-    {
-      "signature": "setIsFeeExempt(address,bool)",
-      "count": 2
-    },
-    {
-      "signature": "setSwapBackSettings(bool)",
-      "count": 2
-    },
-    {
-      "signature": "enableTrading()",
+      "signature": "setMaxTxPercent(uint256)",
       "count": 2
     },
     {
@@ -278,186 +1634,1802 @@
       "count": 2
     },
     {
-      "signature": "setAuthority(address)",
+      "signature": "setAddresses(address,address,address,address,address,address)",
       "count": 2
     },
     {
-      "signature": "execute(address,uint256,bytes)",
+      "signature": "rescueETH(address,uint256)",
       "count": 2
     },
     {
-      "signature": "executeBatch(tuple[])",
+      "signature": "setFundAddress(address)",
       "count": 2
     },
     {
-      "signature": "executeWithoutChainIdValidation(bytes[])",
+      "signature": "setKeeper(address)",
       "count": 2
     },
     {
-      "signature": "validateUserOp(tuple,bytes32,uint256)",
+      "signature": "setOperator(address)",
       "count": 2
     },
     {
-      "signature": "manualsend()",
+      "signature": "clearStuckEthBalance()",
       "count": 2
     },
     {
-      "signature": "delegate(address)",
+      "signature": "launch()",
       "count": 2
     },
     {
-      "signature": "delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "signature": "setSwapBackSettings(bool)",
       "count": 2
     },
     {
-      "signature": "mint(uint256)",
+      "signature": "enter(address,address,uint256,address,uint256)",
       "count": 2
     },
     {
-      "signature": "lzReceive(tuple,bytes32,bytes,address,bytes)",
+      "signature": "exit(address,address,uint256,address,uint256)",
       "count": 2
     },
     {
-      "signature": "lzReceiveAndRevert(tuple[])",
+      "signature": "manage(address[],bytes[],uint256[])",
       "count": 2
     },
     {
-      "signature": "lzReceiveSimulate(tuple,bytes32,bytes,address,bytes)",
+      "signature": "manage(address,bytes,uint256)",
       "count": 2
     },
     {
-      "signature": "send(tuple,tuple,address)",
+      "signature": "exactInput(tuple)",
       "count": 2
     },
     {
-      "signature": "setDelegate(address)",
+      "signature": "exactInputSingle(tuple)",
       "count": 2
     },
     {
-      "signature": "setEnforcedOptions(tuple[])",
+      "signature": "exactOutput(tuple)",
       "count": 2
     },
     {
-      "signature": "setMsgInspector(address)",
+      "signature": "exactOutputSingle(tuple)",
       "count": 2
     },
     {
-      "signature": "setPeer(uint32,bytes32)",
+      "signature": "unwrapWETH9WithFee(uint256,address,uint256,address)",
       "count": 2
     },
     {
-      "signature": "setPreCrime(address)",
+      "signature": "acceptMintership(address)",
+      "count": 2
+    },
+    {
+      "signature": "init(bytes32,address,string,string,uint8)",
+      "count": 2
+    },
+    {
+      "signature": "proposeMintership(address)",
+      "count": 2
+    },
+    {
+      "signature": "acceptCap(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "revokePendingCap(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "revokePendingMarketRemoval(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "setSupplyQueue(bytes32[])",
+      "count": 2
+    },
+    {
+      "signature": "submitCap(tuple,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "submitMarketRemoval(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "execute(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "executeInternal(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "readInternal(address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "updateInternal(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateMarketsBalances(uint256[])",
+      "count": 2
+    },
+    {
+      "signature": "bridgeMint(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateMaxSupply(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setRule(bool,address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "accrueFees()",
+      "count": 2
+    },
+    {
+      "signature": "markGraduated()",
+      "count": 2
+    },
+    {
+      "signature": "version()",
+      "count": 2
+    },
+    {
+      "signature": "set_killed(bool)",
+      "count": 2
+    },
+    {
+      "signature": "rewardIndexesCurrent()",
+      "count": 2
+    },
+    {
+      "signature": "addBlackList(address)",
+      "count": 2
+    },
+    {
+      "signature": "destroyBlackFunds(address)",
+      "count": 2
+    },
+    {
+      "signature": "redistributeBlackListedFunds(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setBlackLister(address)",
+      "count": 2
+    },
+    {
+      "signature": "updateBlackList(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "startTrade()",
+      "count": 2
+    },
+    {
+      "signature": "SetFees(uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "clearStuckEth()",
+      "count": 2
+    },
+    {
+      "signature": "setMode(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "addB(address[])",
+      "count": 2
+    },
+    {
+      "signature": "delB(address[])",
+      "count": 2
+    },
+    {
+      "signature": "manualSw()",
+      "count": 2
+    },
+    {
+      "signature": "onExitPool(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "onJoinPool(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "queryExit(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "queryJoin(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "setSwapFeePercentage(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setBlackList(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "setNotTaxable(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "deployFunds(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "freeFunds(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "tendThis(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "addBridgeToken(address)",
+      "count": 2
+    },
+    {
+      "signature": "exchangeCanonicalForOld(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "exchangeOldForCanonical(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setCustodian(address)",
+      "count": 2
+    },
+    {
+      "signature": "setSwapFees(address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "toggleBridgeToken(address)",
+      "count": 2
+    },
+    {
+      "signature": "toggleExchanges()",
+      "count": 2
+    },
+    {
+      "signature": "toggleFeesForAddress(address)",
+      "count": 2
+    },
+    {
+      "signature": "setHooks(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "setLiquidationPair(address)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldFeePercentage(uint32)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldFeeRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "sponsor(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "verifyTokensIn(address,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "addToWhitelist(address)",
+      "count": 2
+    },
+    {
+      "signature": "setFeeWallet(address)",
+      "count": 2
+    },
+    {
+      "signature": "addArk(address)",
+      "count": 2
+    },
+    {
+      "signature": "deposit(uint256,address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "forceRebalance(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "rebalance(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "setArkDepositCap(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxDepositPercentageOfTVL(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxRebalanceInflow(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxRebalanceOutflow(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFleetDepositCap(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMaxRebalanceOperations(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMinimumBufferBalance(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMinimumPauseTime(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setTipRate(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "tip()",
+      "count": 2
+    },
+    {
+      "signature": "updateRebalanceCooldown(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateStakingRewardsManager()",
+      "count": 2
+    },
+    {
+      "signature": "setDeflationConfig(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setDocumentUri(string)",
+      "count": 2
+    },
+    {
+      "signature": "setMaxTokenAmountPerAddress(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setReflectionConfig(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setTaxConfig(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "incrementNonce()",
+      "count": 2
+    },
+    {
+      "signature": "setPriceProvider(address)",
+      "count": 2
+    },
+    {
+      "signature": "setEthRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "setTaxSwapMult(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "openTrade()",
+      "count": 2
+    },
+    {
+      "signature": "unwrapTo(uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "wrapTo(uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "setFeeExempt(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "algebraMintCallback(uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "setDepositLimit(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "returnFromPool(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "sendToPool(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setPaused(bool)",
+      "count": 2
+    },
+    {
+      "signature": "addAlphixHook(address)",
+      "count": 2
+    },
+    {
+      "signature": "rescueTokens(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFee(uint24)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldTreasury(address)",
+      "count": 2
+    },
+    {
+      "signature": "initialMint(address)",
+      "count": 2
+    },
+    {
+      "signature": "setCap(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFlatPlatformFeeInfo(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMaxTotalSupply(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setPlatformFeeType(uint8)",
+      "count": 2
+    },
+    {
+      "signature": "setDistributor(address)",
+      "count": 2
+    },
+    {
+      "signature": "setMinINVESTMENT(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setStartTime(uint256)",
       "count": 2
     }
   ],
   "ranked_functions": [
     {
       "signature": "approve(address,uint256)",
-      "count": 36
+      "count": 477
     },
     {
       "signature": "transferFrom(address,address,uint256)",
-      "count": 36
+      "count": 477
     },
     {
       "signature": "transfer(address,uint256)",
-      "count": 36
-    },
-    {
-      "signature": "renounceOwnership()",
-      "count": 32
-    },
-    {
-      "signature": "transferOwnership(address)",
-      "count": 31
+      "count": 472
     },
     {
       "signature": "decreaseAllowance(address,uint256)",
-      "count": 14
+      "count": 227
     },
     {
       "signature": "increaseAllowance(address,uint256)",
-      "count": 14
+      "count": 227
     },
     {
-      "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
-      "count": 10
+      "signature": "transferOwnership(address)",
+      "count": 226
     },
     {
-      "signature": "upgradeToAndCall(address,bytes)",
-      "count": 9
-    },
-    {
-      "signature": "removeLimits()",
-      "count": 7
-    },
-    {
-      "signature": "burn(uint256)",
-      "count": 7
-    },
-    {
-      "signature": "upgradeTo(address)",
-      "count": 7
-    },
-    {
-      "signature": "admin()",
-      "count": 6
-    },
-    {
-      "signature": "changeAdmin(address)",
-      "count": 6
-    },
-    {
-      "signature": "implementation()",
-      "count": 6
-    },
-    {
-      "signature": "addBots(address[])",
-      "count": 5
-    },
-    {
-      "signature": "delBots(address[])",
-      "count": 5
-    },
-    {
-      "signature": "openTrading()",
-      "count": 5
-    },
-    {
-      "signature": "burnFrom(address,uint256)",
-      "count": 5
+      "signature": "renounceOwnership()",
+      "count": 222
     },
     {
       "signature": "mint(address,uint256)",
-      "count": 4
+      "count": 145
+    },
+    {
+      "signature": "burn(uint256)",
+      "count": 127
+    },
+    {
+      "signature": "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 125
+    },
+    {
+      "signature": "burnFrom(address,uint256)",
+      "count": 89
+    },
+    {
+      "signature": "upgradeToAndCall(address,bytes)",
+      "count": 78
+    },
+    {
+      "signature": "upgradeTo(address)",
+      "count": 72
+    },
+    {
+      "signature": "admin()",
+      "count": 67
+    },
+    {
+      "signature": "implementation()",
+      "count": 67
+    },
+    {
+      "signature": "burn(address,uint256)",
+      "count": 65
+    },
+    {
+      "signature": "changeAdmin(address)",
+      "count": 47
+    },
+    {
+      "signature": "pause()",
+      "count": 38
+    },
+    {
+      "signature": "unpause()",
+      "count": 38
+    },
+    {
+      "signature": "acceptOwnership()",
+      "count": 33
+    },
+    {
+      "signature": "deposit(uint256,address)",
+      "count": 33
+    },
+    {
+      "signature": "grantRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "renounceRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "revokeRole(bytes32,address)",
+      "count": 33
+    },
+    {
+      "signature": "initialize(address,bytes)",
+      "count": 27
+    },
+    {
+      "signature": "redeem(uint256,address,address)",
+      "count": 26
+    },
+    {
+      "signature": "withdraw(uint256,address,address)",
+      "count": 26
+    },
+    {
+      "signature": "mint(uint256,address)",
+      "count": 25
+    },
+    {
+      "signature": "openTrading()",
+      "count": 23
+    },
+    {
+      "signature": "delegate(address)",
+      "count": 20
+    },
+    {
+      "signature": "delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 19
+    },
+    {
+      "signature": "removeLimits()",
+      "count": 18
+    },
+    {
+      "signature": "manualSwap()",
+      "count": 18
+    },
+    {
+      "signature": "multicall(bytes[])",
+      "count": 17
+    },
+    {
+      "signature": "forceResumeReceive(uint16,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "lzReceive(uint16,bytes,uint64,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "setConfig(uint16,uint16,uint256,bytes)",
+      "count": 17
+    },
+    {
+      "signature": "setReceiveVersion(uint16)",
+      "count": 17
+    },
+    {
+      "signature": "setSendVersion(uint16)",
+      "count": 17
+    },
+    {
+      "signature": "skim(address)",
+      "count": 17
+    },
+    {
+      "signature": "lzReceive(tuple,bytes32,bytes,address,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "lzReceiveAndRevert(tuple[])",
+      "count": 16
+    },
+    {
+      "signature": "lzReceiveSimulate(tuple,bytes32,bytes,address,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "send(tuple,tuple,address)",
+      "count": 16
+    },
+    {
+      "signature": "setDelegate(address)",
+      "count": 16
+    },
+    {
+      "signature": "setEnforcedOptions(tuple[])",
+      "count": 16
+    },
+    {
+      "signature": "setMsgInspector(address)",
+      "count": 16
+    },
+    {
+      "signature": "setPeer(uint32,bytes32)",
+      "count": 16
+    },
+    {
+      "signature": "setPreCrime(address)",
+      "count": 16
+    },
+    {
+      "signature": "nonblockingLzReceive(uint16,bytes,uint64,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "retryMessage(uint16,bytes,uint64,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "setMinDstGas(uint16,uint16,uint256)",
+      "count": 16
+    },
+    {
+      "signature": "setPrecrime(address)",
+      "count": 16
+    },
+    {
+      "signature": "setTrustedRemote(uint16,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "setTrustedRemoteAddress(uint16,bytes)",
+      "count": 16
+    },
+    {
+      "signature": "mint(address)",
+      "count": 16
+    },
+    {
+      "signature": "burn(address)",
+      "count": 15
+    },
+    {
+      "signature": "swap(uint256,uint256,address,bytes)",
+      "count": 15
+    },
+    {
+      "signature": "sync()",
+      "count": 15
+    },
+    {
+      "signature": "withdraw(uint256)",
+      "count": 14
+    },
+    {
+      "signature": "transferOut(address,address,uint256)",
+      "count": 14
+    },
+    {
+      "signature": "transferOut(address,address,uint256,bool)",
+      "count": 14
+    },
+    {
+      "signature": "transferOutNativeToken(address,uint256)",
+      "count": 14
+    },
+    {
+      "signature": "deposit(uint256)",
+      "count": 13
+    },
+    {
+      "signature": "mint(uint256)",
+      "count": 13
+    },
+    {
+      "signature": "setPayloadSizeLimit(uint16,uint256)",
+      "count": 13
+    },
+    {
+      "signature": "addBots(address[])",
+      "count": 12
+    },
+    {
+      "signature": "delBots(address[])",
+      "count": 12
+    },
+    {
+      "signature": "callOnOFTReceived(uint16,bytes,uint64,bytes32,address,uint256,bytes,uint256)",
+      "count": 12
+    },
+    {
+      "signature": "initialize(address,address)",
+      "count": 12
+    },
+    {
+      "signature": "decreaseApproval(address,uint256)",
+      "count": 11
+    },
+    {
+      "signature": "increaseApproval(address,uint256)",
+      "count": 11
+    },
+    {
+      "signature": "setMinter(address)",
+      "count": 11
+    },
+    {
+      "signature": "setUseCustomAdapterParams(bool)",
+      "count": 11
+    },
+    {
+      "signature": "reduceFee(uint256)",
+      "count": 10
     },
     {
       "signature": "deposit()",
-      "count": 3
+      "count": 8
+    },
+    {
+      "signature": "withdraw(uint256,address)",
+      "count": 8
+    },
+    {
+      "signature": "manualsend()",
+      "count": 8
+    },
+    {
+      "signature": "onERC721Received(address,address,uint256,bytes)",
+      "count": 8
+    },
+    {
+      "signature": "setName(string)",
+      "count": 8
+    },
+    {
+      "signature": "transferAndCall(address,uint256,bytes)",
+      "count": 8
+    },
+    {
+      "signature": "initialize(address)",
+      "count": 8
+    },
+    {
+      "signature": "cancelOwnershipHandover()",
+      "count": 7
+    },
+    {
+      "signature": "completeOwnershipHandover(address)",
+      "count": 7
+    },
+    {
+      "signature": "requestOwnershipHandover()",
+      "count": 7
+    },
+    {
+      "signature": "setAuthority(address)",
+      "count": 7
+    },
+    {
+      "signature": "removeTransferTax()",
+      "count": 7
+    },
+    {
+      "signature": "initialize(address,bytes,uint8)",
+      "count": 7
+    },
+    {
+      "signature": "setCurator(address)",
+      "count": 7
+    },
+    {
+      "signature": "setIsAllocator(address,bool)",
+      "count": 7
+    },
+    {
+      "signature": "setSymbol(string)",
+      "count": 7
+    },
+    {
+      "signature": "setOwner(address)",
+      "count": 7
+    },
+    {
+      "signature": "sendAndCall(address,uint16,bytes32,uint256,bytes,uint64,tuple)",
+      "count": 7
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes32,uint256,tuple)",
+      "count": 7
+    },
+    {
+      "signature": "addMinter(address)",
+      "count": 7
+    },
+    {
+      "signature": "excludeMultipleAccountsFromFees(address[],bool)",
+      "count": 6
+    },
+    {
+      "signature": "redeem(uint256,address,address,uint256)",
+      "count": 6
+    },
+    {
+      "signature": "withdraw(uint256,address,address,uint256)",
+      "count": 6
+    },
+    {
+      "signature": "setFee(uint256)",
+      "count": 6
+    },
+    {
+      "signature": "sweepToken(address,uint256,address)",
+      "count": 6
+    },
+    {
+      "signature": "grantMintAndBurnRoles(address)",
+      "count": 6
+    },
+    {
+      "signature": "redeem(uint256)",
+      "count": 6
+    },
+    {
+      "signature": "setVault(address)",
+      "count": 6
+    },
+    {
+      "signature": "initializeProxy(address)",
+      "count": 5
+    },
+    {
+      "signature": "unlock()",
+      "count": 5
+    },
+    {
+      "signature": "enableTrading()",
+      "count": 5
+    },
+    {
+      "signature": "withdraw(address)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermit(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitAllowed(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitAllowedIfNecessary(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "selfPermitIfNecessary(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 5
+    },
+    {
+      "signature": "unwrapWETH9(uint256,address)",
+      "count": 5
+    },
+    {
+      "signature": "sendAndCall(address,uint16,bytes32,uint256,uint256,bytes,uint64,tuple)",
+      "count": 5
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes32,uint256,uint256,tuple)",
+      "count": 5
+    },
+    {
+      "signature": "setDefaultFeeBp(uint16)",
+      "count": 5
+    },
+    {
+      "signature": "setFeeBp(uint16,bool,uint16)",
+      "count": 5
+    },
+    {
+      "signature": "setFeeOwner(address)",
+      "count": 5
+    },
+    {
+      "signature": "approveAndCall(address,uint256,bytes)",
+      "count": 5
+    },
+    {
+      "signature": "initialize(string,string,address)",
+      "count": 5
+    },
+    {
+      "signature": "setNameAndSymbol(string,string)",
+      "count": 5
+    },
+    {
+      "signature": "removeMinter(address)",
+      "count": 5
+    },
+    {
+      "signature": "safeTransferFrom(address,address,uint256)",
+      "count": 5
+    },
+    {
+      "signature": "safeTransferFrom(address,address,uint256,bytes)",
+      "count": 5
+    },
+    {
+      "signature": "setApprovalForAll(address,bool)",
+      "count": 5
+    },
+    {
+      "signature": "rescueERC20(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)",
+      "count": 4
+    },
+    {
+      "signature": "onERC1155Received(address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "set_rewards_receiver(address)",
+      "count": 4
+    },
+    {
+      "signature": "claim_rewards()",
+      "count": 4
+    },
+    {
+      "signature": "claim_rewards(address)",
+      "count": 4
+    },
+    {
+      "signature": "claim_rewards(address,address)",
+      "count": 4
+    },
+    {
+      "signature": "addPair(address)",
+      "count": 4
+    },
+    {
+      "signature": "deposit(uint256,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithSignature(uint256,address,uint256,tuple,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithSignatureEIP2612(uint256,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "liquidityCallback(address,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "mint(uint256,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "mintWithSignature(uint256,address,uint256,tuple,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "mintWithSignatureEIP2612(uint256,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "rebalance()",
+      "count": 4
+    },
+    {
+      "signature": "redeemWithSignature(uint256,address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "rescueFunds(address)",
+      "count": 4
+    },
+    {
+      "signature": "updateRates()",
+      "count": 4
+    },
+    {
+      "signature": "updateRebalancer(address)",
+      "count": 4
+    },
+    {
+      "signature": "updateRewards(address)",
+      "count": 4
+    },
+    {
+      "signature": "withdrawWithSignature(uint256,uint256,address,address,uint256,uint256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "refundETH()",
+      "count": 4
+    },
+    {
+      "signature": "grantBurnRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "grantMintRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "revokeBurnRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "revokeMintRole(address)",
+      "count": 4
+    },
+    {
+      "signature": "setCCIPAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "acceptGuardian()",
+      "count": 4
+    },
+    {
+      "signature": "acceptTimelock()",
+      "count": 4
+    },
+    {
+      "signature": "revokePendingGuardian()",
+      "count": 4
+    },
+    {
+      "signature": "revokePendingTimelock()",
+      "count": 4
+    },
+    {
+      "signature": "submitGuardian(address)",
+      "count": 4
+    },
+    {
+      "signature": "submitTimelock(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "updateWithdrawQueue(uint256[])",
+      "count": 4
+    },
+    {
+      "signature": "addToBlacklist(address)",
+      "count": 4
+    },
+    {
+      "signature": "depositWithPermit(uint256,address,uint256,uint8,bytes32,bytes32)",
+      "count": 4
+    },
+    {
+      "signature": "sendFrom(address,uint16,bytes,uint256,address,address,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "inCaseTokensGetStuck(address)",
+      "count": 4
+    },
+    {
+      "signature": "addAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "claim(address)",
+      "count": 4
+    },
+    {
+      "signature": "removeAdmin(address)",
+      "count": 4
+    },
+    {
+      "signature": "setHandler(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "removeLimit()",
+      "count": 4
+    },
+    {
+      "signature": "withdrawAll()",
+      "count": 4
+    },
+    {
+      "signature": "claimOwnership()",
+      "count": 4
+    },
+    {
+      "signature": "finishMinting()",
+      "count": 4
+    },
+    {
+      "signature": "grantRoles(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "renounceRoles(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "revokeRoles(address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "setBaseURI(string)",
+      "count": 4
+    },
+    {
+      "signature": "setExchangeNFTFeeRate(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "setListMarketNFTFeeRate(uint256)",
+      "count": 4
+    },
+    {
+      "signature": "setSkipNFT(bool)",
+      "count": 4
+    },
+    {
+      "signature": "setSkipNFTFor(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "setPair(address)",
+      "count": 4
+    },
+    {
+      "signature": "setAutomatedMarketMakerPair(address,bool)",
+      "count": 4
+    },
+    {
+      "signature": "rescueERC20(address)",
+      "count": 4
+    },
+    {
+      "signature": "emitTransfer(address,address,uint256)",
+      "count": 4
+    },
+    {
+      "signature": "accrueInterest()",
+      "count": 4
+    },
+    {
+      "signature": "uniswapV3SwapCallback(int256,int256,bytes)",
+      "count": 4
+    },
+    {
+      "signature": "collect(tuple)",
+      "count": 4
+    },
+    {
+      "signature": "decreaseLiquidity(tuple)",
+      "count": 4
+    },
+    {
+      "signature": "increaseLiquidity(tuple)",
+      "count": 4
+    },
+    {
+      "signature": "claimRewards()",
+      "count": 4
+    },
+    {
+      "signature": "withdraw()",
+      "count": 4
+    },
+    {
+      "signature": "claimFees()",
+      "count": 4
     },
     {
       "signature": "rescueFunds(address,uint256)",
       "count": 3
     },
     {
-      "signature": "multicall(bytes[])",
+      "signature": "claim(uint256)",
       "count": 3
     },
     {
-      "signature": "manualSwap()",
+      "signature": "setFeeReceiver(address)",
       "count": 3
     },
     {
-      "signature": "withdraw(uint256)",
-      "count": 2
+      "signature": "setExcludedFromFee(address,bool)",
+      "count": 3
     },
     {
-      "signature": "pause()",
-      "count": 2
+      "signature": "unwrap(uint256)",
+      "count": 3
     },
     {
-      "signature": "unpause()",
-      "count": 2
+      "signature": "wrap(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "user_checkpoint(address)",
+      "count": 3
+    },
+    {
+      "signature": "claimable_tokens(address)",
+      "count": 3
+    },
+    {
+      "signature": "add_reward(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "set_reward_distributor(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "deposit_reward_token(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "delPair(address)",
+      "count": 3
+    },
+    {
+      "signature": "doSwapBack()",
+      "count": 3
+    },
+    {
+      "signature": "initializePair()",
+      "count": 3
+    },
+    {
+      "signature": "setIsFeeExempt(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "blockBots(address[])",
+      "count": 3
+    },
+    {
+      "signature": "manualswap()",
+      "count": 3
+    },
+    {
+      "signature": "setFee(uint256,uint256,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxTxnAmount(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxWalletSize(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setMinSwapTokensThreshold(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setTrading(bool)",
+      "count": 3
+    },
+    {
+      "signature": "toggleSwap(bool)",
+      "count": 3
+    },
+    {
+      "signature": "unblockBot(address)",
+      "count": 3
+    },
+    {
+      "signature": "pancakeV3SwapCallback(int256,int256,bytes)",
+      "count": 3
+    },
+    {
+      "signature": "unlockCallback(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setRestrictedAddress(address)",
+      "count": 3
+    },
+    {
+      "signature": "reallocate(tuple[])",
+      "count": 3
+    },
+    {
+      "signature": "setFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "removeFromBlacklist(address)",
+      "count": 3
+    },
+    {
+      "signature": "setRateLimiter(address)",
+      "count": 3
+    },
+    {
+      "signature": "setRateLimits(tuple[])",
+      "count": 3
+    },
+    {
+      "signature": "bridgeBurn(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "addNonStakingAccount(address)",
+      "count": 3
+    },
+    {
+      "signature": "recoverClaim(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "removeNonStakingAccount(address)",
+      "count": 3
+    },
+    {
+      "signature": "setGov(address)",
+      "count": 3
+    },
+    {
+      "signature": "setInPrivateTransferMode(bool)",
+      "count": 3
+    },
+    {
+      "signature": "setMinter(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "setYieldTrackers(address[])",
+      "count": 3
+    },
+    {
+      "signature": "withdrawToken(address,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "blacklist(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "initialize(tuple)",
+      "count": 3
+    },
+    {
+      "signature": "name()",
+      "count": 3
+    },
+    {
+      "signature": "totalSupply()",
+      "count": 3
+    },
+    {
+      "signature": "decimals()",
+      "count": 3
+    },
+    {
+      "signature": "balanceOf(address)",
+      "count": 3
+    },
+    {
+      "signature": "symbol()",
+      "count": 3
+    },
+    {
+      "signature": "allowance(address,address)",
+      "count": 3
+    },
+    {
+      "signature": "deposit(uint256,address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "depositAll()",
+      "count": 3
+    },
+    {
+      "signature": "earn()",
+      "count": 3
+    },
+    {
+      "signature": "proposeStrat(address)",
+      "count": 3
+    },
+    {
+      "signature": "upgradeStrat()",
+      "count": 3
+    },
+    {
+      "signature": "excludeFromFees(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "initialize()",
+      "count": 3
+    },
+    {
+      "signature": "setMintCap(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "startAmplificationParameterUpdate(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "stopAmplificationParameterUpdate()",
+      "count": 3
+    },
+    {
+      "signature": "setTaxAddress(address)",
+      "count": 3
+    },
+    {
+      "signature": "minter_mint(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "nominateNewOwner(address)",
+      "count": 3
+    },
+    {
+      "signature": "recoverERC20(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setTimelock(address)",
+      "count": 3
+    },
+    {
+      "signature": "rescueETH()",
+      "count": 3
+    },
+    {
+      "signature": "setTreasury(address)",
+      "count": 3
+    },
+    {
+      "signature": "emitApproval(address,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "withdrawEth()",
+      "count": 3
+    },
+    {
+      "signature": "abdicate(bytes4)",
+      "count": 3
+    },
+    {
+      "signature": "addAdapter(address)",
+      "count": 3
+    },
+    {
+      "signature": "allocate(address,bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "deallocate(address,bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseAbsoluteCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseRelativeCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "decreaseTimelock(bytes4,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "forceDeallocate(address,bytes,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "increaseAbsoluteCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "increaseRelativeCap(bytes,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "increaseTimelock(bytes4,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "removeAdapter(address)",
+      "count": 3
+    },
+    {
+      "signature": "revoke(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setAdapterRegistry(address)",
+      "count": 3
+    },
+    {
+      "signature": "setForceDeallocatePenalty(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setIsSentinel(address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "setLiquidityAdapterAndData(address,bytes)",
+      "count": 3
+    },
+    {
+      "signature": "setManagementFee(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setManagementFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "setMaxRate(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPerformanceFee(uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPerformanceFeeRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "setReceiveAssetsGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setReceiveSharesGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setSendAssetsGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "setSendSharesGate(address)",
+      "count": 3
+    },
+    {
+      "signature": "submit(bytes)",
+      "count": 3
+    },
+    {
+      "signature": "redeem(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "burnByYT(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "mintByYT(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "mint(tuple)",
+      "count": 3
+    },
+    {
+      "signature": "permit(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 3
+    },
+    {
+      "signature": "setFeeSwapper(address)",
+      "count": 3
+    },
+    {
+      "signature": "settokenExt(address)",
+      "count": 3
+    },
+    {
+      "signature": "exchange(int128,int128,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "exchange(int128,int128,uint256,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "exchange_received(int128,int128,uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "exchange_received(int128,int128,uint256,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "add_liquidity(uint256[],uint256)",
+      "count": 3
+    },
+    {
+      "signature": "add_liquidity(uint256[],uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_one_coin(uint256,int128,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_one_coin(uint256,int128,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_imbalance(uint256[],uint256)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity_imbalance(uint256[],uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[])",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[],address)",
+      "count": 3
+    },
+    {
+      "signature": "remove_liquidity(uint256,uint256[],address,bool)",
+      "count": 3
+    },
+    {
+      "signature": "withdraw_admin_fees()",
+      "count": 3
+    },
+    {
+      "signature": "ramp_A(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "stop_ramp_A()",
+      "count": 3
+    },
+    {
+      "signature": "set_new_fee(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "set_ma_exp_time(uint256,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "Swapin(bytes32,address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "Swapout(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "applyMinter()",
+      "count": 3
+    },
+    {
+      "signature": "applyVault()",
+      "count": 3
+    },
+    {
+      "signature": "changeVault(address)",
+      "count": 3
+    },
+    {
+      "signature": "depositVault(uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "initVault(address)",
+      "count": 3
+    },
+    {
+      "signature": "revokeMinter(address)",
+      "count": 3
+    },
+    {
+      "signature": "setVaultOnly(bool)",
+      "count": 3
+    },
+    {
+      "signature": "withdrawVault(address,uint256,address)",
+      "count": 3
+    },
+    {
+      "signature": "setContractURI(string)",
+      "count": 3
+    },
+    {
+      "signature": "setPlatformFeeInfo(address,uint256)",
+      "count": 3
+    },
+    {
+      "signature": "setPrimarySaleRecipient(address)",
+      "count": 3
+    },
+    {
+      "signature": "invest()",
+      "count": 3
+    },
+    {
+      "signature": "setLpPair(address)",
+      "count": 3
     },
     {
       "signature": "decayPeriodVote(uint256)",
@@ -512,75 +3484,27 @@
       "count": 2
     },
     {
-      "signature": "cancelOwnershipHandover()",
+      "signature": "changeOwner(address)",
       "count": 2
     },
     {
-      "signature": "claim(uint256)",
+      "signature": "withdraw(address,address,uint256)",
       "count": 2
     },
     {
-      "signature": "completeOwnershipHandover(address)",
+      "signature": "excludeFromFee(address)",
       "count": 2
     },
     {
-      "signature": "requestOwnershipHandover()",
+      "signature": "includeInFee(address)",
       "count": 2
     },
     {
-      "signature": "grantRole(bytes32,address)",
+      "signature": "lock(uint256)",
       "count": 2
     },
     {
-      "signature": "renounceRole(bytes32,address)",
-      "count": 2
-    },
-    {
-      "signature": "revokeRole(bytes32,address)",
-      "count": 2
-    },
-    {
-      "signature": "addPair(address)",
-      "count": 2
-    },
-    {
-      "signature": "clearStuckEthBalance()",
-      "count": 2
-    },
-    {
-      "signature": "delPair(address)",
-      "count": 2
-    },
-    {
-      "signature": "doSwapBack()",
-      "count": 2
-    },
-    {
-      "signature": "initializePair()",
-      "count": 2
-    },
-    {
-      "signature": "launch()",
-      "count": 2
-    },
-    {
-      "signature": "rescueToken(address)",
-      "count": 2
-    },
-    {
-      "signature": "setAddLiquidityEnabled(bool)",
-      "count": 2
-    },
-    {
-      "signature": "setIsFeeExempt(address,bool)",
-      "count": 2
-    },
-    {
-      "signature": "setSwapBackSettings(bool)",
-      "count": 2
-    },
-    {
-      "signature": "enableTrading()",
+      "signature": "setMaxTxPercent(uint256)",
       "count": 2
     },
     {
@@ -588,103 +3512,731 @@
       "count": 2
     },
     {
-      "signature": "setAuthority(address)",
+      "signature": "setAddresses(address,address,address,address,address,address)",
       "count": 2
     },
     {
-      "signature": "addOwnerAddress(address)",
+      "signature": "rescueETH(address,uint256)",
       "count": 2
     },
     {
-      "signature": "addOwnerPublicKey(bytes32,bytes32)",
+      "signature": "setFundAddress(address)",
       "count": 2
     },
     {
-      "signature": "execute(address,uint256,bytes)",
+      "signature": "setKeeper(address)",
       "count": 2
     },
     {
-      "signature": "executeBatch(tuple[])",
+      "signature": "setOperator(address)",
       "count": 2
     },
     {
-      "signature": "executeWithoutChainIdValidation(bytes[])",
+      "signature": "claimToken(address,uint256)",
       "count": 2
     },
     {
-      "signature": "initialize(bytes[])",
+      "signature": "claimTokens(address)",
       "count": 2
     },
     {
-      "signature": "removeLastOwner(uint256,bytes)",
+      "signature": "clearStuckEthBalance()",
       "count": 2
     },
     {
-      "signature": "removeOwnerAtIndex(uint256,bytes)",
+      "signature": "launch()",
       "count": 2
     },
     {
-      "signature": "validateUserOp(tuple,bytes32,uint256)",
+      "signature": "setSwapBackSettings(bool)",
       "count": 2
     },
     {
-      "signature": "acceptOwnership()",
+      "signature": "transferMany(tuple[])",
       "count": 2
     },
     {
-      "signature": "manualsend()",
+      "signature": "enter(address,address,uint256,address,uint256)",
       "count": 2
     },
     {
-      "signature": "delegate(address)",
+      "signature": "exit(address,address,uint256,address,uint256)",
       "count": 2
     },
     {
-      "signature": "delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)",
+      "signature": "manage(address[],bytes[],uint256[])",
       "count": 2
     },
     {
-      "signature": "mint(uint256)",
+      "signature": "manage(address,bytes,uint256)",
       "count": 2
     },
     {
-      "signature": "burn(address,uint256)",
+      "signature": "setBeforeTransferHook(address)",
       "count": 2
     },
     {
-      "signature": "lzReceive(tuple,bytes32,bytes,address,bytes)",
+      "signature": "exactInput(tuple)",
       "count": 2
     },
     {
-      "signature": "lzReceiveAndRevert(tuple[])",
+      "signature": "exactInputSingle(tuple)",
       "count": 2
     },
     {
-      "signature": "lzReceiveSimulate(tuple,bytes32,bytes,address,bytes)",
+      "signature": "exactOutput(tuple)",
       "count": 2
     },
     {
-      "signature": "send(tuple,tuple,address)",
+      "signature": "exactOutputSingle(tuple)",
       "count": 2
     },
     {
-      "signature": "setDelegate(address)",
+      "signature": "sweepTokenWithFee(address,uint256,address,uint256,address)",
       "count": 2
     },
     {
-      "signature": "setEnforcedOptions(tuple[])",
+      "signature": "unwrapWETH9WithFee(uint256,address,uint256,address)",
       "count": 2
     },
     {
-      "signature": "setMsgInspector(address)",
+      "signature": "acceptMintership(address)",
       "count": 2
     },
     {
-      "signature": "setPeer(uint32,bytes32)",
+      "signature": "init(bytes32,address,string,string,uint8)",
       "count": 2
     },
     {
-      "signature": "setPreCrime(address)",
+      "signature": "interchainTransfer(string,bytes,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "interchainTransferFrom(address,string,bytes,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "proposeMintership(address)",
+      "count": 2
+    },
+    {
+      "signature": "transferMintership(address)",
+      "count": 2
+    },
+    {
+      "signature": "acceptCap(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "revokePendingCap(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "revokePendingMarketRemoval(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "setSkimRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "setSupplyQueue(bytes32[])",
+      "count": 2
+    },
+    {
+      "signature": "submitCap(tuple,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "submitMarketRemoval(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "claimRewards(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "execute(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "executeInternal(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "proxyInitialize(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "readInternal(address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromRequest(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "updateInternal(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateMarketsBalances(uint256[])",
+      "count": 2
+    },
+    {
+      "signature": "bridgeMint(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateMaxSupply(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setRule(bool,address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "acceptTokenOwnership()",
+      "count": 2
+    },
+    {
+      "signature": "accrueFees()",
+      "count": 2
+    },
+    {
+      "signature": "markGraduated()",
+      "count": 2
+    },
+    {
+      "signature": "proposeNewOwner(address)",
+      "count": 2
+    },
+    {
+      "signature": "version()",
+      "count": 2
+    },
+    {
+      "signature": "withdraw(uint256,bool)",
+      "count": 2
+    },
+    {
+      "signature": "set_killed(bool)",
+      "count": 2
+    },
+    {
+      "signature": "rewardIndexesCurrent()",
+      "count": 2
+    },
+    {
+      "signature": "addBlackList(address)",
+      "count": 2
+    },
+    {
+      "signature": "destroyBlackFunds(address)",
+      "count": 2
+    },
+    {
+      "signature": "redeem(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "removeBlackList(address)",
+      "count": 2
+    },
+    {
+      "signature": "redistributeBlackListedFunds(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setBlackLister(address)",
+      "count": 2
+    },
+    {
+      "signature": "updateBlackList(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(string,string,uint8,address)",
+      "count": 2
+    },
+    {
+      "signature": "startTrade()",
+      "count": 2
+    },
+    {
+      "signature": "burn(bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "SetFees(uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "clearStuckEth()",
+      "count": 2
+    },
+    {
+      "signature": "setMode(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "addB(address[])",
+      "count": 2
+    },
+    {
+      "signature": "delB(address[])",
+      "count": 2
+    },
+    {
+      "signature": "manualSw()",
+      "count": 2
+    },
+    {
+      "signature": "onExitPool(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "onJoinPool(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "queryExit(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "queryJoin(bytes32,address,address,uint256[],uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "setSwapFeePercentage(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "releaseAirdropMode()",
+      "count": 2
+    },
+    {
+      "signature": "releaseAntibotGlobalExemption(address)",
+      "count": 2
+    },
+    {
+      "signature": "releaseAntiwhaleGlobalExemption(address)",
+      "count": 2
+    },
+    {
+      "signature": "setBlackList(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "setNotTaxable(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "deployFunds(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "freeFunds(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "harvestAndReport()",
+      "count": 2
+    },
+    {
+      "signature": "shutdownWithdraw(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "tendThis(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "addBridgeToken(address)",
+      "count": 2
+    },
+    {
+      "signature": "exchangeCanonicalForOld(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "exchangeOldForCanonical(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "minter_burn(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setCustodian(address)",
+      "count": 2
+    },
+    {
+      "signature": "setSwapFees(address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "toggleBridgeToken(address)",
+      "count": 2
+    },
+    {
+      "signature": "toggleExchanges()",
+      "count": 2
+    },
+    {
+      "signature": "toggleFeesForAddress(address)",
+      "count": 2
+    },
+    {
+      "signature": "withdrawBridgeTokens(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "claimPrize(address,uint8,uint32,uint96,address)",
+      "count": 2
+    },
+    {
+      "signature": "claimYieldFeeShares(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setClaimer(address)",
+      "count": 2
+    },
+    {
+      "signature": "setHooks(tuple)",
+      "count": 2
+    },
+    {
+      "signature": "setLiquidationPair(address)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldFeePercentage(uint32)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldFeeRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "sponsor(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "transferTokensOut(address,address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "verifyTokensIn(address,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "addToWhitelist(address)",
+      "count": 2
+    },
+    {
+      "signature": "setFeeWallet(address)",
+      "count": 2
+    },
+    {
+      "signature": "addArk(address)",
+      "count": 2
+    },
+    {
+      "signature": "deposit(uint256,address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "forceRebalance(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "rebalance(tuple[])",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromArks(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "redeemFromBuffer(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "removeArk(address)",
+      "count": 2
+    },
+    {
+      "signature": "setArkDepositCap(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxDepositPercentageOfTVL(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxRebalanceInflow(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setArkMaxRebalanceOutflow(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFleetDepositCap(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFleetTokenTransferability()",
+      "count": 2
+    },
+    {
+      "signature": "setMaxRebalanceOperations(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMinimumBufferBalance(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMinimumPauseTime(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setTipRate(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "tip()",
+      "count": 2
+    },
+    {
+      "signature": "updateRebalanceCooldown(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "updateStakingRewardsManager()",
+      "count": 2
+    },
+    {
+      "signature": "withdrawFromArks(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "withdrawFromBuffer(uint256,address,address)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,address,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "emergencyWithdraw()",
+      "count": 2
+    },
+    {
+      "signature": "setDeflationConfig(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setDocumentUri(string)",
+      "count": 2
+    },
+    {
+      "signature": "setMaxTokenAmountPerAddress(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setReflectionConfig(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setTaxConfig(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "incrementNonce()",
+      "count": 2
+    },
+    {
+      "signature": "setPriceProvider(address)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,uint8,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "removeLimit2()",
+      "count": 2
+    },
+    {
+      "signature": "batchTransfer(address[],uint256[])",
+      "count": 2
+    },
+    {
+      "signature": "disableTransferTax()",
+      "count": 2
+    },
+    {
+      "signature": "setEthRecipient(address)",
+      "count": 2
+    },
+    {
+      "signature": "setTaxSwapMult(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "openTrade()",
+      "count": 2
+    },
+    {
+      "signature": "unwrapTo(uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "wrapTo(uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "setFeeExempt(address,bool)",
+      "count": 2
+    },
+    {
+      "signature": "waiveOwnership()",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,address,address,address,uint256,uint256,address,address,uint256,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "renounceMinter()",
+      "count": 2
+    },
+    {
+      "signature": "algebraMintCallback(uint256,uint256,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "setDepositLimit(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "revokeMinterRole(address)",
+      "count": 2
+    },
+    {
+      "signature": "returnFromPool(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "sendToPool(address,address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "_burnFrom(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setPaused(bool)",
+      "count": 2
+    },
+    {
+      "signature": "addAlphixHook(address)",
+      "count": 2
+    },
+    {
+      "signature": "collectFees()",
+      "count": 2
+    },
+    {
+      "signature": "removeAlphixHook(address)",
+      "count": 2
+    },
+    {
+      "signature": "rescueTokens(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setFee(uint24)",
+      "count": 2
+    },
+    {
+      "signature": "setYieldTreasury(address)",
+      "count": 2
+    },
+    {
+      "signature": "initialMint(address)",
+      "count": 2
+    },
+    {
+      "signature": "transferWithPermit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+      "count": 2
+    },
+    {
+      "signature": "setCap(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "claim(address,uint256,address,uint256,tuple,bytes)",
+      "count": 2
+    },
+    {
+      "signature": "initialize(address,string,string,string,address[],address,address,uint128)",
+      "count": 2
+    },
+    {
+      "signature": "setClaimConditions(tuple[],bool)",
+      "count": 2
+    },
+    {
+      "signature": "setFlatPlatformFeeInfo(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMaxTotalSupply(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setPlatformFeeType(uint8)",
+      "count": 2
+    },
+    {
+      "signature": "setDistributor(address)",
+      "count": 2
+    },
+    {
+      "signature": "emergencyWithdraw(address,uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setMinINVESTMENT(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "setStartTime(uint256)",
+      "count": 2
+    },
+    {
+      "signature": "claimStakingFees()",
+      "count": 2
+    },
+    {
+      "signature": "_renounceOperator()",
+      "count": 2
+    },
+    {
+      "signature": "governanceRecoverUnsupported(address,uint256,address)",
+      "count": 2
+    },
+    {
+      "signature": "transferOperator(address)",
       "count": 2
     }
   ]
