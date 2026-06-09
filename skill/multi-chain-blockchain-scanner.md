@@ -1,90 +1,90 @@
-# Skill: Multi-Chain Blockchain Transaction Scanner (Python)
+# Compétence : Scanner de Transactions Multi-Chain Blockchain (Python)
 
 ## 1. Architecture
 
-### Pattern: Modular async scanners with BaseScanner ABC
-- `BaseScanner` (abstract): WebSocket lifecycle, auto-reconnect with exponential backoff, stats, event emission
-- `EVMScanner`: Ethereum, Polygon, BSC, Arbitrum (web3.py v7 async)
-- `BitcoinScanner`: Bitcoin via mempool.space WebSocket API
-- `SolanaScanner`: Solana via solana.py WebSocket
-- `ScannerOrchestrator`: Starts/stops all scanners, routes events, manages display
-- `DisplayManager`: Rich terminal output (must be ASCII-safe on Windows)
-- `TransactionFilter`: Address/value/pattern filtering
-- `SourceCodeVerifier`: Contract source code verification via Etherscan API V2
-- `VulnerabilityScanner`: Solidity source code vulnerability analysis (**20 patterns**)
-- `Guardian`: 24/7 persistent scanner with SQLite DB, auto-persistence, Hardhat pipeline
-- `ForkTester`: Standalone Hardhat fork testing framework (`hardhat_fork_tester.py`)
+### Pattern : Scanners asynchrones modulaires avec BaseScanner ABC
+- `BaseScanner` (abstrait) : cycle de vie WebSocket, reconnexion automatique avec backoff exponentiel, statistiques, émission d'événements
+- `EVMScanner` : Ethereum, Polygon, BSC, Arbitrum (web3.py v7 asynchrone)
+- `BitcoinScanner` : Bitcoin via l'API WebSocket mempool.space
+- `SolanaScanner` : Solana via WebSocket solana.py
+- `ScannerOrchestrator` : Démarre/arrête tous les scanners, achemine les événements, gère l'affichage
+- `DisplayManager` : Sortie terminal Rich (doit être compatible ASCII sur Windows)
+- `TransactionFilter` : Filtrage par adresse/valeur/pattern
+- `SourceCodeVerifier` : Vérification du code source des contrats via l'API Etherscan V2
+- `VulnerabilityScanner` : Analyse des vulnérabilités du code source Solidity (**20 patterns**)
+- `Guardian` : Scanner 24/7 persistant avec DB SQLite, auto-persistance, pipeline Hardhat
+- `ForkTester` : Framework de test fork Hardhat autonome (`hardhat_fork_tester.py`)
 
-### Extended project structure
+### Structure étendue du projet
 ```
 blockchain_scanner/
-  config.yaml                        # YAML config
-  main.py                            # CLI entry point (argparse)
-  guardian.py                        # 24/7 scanner + SQLite persistence
-  exploit_pipeline.py                # Automated vuln validation pipeline (20 types)
-  hardhat_fork_tester.py             # Standalone fork testing framework
-  pool_scanner.py                    # DEX pool scanner via DEX Screener API
-  clean_hardhat.bat                 # Selective Hardhat process killer (wmic + PS fallback)
-  run_forever.bat                   # Auto-restart loop with Hardhat cleanup
-  run_guardian.bat                  # Start/Stop guardian with Hardhat cleanup
-  scan_bsc_recent.py                 # Scan 100 BSC blocks for new deployments
-  scan_bsc_500.py                    # Scan 500 BSC blocks + auto exploit pipeline
-  scan_historical.py                 # Scan millions of historical BSC blocks concurrently
+  config.yaml                        # Configuration YAML
+  main.py                            # Point d'entrée CLI (argparse)
+  guardian.py                        # Scanner 24/7 + persistance SQLite
+  exploit_pipeline.py                # Pipeline automatisé de validation des vulnérabilités (20 types)
+  hardhat_fork_tester.py             # Framework de test fork autonome
+  pool_scanner.py                    # Scanner de pools DEX via l'API DEX Screener
+  clean_hardhat.bat                 # Tueur sélectif de processus Hardhat (wmic + PS fallback)
+  run_forever.bat                   # Boucle de redémarrage auto avec nettoyage Hardhat
+  run_guardian.bat                  # Démarrer/Arrêter le Guardian avec nettoyage Hardhat
+  scan_bsc_recent.py                 # Scanner les 100 derniers blocs BSC pour les nouveaux déploiements
+  scan_bsc_500.py                    # Scanner 500 blocs BSC + pipeline d'exploit automatique
+  scan_historical.py                 # Scanner des millions de blocs BSC historiques en concurrence
   scanner/
     base.py                          # BaseScanner ABC
-    evm_scanner.py                   # EVM chains
+    evm_scanner.py                   # Chaînes EVM
     bitcoin_scanner.py               # Bitcoin
     solana_scanner.py                # Solana
-    orchestrator.py                  # Scanner + vuln scan lifecycle
+    orchestrator.py                  # Cycle de vie scanner + scan de vulnérabilités
   confirmators/
-    __init__.py                      # Confirmator package
-    mythril_confirmator.py           # Mythril symbolic execution (subprocess, 0 import dep)
+    __init__.py                      # Paquet confirmator
+    mythril_confirmator.py           # Exécution symbolique Mythril (sous-processus, 0 dépendance d'import)
   .mythril-env/                      # Venv Python 3.12 + mythril 0.24.8
   analysis/
-    vulnerability_scanner.py         # Solidity vuln scanner (20 patterns)
+    vulnerability_scanner.py         # Scanner de vulnérabilités Solidity (20 patterns)
     __init__.py
   filters/
-    filters.py                       # Transaction filters
+    filters.py                       # Filtres de transactions
   output/
-    display.py                       # Terminal display (vuln output added)
-  verify.py                          # Source code verification via Etherscan V2
-  exploit/                           # Local Hardhat exploitation demos
+    display.py                       # Affichage terminal (sortie des vulnérabilités ajoutée)
+  verify.py                          # Vérification du code source via Etherscan V2
+  exploit/                           # Démos d'exploitation Hardhat locales
     contracts/
-      VulnerableBank.sol             # Deliberately vulnerable bank (reentrancy)
-      Exploit.sol                    # Reentrancy attack contract
-      ExploitV2.sol                  # Debug version with configurable maxRounds
-      CampaignVulnerable.sol         # CEI reentrancy reproduction
-      CampaignExploit.sol            # CEI exploit with guard-rail
-      PrismReentrancyExploit.sol        # PrismHook-specific exploit
-      AIDogeExploit.sol                 # AIDoge-specific exploit
-      UniversalExploit.sol              # Universal exploit: 28 attack types, 80+ sigs
-      PredictionV2OracleManipulator.sol # PredictionV2 oracle manipulation
-      PredictionV2ReentrancyExploit.sol # PredictionV2 reentrancy
-      PredictionV2TXOriginExploit.sol   # PredictionV2 tx.origin exploit
-      PredictionV2DelegatecallExploit.sol # PredictionV2 delegatecall
-      PredictionV2TreasuryExploit.sol   # PredictionV2 treasury drain
+      VulnerableBank.sol             # Banque délibérément vulnérable (reentrancy)
+      Exploit.sol                    # Contrat d'attaque par reentrancy
+      ExploitV2.sol                  # Version de débogage avec maxRounds configurable
+      CampaignVulnerable.sol         # Reproduction de reentrancy CEI
+      CampaignExploit.sol            # Exploit CEI avec garde-fou
+      PrismReentrancyExploit.sol        # Exploit spécifique à PrismHook
+      AIDogeExploit.sol                 # Exploit spécifique à AIDoge
+      UniversalExploit.sol              # Exploit universel : 28 types d'attaque, 80+ signatures
+      PredictionV2OracleManipulator.sol # Manipulation d'oracle PredictionV2
+      PredictionV2ReentrancyExploit.sol # Reentrancy PredictionV2
+      PredictionV2TXOriginExploit.sol   # Exploit tx.origin PredictionV2
+      PredictionV2DelegatecallExploit.sol # Delegatecall PredictionV2
+      PredictionV2TreasuryExploit.sol   # Drainage de trésorerie PredictionV2
     scripts/
-      deploy_and_exploit.js                  # Full reentrancy attack demo
-      test_campaign_reentrancy.js            # CampaignWrapper CEI validation
-      test_cei_reentrancy.js                 # Combined validation suite
-      test_simple_withdraw.js                # Sanity check
-      test_fork_exploit.js                   # Universal fork exploitation (28 attacks)
-      test_prediction_v2_all.js              # Master suite PredictionV2
+      deploy_and_exploit.js                  # Démo complète d'attaque par reentrancy
+      test_campaign_reentrancy.js            # Validation CEI CampaignWrapper
+      test_cei_reentrancy.js                 # Suite de validation combinée
+      test_simple_withdraw.js                # Vérification de base
+      test_fork_exploit.js                   # Exploitation fork universelle (28 attaques)
+      test_prediction_v2_all.js              # Suite maître PredictionV2
       test_prediction_v2_oracle_manipulation.js
       test_prediction_v2_reentrancy.js
       test_prediction_v2_delegatecall.js
       test_prediction_v2_txorigin.js
       test_prediction_v2_treasury.js
-    generated/                               # Dynamically generated test files
-    hardhat.config.js                # Hardhat config (Solidity 0.8.20, allowUnlimitedContractSize)
+    generated/                               # Fichiers de test générés dynamiquement
+    hardhat.config.js                # Configuration Hardhat (Solidity 0.8.20, allowUnlimitedContractSize)
     package.json
     .gitignore
 ```
 
-## 2. web3.py v7 Async API (Critical)
+## 2. API asynchrone web3.py v7 (Critique)
 
-### Problem
-`Web3.AsyncWebsocketProvider` does NOT exist in web3.py v7.
+### Problème
+`Web3.AsyncWebsocketProvider` n'existe PAS dans web3.py v7.
 
 ### Solution
 ```python
@@ -103,337 +103,329 @@ async for response in w3.socket.process_subscriptions():
     ...
 ```
 
-## 3. BSC Compatibility (extraData) + WebSocketProvider Disconnect
+## 3. Compatibilité BSC (extraData) + Déconnexion WebSocketProvider
 
-Use raw RPC polling fallback for BSC:
+Utiliser le repli de polling RPC brut pour BSC :
 ```python
 resp = await w3.provider.make_request("eth_getBlockByNumber", [hex(number), False])
 block = resp["result"]
 ```
 
-**Shutdown fix:** Always call `provider.disconnect()` before cleanup + **monkey-patch `put_nowait`** on the subscription queue to catch `asyncio.QueueFull` (suppressed during shutdown, logged as warning during normal ops):
+**Correctif d'arrêt :** Toujours appeler `provider.disconnect()` avant le nettoyage + **monkey-patch `put_nowait`** sur la file d'abonnement pour intercepter `asyncio.QueueFull` (supprimé pendant l'arrêt, journalisé comme avertissement pendant le fonctionnement normal) :
 ```python
 async def _disconnect(self):
     if self.w3 and hasattr(self.w3, 'provider'):
-        await self.w3.provider.disconnect()  # Stop internal message listener first
+        await self.w3.provider.disconnect()  # Arrêter d'abord l'écouteur de messages interne
     ...
 
-# In _connect(): monkey-patch the queue to survive QueueFull during shutdown
+# Dans _connect() : monkey-patch de la file pour survivre à QueueFull pendant l'arrêt
 q = provider._request_processor._subscription_response_queue
 _orig = q.put_nowait
 q.put_nowait = lambda item: _orig(item) if not queue_full else ...
 ```
 
-## 4. Windows cp1252 Encoding
+## 4. Encodage Windows cp1252
 
-Always use ASCII-safe output:
+Toujours utiliser une sortie compatible ASCII :
 ```python
 def _s(text: str) -> str:
     return text.encode('ascii', errors='replace').decode('ascii')
 ```
 
-## 5. RPC Endpoints
+## 5. Endpoints RPC
 
-| Chain | Endpoint | Provider |
+| Chaîne | Endpoint | Fournisseur |
 |:---|:---|:---|
 | BSC HTTP | `https://bsc-dataseed1.binance.org` | Binance |
 | BSC WS | `wss://bsc.publicnode.com` | PublicNode |
 
-## 6. Contract Source Code via Etherscan API V2
+## 6. Code source des contrats via Etherscan API V2
 
 ```python
 EXPLORER_API_V2_URL = "https://api.etherscan.io/v2/api"
 # chainid=56 for BSC, 1 for Ethereum
 ```
 
-## 7. Solidity Vulnerability Scanner — 20 Types
+## 7. Scanner de Vulnérabilités Solidity — 20 Types
 
-### Complete Vulnerability Table
+### Tableau complet des vulnérabilités
 
-| ID | Vulnerability | Severity | Description |
+| ID | Vulnérabilité | Sévérité | Description |
 |:---|:---|---:|:---|
-| `reentrancy` | Reentrancy (state change AFTER external call) | CRITICAL | `.call{value:}` before state update |
-| `selfdestruct` | Contract can be destroyed | CRITICAL | `selfdestruct`/`suicide` without ACL |
-| `delegatecall` | Code execution in caller context | CRITICAL | Dynamic `delegatecall` target |
-| `tx-origin` | tx.origin authorization | HIGH | `tx.origin` used for auth — phishing |
-| `unprotected-withdraw` | Withdraw without ACL | HIGH | Withdraw/claim without access control |
-| `unprotected-init` | Initializer without modifier | HIGH | `initialize()` callable multiple times |
-| `unchecked-call` | Unchecked external call result | MEDIUM | `.call()` return value not verified |
-| `integer-overflow` | Arithmetic without SafeMath (pre-0.8) | MEDIUM | No overflow protection on pre-0.8 |
-| `gas-loop` | Unbounded loop over dynamic array | MEDIUM | DOS via gas exhaustion |
-| `arbitrary-from` | transferFrom with user-controlled 'from' | MEDIUM | `from` parameter not validated |
-| `flash-loan` | Flash loan susceptibility | HIGH | DEX swap without access control |
-| `oracle-manipulation` | Oracle price manipulation | HIGH | Spot price (getReserves) instead of TWAP |
-| `slippage-deadline` | Missing slippage / deadline | HIGH | Zero slippage or no deadline — MEV |
-| `force-feed-eth` | Force-fed ETH manipulation | MEDIUM | `address(this).balance` via selfdestruct |
-| `erc20-return` | ERC20 return value unchecked | MEDIUM | `transfer()` return not checked (USDT) |
-| `signature-replay` | Signature replay attack | HIGH | `ecrecover` without chainId/nonce |
-| `rounding-error` | Division before multiplication | MEDIUM | Precision loss due to rounding |
-| `storage-collision` | Storage collision in proxy | HIGH | Upgradeable without `__gap` |
-| `timestamp-manipulation` | Block timestamp manipulation | MEDIUM | `block.timestamp` in critical logic |
-| `ownership-renounce` | Ownership renouncement | MEDIUM | `renounceOwnership()` without recovery |
+| `reentrancy` | Reentrancy (changement d'état APRÈS appel externe) | CRITIQUE | `.call{value:}` avant mise à jour d'état |
+| `selfdestruct` | Le contrat peut être détruit | CRITIQUE | `selfdestruct`/`suicide` sans ACL |
+| `delegatecall` | Exécution de code dans le contexte de l'appelant | CRITIQUE | Cible `delegatecall` dynamique |
+| `tx-origin` | Autorisation tx.origin | ÉLEVÉE | `tx.origin` utilisé pour l'auth — phishing |
+| `unprotected-withdraw` | Retrait sans ACL | ÉLEVÉE | Retrait/claim sans contrôle d'accès |
+| `unprotected-init` | Initialiseur sans modificateur | ÉLEVÉE | `initialize()` appelable plusieurs fois |
+| `unchecked-call` | Résultat d'appel externe non vérifié | MOYENNE | Valeur de retour `.call()` non vérifiée |
+| `integer-overflow` | Arithmétique sans SafeMath (pre-0.8) | MOYENNE | Pas de protection contre les overflow |
+| `gas-loop` | Boucle illimitée sur tableau dynamique | MOYENNE | DOS par épuisement de gas |
+| `arbitrary-from` | transferFrom avec 'from' contrôlé par l'utilisateur | MOYENNE | Paramètre `from` non validé |
+| `flash-loan` | Susceptibilité au flash loan | ÉLEVÉE | Swap DEX sans contrôle d'accès |
+| `oracle-manipulation` | Manipulation du prix de l'oracle | ÉLEVÉE | Prix spot (getReserves) au lieu de TWAP |
+| `slippage-deadline` | Slippage/deadline manquant | ÉLEVÉE | Slippage zéro ou pas de deadline — MEV |
+| `force-feed-eth` | Manipulation par ETH forcé | MOYENNE | `address(this).balance` via selfdestruct |
+| `erc20-return` | Valeur de retour ERC20 non vérifiée | MOYENNE | Retour de `transfer()` non vérifié (USDT) |
+| `signature-replay` | Attaque par rejeu de signature | ÉLEVÉE | `ecrecover` sans chainId/nonce |
+| `rounding-error` | Division avant multiplication | MOYENNE | Perte de précision due à l'arrondi |
+| `storage-collision` | Collision de stockage dans un proxy | ÉLEVÉE | Upgradeable sans `__gap` |
+| `timestamp-manipulation` | Manipulation du timestamp de bloc | MOYENNE | `block.timestamp` dans une logique critique |
+| `ownership-renounce` | Renonciation à la propriété | MOYENNE | `renounceOwnership()` sans récupération |
 
-### Reentrancy Detection Strategy
-- Find external calls with value (`.call{value:...}()`, `.send()`)
-- Skip `.transfer()` (limited to 2300 gas)
-- Check `nonReentrant` modifier
-- Look for state changes BEFORE the external call (CEI violation)
-- CRITICAL if state change before call, HIGH if call without modifier
+### Stratégie de détection des reentrancy
+- Trouver les appels externes avec valeur (`.call{value:...}()`, `.send()`)
+- Ignorer `.transfer()` (limité à 2300 gas)
+- Vérifier le modificateur `nonReentrant`
+- Chercher les changements d'état AVANT l'appel externe (violation CEI)
+- CRITIQUE si changement d'état avant l'appel, ÉLEVÉE si appel sans modificateur
 
-### Key Scanner Limitation
+### Limitation clé du scanner
 
-The scanner detects **code patterns** but does **not** understand context:
-- `onlyOwner` modifiers: functions are flagged but actually protected
-- Proxy patterns (EIP-1967): `delegatecall` is intentional
-- OpenZeppelin libraries: `Ownable`, `ReentrancyGuard` are audited standards
-- **Result:** ~85% false positive rate on audited contracts, **100% on ERC20 memecoins with balance**
+Le scanner détecte les **patterns de code** mais ne **comprend pas** le contexte :
+- Modificateurs `onlyOwner` : les fonctions sont signalées mais en fait protégées
+- Patterns de proxy (EIP-1967) : `delegatecall` est intentionnel
+- Librairies OpenZeppelin : `Ownable`, `ReentrancyGuard` sont des standards audités
+- **Résultat :** ~85% de taux de faux positifs sur les contrats audités, **100% sur les memecoins ERC20 avec balance**
 
-## 8. Exploit Pipeline
+## 8. Pipeline d'Exploit
 
-### Usage
+### Utilisation
 ```bash
 python exploit_pipeline.py --address 0x... --chain bsc
 python exploit_pipeline.py --live --chains bsc,ethereum
 python exploit_pipeline.py --batch addresses.txt
 ```
 
-### Exploitability Validation (20 types) — + Proxy Fallback
+### Validation d'exploitabilité (20 types) + Repli Proxy
 
-When `SourceCode` is empty (common with proxy contracts), the pipeline now detects `Proxy`/`Implementation` fields from Etherscan API and auto-fetches the implementation source.
+Quand `SourceCode` est vide (courant avec les contrats proxy), le pipeline détecte maintenant les champs `Proxy`/`Implementation` de l'API Etherscan et récupère automatiquement le code source de l'implémentation.
 
-| Finding Type | Exploitable? | Condition |
+| Type de finding | Exploitable ? | Condition |
 |:---|:---|---:|
-| Reentrancy | YES | Solidity < 0.8 |
-| Reentrancy | YES | Solidity >= 0.8 WITH unchecked {} |
-| Reentrancy | PARTIAL | Solidity >= 0.8 (CEI on bool — not arithmetic) |
-| Selfdestruct | YES | Without ACL |
-| Delegatecall | YES | Dynamic target |
-| Flash Loan | YES | Swap function without access control |
-| Oracle Manipulation | YES | Uses getReserves() without TWAP |
-| Slippage/Deadline | YES | amountOutMin = 0 or no deadline |
-| ERC20 Return | YES | transfer() call without require(success) |
-| Signature Replay | YES | ecrecover without chainId or nonce |
-| Storage Collision | YES | Upgradeable contract without __gap |
+| Reentrancy | OUI | Solidity < 0.8 |
+| Reentrancy | OUI | Solidity >= 0.8 AVEC unchecked {} |
+| Reentrancy | PARTIEL | Solidity >= 0.8 (CEI sur bool — pas arithmétique) |
+| Selfdestruct | OUI | Sans ACL |
+| Delegatecall | OUI | Cible dynamique |
+| Flash Loan | OUI | Fonction Swap sans contrôle d'accès |
+| Oracle Manipulation | OUI | Utilise getReserves() sans TWAP |
+| Slippage/Deadline | OUI | amountOutMin = 0 ou pas de deadline |
+| ERC20 Return | OUI | Appel transfer() sans require(success) |
+| Signature Replay | OUI | ecrecover sans chainId ni nonce |
+| Storage Collision | OUI | Contrat Upgradeable sans __gap |
 
-### Key Discovery: Solidity >=0.8 Blocks Underflow Reentrancy
-`balances[msg.sender] -= amount` reverts with `panic(0x11)` on underflow in 0.8+.
-In < 0.8, it wraps around (0 - 1 = 2^256 - 1), allowing the exploit.
+### Découverte clé : Solidity >=0.8 bloque la reentrancy par underflow
+`balances[msg.sender] -= amount` revient avec `panic(0x11)` en cas d'underflow en 0.8+.
+En < 0.8, il y a wrapping (0 - 1 = 2^256 - 1), ce qui permet l'exploit.
 
-## 9. Hardhat Fork Testing Framework
+## 9. Framework de Test Fork Hardhat
 
 ### UniversalExploit.sol
-Single contract testing **18 out of 20** attack types (excludes `tx-origin` and `signature-replay` which require phishing/scenario setup):
-- Reentrancy (CEI), Selfdestruct, Delegatecall, Unprotected Withdraw, Unprotected Init
-- Unchecked Call, Integer Overflow, Gas Loop, Arbitrary transferFrom
-- Flash Loan, Oracle Manipulation, Slippage/Deadline, Force-Fed ETH
-- ERC20 Return, Rounding Error, Storage Collision, Timestamp, Ownership Renounce
+Contrat unique testant **18 des 20** types d'attaque (exclut `tx-origin` et `signature-replay` qui nécessitent une configuration de phishing/scénario) :
+- Reentrancy (CEI), Selfdestruct, Delegatecall, Retrait non protégé, Init non protégé
+- Appel non vérifié, Overflow d'entier, Boucle gas, transferFrom arbitraire
+- Flash Loan, Manipulation d'oracle, Slippage/Deadline, ETH forcé
+- Retour ERC20, Erreur d'arrondi, Collision de stockage, Timestamp, Renonciation
 
-### Fork Test Flow
+### Flux du test fork
 ```
-1. Fork chain at latest block
-2. Impersonate target contract owner
-3. Deploy UniversalExploit
-4. For each attack type: attack → check balance → log result
-5. Report drained ETH (if any)
+1. Forker la chaîne au dernier bloc
+2. Usurper le propriétaire du contrat cible
+3. Déployer UniversalExploit
+4. Pour chaque type d'attaque : attaquer → vérifier le solde → journaliser le résultat
+5. Reporter l'ETH drainé (si applicable)
 ```
 
-### Usage
+### Utilisation
 ```bash
-# Via Python orchestrator
+# Via l'orchestrateur Python
 python hardhat_fork_tester.py --target 0x... --chain arbitrum
 
-# Direct Hardhat
+# Hardhat direct
 cd exploit
 npx hardhat compile
 npx hardhat run scripts/test_fork_exploit.js --network hardhat 0x... https://rpc 0.05
 ```
 
-## 10. Guardian 24/7 Stats (08/06/2026)
+## 10. Statistiques Guardian 24/7 (08/06/2026)
 
-| Metric | Value |
+| Métrique | Valeur |
 |:---|---|
-| Contracts in DB | **24 945** |
-| Verified contracts | **985** |
-| Total findings | **7 365** |
-| Exploitable | **4 407** |
-| Hardhat tests run | **116** (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) |
-| Confirmed exploits | **0** |
-| Batch test result | 55 contracts, 0 confirmed |
-| Chains active | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
-| Vulnerabilities scanned | **29** (20 base + 9 OpenZeppelin) |
+| Contrats dans la DB | **24 945** |
+| Contrats vérifiés | **985** |
+| Findings totaux | **7 365** |
+| Exploitables | **4 407** |
+| Tests Hardhat exécutés | **116** (55 batch + 5 PredictionV2 + 1 dynamique + 55 backfill-force) |
+| Exploits confirmés | **0** |
+| Résultat du batch | 55 contrats, 0 confirmé |
+| Chaînes actives | **6** (ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon) |
+| Vulnérabilités scannées | **29** (20 base + 9 OpenZeppelin) |
 
 ### Nouveaux outils (Session 5)
 
 | Outil | Description | Commande |
 |:---|---|:---|
 | **`dynamic_test_generator.py`** | Génère des tests JS Hardhat depuis les findings DB | `python hardhat_fork_tester.py --dynamic` |
-| **PredictionV2 exploits** | 5 contrats + 6 scripts pour PancakeSwap Prediction | `--specialized prediction-v2` |
+| **Exploits PredictionV2** | 5 contrats + 6 scripts pour PancakeSwap Prediction | `--specialized prediction-v2` |
 | **UniversalExploit v2** | 28 attaques, 80+ signatures DeFi | Via `test_fork_exploit.js` |
-| **Batch mode** | Teste TOUS les contrats avec balance | `python hardhat_fork_tester.py --batch` |
+| **Mode Batch** | Teste TOUS les contrats avec balance | `python hardhat_fork_tester.py --batch` |
 
-### Top Finding Types (exploitable)
+### Types de findings les plus fréquents (exploitables)
 1. Potential Reentrancy
 2. Delegatecall to Variable Address
 3. Unprotected Initializer
 4. Unprotected Withdraw/Claim Function
 5. TX Origin Authorization
 
-### Backfill-Hardhat Mode
-- `python guardian.py --backfill --backfill-hardhat` — full pipeline from DB to Hardhat confirmation
-- `python guardian.py --backfill --force` — force re-scan (delete + recreate findings)
-- `python guardian.py --backfill --backfill-limit 10` — limit to N contracts
-- `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` — progress feedback every N contracts
-- `python guardian.py --backfill --force --backfill-hardhat` — full pipeline with force re-scan + Hardhat validation
+### Mode Backfill-Hardhat
+- `python guardian.py --backfill --backfill-hardhat` — pipeline complet de la DB à la confirmation Hardhat
+- `python guardian.py --backfill --force` — forcer le re-scan (supprimer + recréer les findings)
+- `python guardian.py --backfill --backfill-limit 10` — limiter à N contrats
+- `python guardian.py --backfill --backfill-hardhat --backfill-feedback 10` — retour de progression toutes les N contrats
+- `python guardian.py --backfill --force --backfill-hardhat` — pipeline complet avec re-scan forcé + validation Hardhat
 
-### Auto-Stop Modes (NEW)
-- `--stop-on detected` — stop on first HIGH/CRITICAL (default)
-- `--stop-on confirmed` — stop only after pipeline confirms
-- `--stop-on none` — never auto-stop (manual)
+### Modes d'arrêt automatique
+- `--stop-on detected` — s'arrêter au premier HIGH/CRITICAL (défaut)
+- `--stop-on confirmed` — s'arrêter uniquement après confirmation par le pipeline
+- `--stop-on none` — ne jamais s'arrêter automatiquement (manuel)
 
-### Performance: ×20 Optimization
-- `validate_contract()` batches all findings of a contract into 1 fork + 1 compile + 1 Hardhat run
-- Old: ~60s/finding → New: ~3s for 1 contract with 1 finding exploitable
-- `validate_for_addresses()` and `validate_all_pending()` group by contract automatically
-- `validate_finding()` preserved for backward compatibility
+### Performance : optimisation ×20
+- `validate_contract()` regroupe tous les findings d'un contrat en 1 fork + 1 compile + 1 run Hardhat
+- Avant : ~60s/finding → Nouveau : ~3s pour 1 contrat avec 1 finding exploitable
+- `validate_for_addresses()` et `validate_all_pending()` groupent par contrat automatiquement
+- `validate_finding()` préservée pour la rétrocompatibilité
 
-### Bugfixes: EOA Filter, Cache Source, RPC URLs
-- **EOA filter**: `eth_getCode` before analysis — prevents false positives on EOA addresses
-- **Source cache**: passes `--cached-source` via temp file to avoid duplicate Etherscan API calls (inconsistent between calls)
-- **RPC URLs**: uses `config.yaml` RPC URLs (with Infura secret) instead of hardcoded `CHAIN_REGISTRY`
-- **`getLatestBlock()` fix**: uses `ethers.JsonRpcProvider(url)` direct instead of `hre.network.provider` before fork initialization
+### Correctifs : Filtre EOA, Cache source, URLs RPC
+- **Filtre EOA** : `eth_getCode` avant analyse — évite les faux positifs sur les adresses EOA
+- **Cache source** : passe `--cached-source` via fichier temporaire pour éviter les appels API Etherscan en double (incohérents entre appels)
+- **URLs RPC** : utilise les URLs RPC de `config.yaml` (avec le secret Infura) au lieu de `CHAIN_REGISTRY` codé en dur
+- **Correctif `getLatestBlock()`** : utilise `ethers.JsonRpcProvider(url)` directement au lieu de `hre.network.provider` avant l'initialisation du fork
 
-### --force-hardhat Mode
-- Added CLI flag `--force-hardhat` to bypass balance threshold (0.001)
-- Periodic Hardhat validation every 120s for existing contracts
-- `run_forever.sh` auto-restart on crash (infinite loop, no git push)
+### Mode --force-hardhat
+- Option CLI `--force-hardhat` ajoutée pour contourner le seuil de balance (0.001)
+- Validation Hardhat périodique toutes les 120s pour les contrats existants
+- Redémarrage automatique `run_forever.sh` en cas de plantage (boucle infinie, pas de git push)
 
-## 11. Project Evolution
+## 11. Évolution du projet
 
-### Built in Session 9 — Log level + clean_hardhat.bat fix + backfill force hardhat
-1. **`--log-level` CLI arg** sur `guardian.py` : `DEBUG|INFO|WARNING|ERROR` pour contrôler la verbosité des logs
-2. **`run_guardian.bat`** (modifié) : utilise `--log-level WARNING` par défaut (logs 100x plus petits)
-3. **`clean_hardhat.bat`** (fix) : blocs PowerShell retirés (problèmes de quoting avec cmd /c), remplacés par wmic pur
-4. **Stats DB mises à jour** : 24,945 contrats, 8,109 findings, 4,943 exploitables, 2,635 tests Hardhat
-5. **Backfill force + Hardhat** lancé pour re-scanner et re-tester tous les contrats de la DB
-
-### Built in Session 8 — Process Management + Hardhat Cleanup
-1. **`kill_all_node_processes()` fix**: Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill). Retourne maintenant un dict `{killed, error}`.
-2. **`clean_hardhat.bat`** (nouveau) : script standalone avec 3 modes (kill, check, loop), double méthode wmic + PowerShell
-3. **`run_forever.bat`** (modifié) : appelle `call clean_hardhat.bat` avant chaque redémarrage et en début de boucle
-4. **`run_guardian.bat`** (modifié) : appelle `call clean_hardhat.bat` à l'arrêt (`--stop`)
-5. **`--cleanup` CLI flag** sur `guardian.py` : `python guardian.py --cleanup` tue sélectivement les processus Hardhat depuis Python
-6. **Auto-cleanup dans validate_finding() et validate_contract()** : chaque test Hardhat commence par `kill_all_node_processes()` pour garantir un état propre
-7. Tous les `.md` mis à jour
-
-### Built in Session 7
-1. `--backfill --force --backfill-hardhat`: Full pipeline with force re-scan + Hardhat validation
-2. `--backfill-feedback`: Progress tracking (processed, findings, exploitables, errors, ETA)
-3. **4 bug fixes in HardhatValidator**:
-   - Whale impersonation funding fix (`No FINDING_RESULT for idx X`)
-   - Non-`pure` exploit contract fix (`tx0.wait is not a function`)
-   - Index-based contract naming fix (collision des noms)
-   - `process.exit(0)` fix (script bloqué)
-4. Backfill force + Hardhat validated on WBNB: pipeline fonctionnel ✅
-5. Guardian stats updated: 7,365 findings, 4,407 exploitables, 116 Hardhat tests, 0 confirmed
-6. All `.md` files updated with latest changes
-
-### Built in Session 6
-1. `--backfill-hardhat`: Full pipeline from DB to Hardhat confirmation
-2. `--stop-on detected|confirmed|none`: 3 auto-stop modes for main.py
-3. `--backfill` mode in guardian.py: re-scan all verified contracts from DB
-4. `validate_contract()`: ×20 performance optimization (1 fork/contract)
-5. EOA filter: `eth_getCode` before scanning to prevent cross-chain false positives
-6. Source cache: avoid duplicate Etherscan API calls via temp file
-7. RPC URL fix: use config.yaml URLs (with Infura secret) for Hardhat fork
-8. `getLatestBlock()` fix: use direct JsonRpcProvider instead of Hardhat provider
-9. `validate_for_addresses()`: scoped validation for backfill mode
-10. All `.md` files updated with latest changes
-
-### Built in Session 5
-1. UniversalExploit v2: 28 attack types, 80+ signatures
-2. 5 PredictionV2 exploit contracts + 6 JS scripts
-3. dynamic_test_generator.py
-4. Batch mode: 55 contracts tested, 0 confirmed
-5. Hardhat config: allowUnlimitedContractSize
-6. Fix TDZ in test_fork_exploit.js
-
-### Built in Session 4
-1. Vulnerability scanner expanded from 10 → 20 Solidity patterns
-2. UniversalExploit.sol — single contract for 18/20 attack types
-3. test_fork_exploit.js — generic fork exploitation script
-4. hardhat_fork_tester.py — Python orchestrator for fork testing
-5. scan_bsc_recent.py — 100-block BSC deployment scanner
-6. scan_bsc_500.py — 500-block BSC bulk scanner + auto exploit pipeline
-7. pool_scanner.py — DEX pool scanner via DEX Screener
-8. pool_scanner.py --all mode — scan ALL pools
-9. pool_scanner.py --audit-local — systematic Hardhat fork test
-10. First --all scan: 136 pools, 126 scanned
-11. Discovery: 100% false positive rate on contracts with balance
-12. Proxy fallback in exploit_pipeline
-
-### Built in Session 9 — Mythril confirmator + venv setup + hardhat_setBalance
+### Construit dans la Session 9 — Mythril + venv + hardhat_setBalance
 1. **`confirmators/mythril_confirmator.py`** (nouveau) — appel Mythril en sous-processus, 0 import de la librairie
-2. **Bytecode-based approach** : `eth_getCode` → temp file → `myth analyze --bin <file> -o jsonv2` (plus fiable que `--rpc`)
-3. **Venv auto-détection** : `.mythril-env/Scripts/python.exe` avec Python 3.12 + mythril 0.24.8
-4. **Flags CLI** : `--with-mythril`, `--mythril-dir` sur `guardian.py`
-5. **Fix Hardhat** : `hardhat_setBalance` remplace whale impersonation, template exploit low-level `.call()`
+2. **Approche basée sur le bytecode** : `eth_getCode` → fichier temporaire → `myth analyze --bin <file> -o jsonv2` (plus fiable que `--rpc`)
+3. **Auto-détection du venv** : `.mythril-env/Scripts/python.exe` avec Python 3.12 + mythril 0.24.8
+4. **Options CLI** : `--with-mythril`, `--mythril-dir` sur `guardian.py`
+5. **Correctif Hardhat** : `hardhat_setBalance` remplace l'usurpation de baleine, template d'exploit bas niveau `.call()`
 6. **Code mort supprimé** : `WHALE_ADDRESSES`, `MythrilIssue` dataclass, imports inutilisés
 
-### Older Changes
+### Construit dans la Session 8 — Gestion des processus + Nettoyage Hardhat
+1. **Correctif `kill_all_node_processes()`** : Remplacé `taskkill /F /IM node.exe` (tue TOUS les node.exe y compris Codebuff) par `wmic` avec filtre `CommandLine LIKE '%hardhat%'` + `taskkill /F /T /PID` (ciblé et tree kill). Retourne maintenant un dict `{killed, error}`.
+2. **`clean_hardhat.bat`** (nouveau) : script autonome avec 3 modes (kill, check, loop), double méthode wmic + PowerShell
+3. **`run_forever.bat`** (modifié) : appelle `call clean_hardhat.bat` avant chaque redémarrage et en début de boucle
+4. **`run_guardian.bat`** (modifié) : appelle `call clean_hardhat.bat` à l'arrêt (`--stop`)
+5. **Option CLI `--cleanup`** sur `guardian.py` : `python guardian.py --cleanup` tue sélectivement les processus Hardhat depuis Python
+6. **Auto-nettoyage dans validate_finding() et validate_contract()** : chaque test Hardhat commence par `kill_all_node_processes()` pour garantir un état propre
+7. Tous les `.md` mis à jour
 
-### Concrete Validation vs Pattern Detection
-Scanner finds patterns, not vulnerabilities. Key examples:
-- WETH9: `withdraw()` without onlyOwner flagged as HIGH — but CEI pattern respected, uses `.transfer()`
-- Nola/Smolcoin/PinLink: 41 exploitables flagged — but all functions behind `onlyOwner`
-- Lido stETH: `delegatecall` flagged as CRITICAL — but it's an intentional EIP-1967 proxy
-- **~85% of findings on audited contracts are false positives**
+### Construit dans la Session 7
+1. `--backfill --force --backfill-hardhat` : Pipeline complet avec re-scan forcé + validation Hardhat
+2. `--backfill-feedback` : Suivi de progression (processed, findings, exploitables, errors, ETA)
+3. **4 correctifs de bugs dans HardhatValidator** :
+   - Correctif de financement par usurpation de baleine (`No FINDING_RESULT for idx X`)
+   - Correctif du contrat d'exploit non-`pure` (`tx0.wait is not a function`)
+   - Correctif de nommage par index (collision des noms)
+   - Correctif `process.exit(0)` (script bloqué)
+4. Backfill force + Hardhat validé sur WBNB : pipeline fonctionnel ✅
+5. Statistiques Guardian mises à jour : 7 365 findings, 4 407 exploitables, 116 tests Hardhat, 0 confirmé
+6. Tous les fichiers `.md` mis à jour avec les derniers changements
 
-### Pool Scanner Modes (NEW)
+### Construit dans la Session 6
+1. `--backfill-hardhat` : Pipeline complet de la DB à la confirmation Hardhat
+2. `--stop-on detected|confirmed|none` : 3 modes d'arrêt automatique pour main.py
+3. Mode `--backfill` dans guardian.py : re-scanner tous les contrats vérifiés de la DB
+4. `validate_contract()` : Optimisation des performances ×20 (1 fork/contrat)
+5. Filtre EOA : `eth_getCode` avant scan pour éviter les faux positifs cross-chain
+6. Cache source : éviter les appels API Etherscan en double via fichier temporaire
+7. Correctif URL RPC : utiliser les URLs config.yaml (avec le secret Infura) pour le fork Hardhat
+8. Correctif `getLatestBlock()` : utiliser JsonRpcProvider direct au lieu du provider Hardhat
+9. `validate_for_addresses()` : validation cadrée pour le mode backfill
+10. Tous les fichiers `.md` mis à jour avec les derniers changements
 
-| Flag | Description |
+### Construit dans la Session 5
+1. UniversalExploit v2 : 28 types d'attaque, 80+ signatures
+2. 5 contrats d'exploit PredictionV2 + 6 scripts JS
+3. dynamic_test_generator.py
+4. Mode Batch : 55 contrats testés, 0 confirmé
+5. Configuration Hardhat : allowUnlimitedContractSize
+6. Correctif TDZ dans test_fork_exploit.js
+
+### Construit dans la Session 4
+1. Scanner de vulnérabilités étendu de 10 à 20 patterns Solidity
+2. UniversalExploit.sol — contrat unique pour 18/20 types d'attaque
+3. test_fork_exploit.js — script d'exploitation fork générique
+4. hardhat_fork_tester.py — orchestrateur Python pour les tests fork
+5. scan_bsc_recent.py — scanner de déploiements BSC sur 100 blocs
+6. scan_bsc_500.py — scanner BSC par lots de 500 blocs + pipeline d'exploit automatique
+7. pool_scanner.py — scanner de pools DEX via DEX Screener
+8. pool_scanner.py --all mode — scanner TOUS les pools
+9. pool_scanner.py --audit-local — test fork Hardhat systématique
+10. Premier scan --all : 136 pools, 126 scannés
+11. Découverte : 100% de taux de faux positifs sur les contrats avec balance
+12. Repli proxy dans exploit_pipeline
+
+## Validation concrète vs Détection de patterns
+
+Le scanner trouve des patterns, pas des vulnérabilités. Exemples clés :
+- WETH9 : `withdraw()` sans onlyOwner signalé comme ÉLEVÉ — mais le pattern CEI est respecté, utilise `.transfer()`
+- Nola/Smolcoin/PinLink : 41 exploitables signalés — mais toutes les fonctions derrière `onlyOwner`
+- Lido stETH : `delegatecall` signalé comme CRITIQUE — mais c'est un proxy EIP-1967 intentionnel
+- **~85% des findings sur les contrats audités sont des faux positifs**
+
+### Modes du Scanner de Pools
+
+| Option | Description |
 |:---|:---|
-| `--all` / `-a` | Scan ALL pools returned by DEX Screener (no TVL filter, no count limit) |
-| `--min-tvl X` / `-t X` | Only scan pools with TVL >= $X USD |
-| `--audit-local` / `-l` | Run Hardhat fork test on each scanned contract with exploitable findings |
-| `--top N` / `-n N` | Max pools per DEX (default: 5, ignored with --all) |
+| `--all` / `-a` | Scanner TOUS les pools retournés par DEX Screener (sans filtre TVL, sans limite) |
+| `--min-tvl X` / `-t X` | Scanner uniquement les pools avec TVL >= X$ USD |
+| `--audit-local` / `-l` | Exécuter un test fork Hardhat sur chaque contrat scanné avec des findings exploitables |
+| `--top N` / `-n N` | Max de pools par DEX (défaut : 5, ignoré avec --all) |
 
-**Live feedback**: Each pool result printed immediately with `[LIVE]` tag, verdict, findings count.
+**Retour en direct** : Chaque résultat de pool est affiché immédiatement avec le tag `[LIVE]`, le verdict et le nombre de findings.
 
-**Hardhat integration**: `_audit_hardhat()` method lazy-inits HardhatForkTester, pre-compiles contracts once, then runs fork tests with 240s timeout per contract. Skips standard clones (UniswapV2Pair etc.) automatically.
+**Intégration Hardhat** : La méthode `_audit_hardhat()` initialise paresseusement HardhatForkTester, pré-compile les contrats une fois, puis exécute les tests fork avec un délai d'attente de 240s par contrat. Ignore automatiquement les clones standard (UniswapV2Pair etc.).
 
-**First --all scan results (07/06/2026):** 136 pools found, 126 scanned, 43 INTERESSANTS (Velodrome/Optimism), 60 false positives (QuickSwap/Polygon clones).
+**Premiers résultats du scan --all (07/06/2026) :** 136 pools trouvés, 126 scannés, 43 INTÉRESSANTS (Velodrome/Optimism), 60 faux positifs (QuickSwap/Polygon clones).
 
-### BSC-Specific Scanning Tools
+### Outils de scan spécifiques à BSC
 
-| Tool | Description | RPC |
+| Outil | Description | RPC |
 |:---|:---|:---|
-| `scan_bsc_recent.py` | Scan 100 recent BSC blocks for new contract deployments | `bsc-dataseed1.binance.org` |
-| `scan_bsc_500.py` | Scan 500 BSC blocks, auto-verify + exploit pipeline | `bsc-dataseed1.binance.org` |
-| `pool_scanner.py` | Scan PancakeSwap/Thena BSC pools via DEX Screener API | Etherscan V2 chainid=56 |
-| `hardhat_fork_tester.py` | Fork BSC at latest block, test exploits | `bsc-dataseed1.binance.org` |
+| `scan_bsc_recent.py` | Scanner les 100 derniers blocs BSC pour les nouveaux déploiements | `bsc-dataseed1.binance.org` |
+| `scan_bsc_500.py` | Scanner 500 blocs BSC, auto-vérification + pipeline d'exploit | `bsc-dataseed1.binance.org` |
+| `pool_scanner.py` | Scanner les pools BSC PancakeSwap/Thena via l'API DEX Screener | Etherscan V2 chainid=56 |
+| `hardhat_fork_tester.py` | Forker BSC au dernier bloc, tester les exploits | `bsc-dataseed1.binance.org` |
 
-All BSC tools use free public RPC — no API key required for block scanning.
+Tous les outils BSC utilisent un RPC public gratuit — aucune clé API requise pour le scan de blocs.
 
-### Scanning Results by Chain
-| Chain | Contracts | Verified | Balance |
+### Résultats de scan par chaîne
+| Chaîne | Contrats | Vérifiés | Balance |
 |:---|---:|---:|:---:|
 | Ethereum | 1 257 | 112 | 261.47 ETH |
 | Arbitrum | 572 | 254 | 3.27 ETH |
 
-### Key Lesson
-Always validate findings empirically. Pipeline gives theoretical analysis (Solidity version, unchecked blocks, access control), but fork testing on Hardhat is the only way to confirm exploitability. The scanner detects code patterns — the human (or a smarter AI) must interpret context.
+### Leçon clé
+Toujours valider les findings empiriquement. Le pipeline donne une analyse théorique (version Solidity, blocs unchecked, contrôle d'accès), mais le test fork sur Hardhat est la seule façon de confirmer l'exploitabilité. Le scanner détecte des patterns de code — l'humain (ou une IA plus intelligente) doit interpréter le contexte.
 
-### CEI Reentrancy Validation
+### Validation CEI Reentrancy
 
-**CampaignWrapper** (0x8a56c6be..) — 7 HIGH findings, 1 MEDIUM. Validated empirically on reproduction:
-- Created CampaignVulnerable.sol (reproduces `.call{value:}` BEFORE state update)
-- Created CampaignExploit.sol (re-enters via `receive()` before `hasClaimed` is set)
-- **5 rounds of reentrancy confirmed** — 5 ETH drained from 5 ETH
-- **But false positive on real contract:** `_refund` is `private` + `nonReentrant` at top level
+**CampaignWrapper** (0x8a56c6be..) — 7 findings HAUTE, 1 MOYENNE. Validé empiriquement sur reproduction :
+- Création de CampaignVulnerable.sol (reproduit `.call{value:}` AVANT la mise à jour d'état)
+- Création de CampaignExploit.sol (rentre via `receive()` avant que `hasClaimed` soit défini)
+- **5 rounds de reentrancy confirmés** — 5 ETH drainés de 5 ETH
+- **Mais faux positif sur le contrat réel :** `_refund` est `private` + `nonReentrant` au niveau supérieur
 
-**Key discovery:** CEI reentrancy on bool flags works in Solidity >=0.8 because:
-- `!hasClaimed[user]` is NOT arithmetic — no underflow protection applies
-- State update (bool = true) happens AFTER `.call{value:}`
-- Check passes every time during reentrancy because state hasn't been updated yet
+**Découverte clé :** La reentrancy CEI sur les booléens fonctionne en Solidity >=0.8 car :
+- `!hasClaimed[user]` n'est PAS arithmétique — aucune protection contre les underflows ne s'applique
+- La mise à jour d'état (bool = true) a lieu APRÈS `.call{value:}`
+- La vérification passe à chaque fois pendant la reentrancy car l'état n'a pas encore été mis à jour
 
-**Fix for >=0.8 reentrancy:** Use `ReentrancyGuard` modifier, NOT just relying on underflow protection.
+**Correctif pour la reentrancy >=0.8 :** Utiliser le modificateur `ReentrancyGuard`, PAS seulement la protection contre les underflows.

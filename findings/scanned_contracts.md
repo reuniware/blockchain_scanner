@@ -1,23 +1,23 @@
 # Guardian Auto-Report
 > **manual** — 2026-06-12 12:00:00 UTC
 
-## Global Stats
+## Statistiques globales
 
-| Metric | Count |
-|--------|-------|
-| Contracts in DB | 24945 |
-| Verified (source available) | 985 |
-| Total findings | 8109 |
-| Exploitable findings | 4943 |
-| Mythril analyses (bytecode) | 4 (0 issues, complémentaire) |
-| Hardhat confirmed exploits | 0 |
-| Hardhat test failures | 2635 |
+| Métrique | Valeur |
+|----------|--------|
+| Contrats dans la DB | 24945 |
+| Vérifiés (source disponible) | 985 |
+| Findings totaux | 8109 |
+| Findings exploitables | 4943 |
+| Analyses Mythril (bytecode) | 4 (0 issues, complémentaire) |
+| Exploits confirmés Hardhat | 0 |
+| Échecs tests Hardhat | 2635 |
 
 ## Session 9 — Nouveautés (12/06/2026)
 
-| Feature | Description |
-|---------|------------|
-| `--with-mythril` | Mythril symbolic execution confirmator (subprocess, 0 import dep) |
+| Fonctionnalité | Description |
+|---------------|------------|
+| `--with-mythril` | Confirmateur Mythril par exécution symbolique (sous-processus, 0 dépendance d'import) |
 | `confirmators/mythril_confirmator.py` | Nouveau module — bytecode via eth_getCode + `myth analyze --bin` |
 | `.mythril-env` | Venv Python 3.12 + mythril 0.24.8 auto-détecté |
 | 4 contrats BSC testés | 0 issues Mythril vs 40 issues pipeline (complémentarité bytecode vs source) |
@@ -25,26 +25,26 @@
 
 ## Session 7 — Nouveautés (09/06/2026)
 
-| Feature | Description |
-|---------|------------|
-| `--backfill --force --backfill-hardhat` | Backfill force + Hardhat fork validation — testé sur 5 contrats BSC |
+| Fonctionnalité | Description |
+|---------------|------------|
+| `--backfill --force --backfill-hardhat` | Backfill force + validation Hardhat fork — testé sur 5 contrats BSC |
 | `--backfill-feedback N` | Affiche la progression toutes les N contrats (processed, findings, ETA) |
 | 5 contrats BSC testés | WBNB, ERC1967Proxy, ApolloxExchangeTreasury, TransparentUpgradeableProxy, PancakePredictionV2 |
 | 33 findings validés | **0 confirmé** — tous FAILED sur Hardhat fork |
 
 ## Session 6 — Nouveautés
 
-| Feature | Description |
-|---------|------------|
+| Fonctionnalité | Description |
+|---------------|------------|
 | `--backfill-hardhat` | Pipeline complet DB → source → analyse → **Hardhat fork → confirmation** |
 | `--stop-on confirmed` | Auto-stop après validation par le pipeline (pas juste la détection) |
 | Filtre EOA | `eth_getCode` avant analyse — évite les faux positifs cross-chain |
 | Cache source | Pas de double appel API incohérent Etherscan |
 | **Performance ×20** | `validate_contract()` : 1 fork/contrat au lieu de 1/finding (~3s au lieu de ~60s) |
 
-## Per-Chain Breakdown
+## Répartition par chaîne
 
-| Chain | Contracts | Verified |
+| Chaîne | Contrats | Vérifiés |
 |-------|-----------|----------|
 | Binance Smart Chain | 18322 | 131 |
 | Ethereum | 2742 | 201 |
@@ -53,7 +53,7 @@
 | Avalanche C-Chain | 783 | 32 |
 | Optimism | 270 | 35 |
 
-## Top 15 Exploitable Findings
+## Top 15 des findings exploitables
 
 | Contract | Chain | Severity | Balance | Contract Name | Finding |
 |----------|-------|----------|---------|---------------|---------|

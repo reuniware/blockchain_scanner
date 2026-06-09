@@ -90,13 +90,13 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - Avant : ~60s/finding → Après : ~3s pour 1 contrat avec 1 finding exploitable
 - `validate_finding()` préservée pour compatibilité
 
-### 🔧 Changements antérieurs
-- **Fix Empty Source (Proxy)** : `exploit_pipeline.py` détecte les proxies et fetch l'implementation
-- **Fix QueueFull (Shutdown)** : Monkey-patch `put_nowait` sur la queue web3.py
-- **Fix Task Leaks** : Tâches fire-and-forget trackées et cancellées
-- **Fix Race Condition** : Lock sur `_last_vuln_address`
-- **Fix `import re`** : 2 574 échecs Hardhat corrigés
-- **Flag `--force-hardhat`** et tâche périodique 120s
+### 🔧 Correctifs antérieurs
+- **Source vide (Proxy)** : `exploit_pipeline.py` détecte les proxies et récupère l'implémentation
+- **File d'attente pleine (Arrêt)** : Monkey-patch `put_nowait` sur la file web3.py
+- **Fuites de tâches** : Tâches fire-and-forget suivies et annulées
+- **Condition de course** : Verrou sur `_last_vuln_address`
+- **`import re` manquant** : 2 574 échecs Hardhat corrigés
+- **Option `--force-hardhat`** et tâche périodique 120s
 - **6 chaînes EVM** : ETH, BSC, Arbitrum, Optimism, Avalanche, Polygon
 
 ### Nouveaux outils
@@ -113,7 +113,7 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - **46 findings** : 10 CRITICAL, 25 HIGH, 11 MED — **35 exploitables théoriques**
 - **0 contrat avec solde > 0.001** (même constat : findings sur routeurs à 0 BNB)
 
-### BSC Block Scanners
+### Scanners de blocs BSC
 
 Deux scanners dédiés BSC pour l'analyse de blocs et de déploiements :
 
@@ -163,7 +163,7 @@ Scan exhaustif de TOUS les pools avec Hardhat fork systématique via `python poo
 | OVER-WETH | Velodrome | Optimism | $311k | - | ❌ Non vérifié |
 | THE-WBNB | Thena | BSC | $109k | - | ❌ Non vérifié |
 
-### Multi-chain support
+### Support multi-chaîne
 
 8 chaînes EVM supportées via `CHAIN_REGISTRY` : Ethereum, BSC, Polygon, **Arbitrum** ✅, Optimism, Avalanche, Base, Fantom.
 
