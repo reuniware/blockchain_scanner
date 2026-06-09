@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blockchain-scanner"
-version = "1.0.0"
+version = "1.0.1"
 description = "Multi-Chain Blockchain Transaction Scanner — real-time monitoring across 6 blockchains with Solidity vulnerability scanning"
 readme = "README.md"
 license = { text = "MIT" }
@@ -37,8 +37,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/TSTAC/blockchain_scanner"
-Repository = "https://github.com/TSTAC/blockchain_scanner"
+Homepage = "https://github.com/reuniware/blockchain_scanner"
+Repository = "https://github.com/reuniware/blockchain_scanner"
 
 [project.scripts]
 blockchain-scanner = "main:main"

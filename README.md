@@ -45,7 +45,7 @@ python main.py
 
 ```bash
 blockchain-scanner --version
-# Blockchain Scanner v1.0.0
+# Blockchain Scanner v1.0.1
 ```
 
 ---
