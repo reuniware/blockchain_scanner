@@ -36,10 +36,17 @@ Ce répertoire répertorie tous les contrats analysés par le scanner de vulnér
 - Détection de fuite de tâches asyncio (>500 tâches = alerte)
 
 #### Résultats après correction
-- Guardian tourne sur **12 chaînes simultanément** (10 EVM + Bitcoin + Solana désactivé)
+- Guardian tourne sur **16 chaînes simultanément** (14 EVM + Bitcoin + Solana désactivé)
 - **Base** : 19 pipelines d'exploit déclenchés 🔥
 - **Celo** : 1 pipeline d'exploit déclenché
+- **zkSync Era** (324) : scan actif via WS public 🔄
+- **Scroll** (534352), **Linea** (59144), **Polygon zkEVM** (1101) : scan actif via HTTP polling
 - Fantom et Gnosis : initialisés avec nouveaux endpoints WS
+
+#### EVMScanner : support HTTP polling pour chaînes sans WS
+- `_connect()` : utilise `HTTPProvider` de web3.py quand `rpc_ws` est vide (au lieu de `ValueError`)
+- `_listen()` : bascule directement en `_poll_blocks()` quand pas de socket WS (au lieu de retourner silencieusement)
+- Permet aux chaînes sans WS public (Scroll, Linea, Polygon zkEVM) de scanner en HTTP
 
 | Statut | Nombre |
 |:---|---:|

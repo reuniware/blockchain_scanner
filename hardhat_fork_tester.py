@@ -35,11 +35,15 @@ RPC_URLS = {
     1: "https://eth.llamarpc.com",
     56: "https://bsc-dataseed1.binance.org",
     137: "https://polygon-bor-rpc.publicnode.com",
+    324: "https://mainnet.era.zksync.io",
     42161: "https://arb1.arbitrum.io/rpc",
     10: "https://mainnet.optimism.io",
+    1101: "https://zkevm-rpc.com",
     43114: "https://api.avax.network/ext/bc/C/rpc",
+    59144: "https://rpc.linea.build",
     8453: "https://mainnet.base.org",
     250: "https://rpc.ftm.tools",
+    534352: "https://rpc.scroll.io",
     100: "https://rpc.gnosischain.com",
     42220: "https://forno.celo.org",
 }
@@ -51,9 +55,10 @@ _NPX = "npx.cmd" if platform.system() == "Windows" else "npx"
 _CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 CHAIN_NAMES = {
-    1: "ethereum", 56: "bsc", 137: "polygon", 42161: "arbitrum",
-    10: "optimism", 43114: "avalanche", 8453: "base", 250: "fantom",
-    100: "gnosis", 42220: "celo",
+    1: "ethereum", 56: "bsc", 137: "polygon", 324: "zksync",
+    42161: "arbitrum", 10: "optimism", 1101: "polygon_zkevm",
+    43114: "avalanche", 59144: "linea", 8453: "base",
+    250: "fantom", 534352: "scroll", 100: "gnosis", 42220: "celo",
 }
 
 @dataclass
@@ -255,7 +260,9 @@ async def main():
     parser = argparse.ArgumentParser(description="Hardhat Fork Tester")
     parser.add_argument("--address", "-a", help="Contract address to test")
     parser.add_argument("--chain", "-c", default="ethereum",
-                        help="Chain: ethereum, bsc, polygon, arbitrum")
+                        help="Chain: ethereum, bsc, polygon, arbitrum, optimism, "
+                             "avalanche, base, fantom, gnosis, celo, "
+                             "zksync, scroll, linea, polygon_zkevm")
     parser.add_argument("--batch", action="store_true",
                         help="Test all contracts with balance > 0 from DB")
     parser.add_argument("--specialized", "-s", default="",
@@ -271,7 +278,8 @@ async def main():
     chain_ids = {"ethereum": 1, "bsc": 56, "polygon": 137,
                  "arbitrum": 42161, "optimism": 10,
                  "avalanche": 43114, "base": 8453, "fantom": 250,
-                 "gnosis": 100, "celo": 42220}
+                 "gnosis": 100, "celo": 42220, "zksync": 324,
+                 "scroll": 534352, "linea": 59144, "polygon_zkevm": 1101}
 
     tester = HardhatForkTester(api_key=args.api_key)
 

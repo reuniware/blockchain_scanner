@@ -161,7 +161,7 @@ class ScannerOrchestrator:
         chain_name = chain_cfg.get("name", chain_key.capitalize())
 
         # Detect chain type
-        if chain_key in ("ethereum", "polygon", "bsc", "arbitrum", "optimism", "avalanche", "base", "fantom", "gnosis", "celo"):
+        if chain_key in ("ethereum", "polygon", "bsc", "arbitrum", "optimism", "avalanche", "base", "fantom", "gnosis", "celo", "zksync", "scroll", "linea", "polygon_zkevm"):
             scanner = EVMScanner(
                 name=chain_name,
                 chain_key=chain_key,

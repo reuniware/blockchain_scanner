@@ -62,11 +62,28 @@ class EVMScanner(BaseScanner):
         return self._http_client
 
     async def _connect(self) -> AsyncWeb3:
-        """Connect to the EVM node via WebSocket (web3.py v7 persistent connection)."""
-        if not self.rpc_ws:
-            raise ValueError(f"[{self.name}] No rpc_ws configured")
+        """Connect to the EVM node via WebSocket or HTTP.
 
-        # web3.py v7 persistent WebSocket provider
+        If rpc_ws is set, uses WebSocketProvider (real-time subscriptions).
+        If rpc_ws is empty but rpc_http is set, uses HTTPProvider (polling mode).
+        """
+        # HTTP-only mode: skip WebSocket, go directly to HTTP polling
+        if not self.rpc_ws:
+            rpc_http = self.config.get("rpc_http", "")
+            if not rpc_http:
+                raise ValueError(f"[{self.name}] No rpc_ws or rpc_http configured")
+            from web3.providers.rpc import HTTPProvider
+            provider = HTTPProvider(rpc_http)
+            self.w3 = AsyncWeb3(provider)
+            self.rpc_http = rpc_http
+            await self._get_http_client()
+            if not await self.w3.is_connected():
+                raise ConnectionError(f"[{self.name}] Failed to connect via HTTP: {rpc_http}")
+            chain_id = await self.w3.eth.chain_id
+            logger.info(f"[{self.name}] HTTP connected - Chain ID: {chain_id} (polling mode)")
+            return self.w3
+
+        # Normal WebSocket connection mode
         provider = WebSocketProvider(
             self.rpc_ws,
             websocket_kwargs={"ping_interval": 30},
@@ -162,15 +179,19 @@ class EVMScanner(BaseScanner):
                 logger.warning(f"[{self.name}] Could not subscribe to logs: {e}")
 
     async def _listen(self) -> None:
-        """Listen for subscription messages via persistent connection."""
+        """Listen for subscription messages via persistent connection.
+
+        Falls back to HTTP block polling when WebSocket is not available
+        (HTTP-only chains like Scroll, Linea, Polygon zkEVM).
+        """
         if not self.w3:
             return
 
         try:
-            # web3.py v7: process_subscriptions() is an async generator
-            # that yields subscription responses as they arrive
+            # HTTP provider or WS without socket: go directly to polling
             if not hasattr(self.w3, 'socket'):
-                logger.warning(f"[{self.name}] No socket available for subscriptions")
+                logger.info(f"[{self.name}] No WebSocket socket — using HTTP polling")
+                await self._poll_blocks()
                 return
 
             async for response in self.w3.socket.process_subscriptions():

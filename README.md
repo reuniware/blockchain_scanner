@@ -358,12 +358,16 @@ chains:
 | Fantom | `wss://wsapi.fantom.network/` (officiel) | ✅ |
 | Gnosis | `wss://rpc.gnosischain.com/wss` | ✅ |
 | Celo | `wss://forno.celo.org/ws` (polling) | ✅ |
+| zkSync Era | `wss://mainnet.era.zksync.io/ws` | ✅ |
+| Scroll | `https://rpc.scroll.io` (HTTP) | ✅ |
+| Linea | `https://rpc.linea.build` (HTTP) | ✅ |
+| Polygon zkEVM | `https://zkevm-rpc.com` (HTTP) | ✅ |
 | Solana | Désactivé (non-EVM) | ❌ |
 | Bitcoin | Désactivé (non-EVM) | ❌ |
 
 > Tous les endpoints sont des **nœuds publics gratuits**. Aucune clé API requise pour la surveillance de base.
 
-> **Note** : Fantom utilise désormais `wsapi.fantom.network` (endpoint officiel Fantom Foundation). Gnosis nécessite le path `/wss` (corrigé).
+> **Note** : Fantom utilise désormais `wsapi.fantom.network` (endpoint officiel Fantom Foundation). Gnosis nécessite le path `/wss` (corrigé). zkSync Era dispose d'un WS public ; Scroll, Linea et Polygon zkEVM fonctionnent en polling HTTP.
 
 ### Clé API optionnelle
 

@@ -21,7 +21,27 @@
 - `config.yaml` — Nouveaux endpoints WS Fantom/Gnosis ; sections gnosis + celo complètes
 - `exploit_pipeline.py` — CHAIN_REGISTRY : +Gnosis (100), +Celo (42220)
 - `hardhat_fork_tester.py` — RPC_URLS, CHAIN_NAMES, chain_ids : +Gnosis, +Celo
+- `scanner/evm_scanner.py` — `_connect()` : support HTTPProvider pour les chaînes sans WS ; `_listen()` : fallback polling direct
 - `findings/README.md` — session 10 documentée, stats mises à jour
+
+| Bug | Cause racine | Correctif |
+|:---|---|:---|
+| **zkSync Era (324) absente** | Pas de RPC/CHAIN_REGISTRY/config | Ajoutée avec WS public `wss://mainnet.era.zksync.io/ws` |
+| **Scroll (534352) absente** | Pas de WS public gratuit | Ajoutée en HTTP polling via `rpc_http` |
+| **Linea (59144) absente** | Pas de WS public gratuit | Ajoutée en HTTP polling via `rpc_http` |
+| **Polygon zkEVM (1101) absente** | Pas de WS public gratuit | Ajoutée en HTTP polling via `rpc_http` |
+| **EVMScanner refuse `rpc_ws: ""`** | `_connect()` lève `ValueError` si `rpc_ws` vide → boucle de reconnexion infinie | `_connect()` utilise `HTTPProvider` ; `_listen()` bascule en `_poll_blocks()` direct si pas de socket WS |
+| **chain_ids dict non mis à jour** | Dict `chain_ids` dans `main()` manquait gnosis, celo + les 4 nouvelles | Ajout de toutes les 14 chaînes dans le dict ; help CLI mis à jour |
+
+**Fichiers modifiés :**
+- `config.yaml` — +zksync, +scroll, +linea, +polygon_zkevm (sections complètes)
+- `scanner/orchestrator.py` — tuple EVM : +zksync, +scroll, +linea, +polygon_zkevm
+- `scanner/evm_scanner.py` — `_connect()` : HTTPProvider fallback ; `_listen()` : polling direct si pas de socket
+- `exploit_pipeline.py` — CHAIN_REGISTRY + CLI help + chain_ids : +zksync, scroll, linea, polygon_zkevm
+- `hardhat_fork_tester.py` — RPC_URLS, CHAIN_NAMES, chain_ids, help : +zksync, scroll, linea, polygon_zkevm
+- `README.md` — table des chaînes mise à jour (14 EVM)
+
+**Résultat :** Guardian tourne sur **14 chaînes EVM** (10 WS temps réel + 4 HTTP polling).
 
 ## Session 9 — Mythril + hardhat_setBalance + template .call() (12/06/2026)
 
