@@ -26,8 +26,10 @@ exploit/typechain-types/
 guardian_data.db
 guardian_exploits_found.txt
 guardian_output.log
+dashboard_output.log
 pool_scan_results.json
 guardian.pid
+guardian_new.pid
 exploit/contracts/GuardianExploit.sol
 exploit/scripts/guardian_test.js
 exploit/contracts/Exploit_*.sol
