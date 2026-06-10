@@ -4,6 +4,34 @@
 
 ---
 
+## v1.1.0 — 14 chaînes EVM + HTTP polling + nouveaux endpoints WS (10/06/2026)
+
+### 🚀 Nouvelles fonctionnalités
+
+- **8 nouvelles chaînes EVM** (passage de 6 à 14) : Base, Fantom, Gnosis, Celo, zkSync Era, Scroll, Linea, Polygon zkEVM
+- **EVMScanner HTTP polling** : les chaînes sans WS public (Scroll, Linea, Polygon zkEVM) scannent via HTTP polling direct au lieu de boucler en erreur
+- **Anti-OOM** : rotation des logs >50 Mo, `gc.collect()` toutes les 10 min, monitoring RSS, détection de fuite de tâches asyncio
+- **Dashboard web (FastAPI)** : interface temps réel avec stats, findings, patterns et auto-refresh 30s
+- **Nouveaux endpoints WS** : Fantom `wss://wsapi.fantom.network/`, Gnosis `wss://rpc.gnosischain.com/wss`
+
+### 🔧 Correctifs
+
+| Bug | Cause racine | Correctif |
+|:---|---|:---|
+| **`kill_all_node_processes`: WinError 2 (wmic introuvable)** | `wmic` déprécié sur Windows 11 | Remplacé par `Get-CimInstance` PowerShell |
+| **Fantom/Base ignorées** | `_create_scanner()` limité à 6 chaînes EVM | Ajout de base, fantom, gnosis, celo dans le tuple EVM |
+| **Gnosis WS `wss://rpc.gnosischain.com` mort** | Path `/wss` manquant dans l'URL | Corrigé : `wss://rpc.gnosischain.com/wss` |
+| **Fantom WS `wss://fantom-rpc.publicnode.com` HS** | Noeud public PublicNode ne répond plus | Remplacé par `wss://wsapi.fantom.network/` (officiel) |
+| **EVMScanner refuse `rpc_ws: ""`** | `_connect()` lève ValueError si WS vide → boucle infinie | `HTTPProvider` fallback + `_listen()` bascule en `_poll_blocks()` direct |
+| **chain_ids dict incomplet** | manquait gnosis, celo et les nouvelles chaînes | Ajout des 14 chaînes dans tous les dicts (CHAIN_REGISTRY, RPC_URLS, etc.) |
+| **OOM sur longues runs** | Logs non rotatés, GC non forcé, pas de monitoring mémoire | Anti-OOM : rotation logs >50 Mo, `gc.collect()` 10 min, RSS Windows/Linux |
+
+### 📁 Fichiers modifiés (8 fichiers)
+
+`config.yaml` • `scanner/orchestrator.py` • `scanner/evm_scanner.py` • `guardian.py` • `exploit_pipeline.py` • `hardhat_fork_tester.py` • `README.md` • `CHANGELOG.md` • `findings/README.md`
+
+---
+
 ## Session 10 — Fix kill_all_node_processes + 4 nouvelles chaînes EVM + anti-OOM + endpoints WS (10/06/2026)
 
 | Bug | Cause racine | Correctif |

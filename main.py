@@ -30,7 +30,7 @@ import yaml
 
 from scanner.orchestrator import ScannerOrchestrator
 
-VERSION = "1.0.2"
+VERSION = "1.1.0"
 
 # Prevent console windows from popping up on Windows during subprocess calls
 _CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
