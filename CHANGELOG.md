@@ -4,6 +4,25 @@
 
 ---
 
+## Session 10 — Fix kill_all_node_processes + 4 nouvelles chaînes EVM + anti-OOM + endpoints WS (10/06/2026)
+
+| Bug | Cause racine | Correctif |
+|:---|---|:---|
+| **`kill_all_node_processes`: WinError 2 (wmic introuvable)** | `wmic` est déprécié sur Windows 11 — la commande WQL échoue | Remplacé par `Get-CimInstance` PowerShell (moderne, fiable) |
+| **Base, Fantom ignorées** | `_create_scanner()` n'avait que 6 chaînes EVM — Base et Fantom passaient dans le `else` | Ajoutées au tuple : `base, fantom, gnosis, celo` |
+| **Gnosis (100), Celo (42220) absentes** | Pas de RPC, pas de CHAIN_REGISTRY, pas de config | Ajoutées dans orchestrator, CONFIG_REGISTRY, config.yaml, hardhat_fork_tester |
+| **Fantom WS `wss://fantom-rpc.publicnode.com` mort** | Le noeud public PublicNode ne répond plus | Remplacé par `wss://wsapi.fantom.network/` (officiel Fantom Foundation) |
+| **Gnosis WS `wss://rpc.gnosischain.com` mort** | L'URL n'avait pas le path `/wss` nécessaire | Corrigé : `wss://rpc.gnosischain.com/wss` |
+| **OOM sur longues runs** | Logs non rotatés, GC non forcé, pas de monitoring mémoire | Anti-OOM : rotation logs >50 Mo, `gc.collect()` toutes les 10 min, RSS Windows/Linux, détection fuite tâches asyncio |
+
+**Fichiers modifiés :**
+- `guardian.py` — `kill_all_node_processes()` : PowerShell Get-CimInstance au lieu de wmic ; nouvel anti-OOM `memory_cleanup_loop()`
+- `scanner/orchestrator.py` — `_create_scanner()` : +base, +fantom, +gnosis, +celo
+- `config.yaml` — Nouveaux endpoints WS Fantom/Gnosis ; sections gnosis + celo complètes
+- `exploit_pipeline.py` — CHAIN_REGISTRY : +Gnosis (100), +Celo (42220)
+- `hardhat_fork_tester.py` — RPC_URLS, CHAIN_NAMES, chain_ids : +Gnosis, +Celo
+- `findings/README.md` — session 10 documentée, stats mises à jour
+
 ## Session 9 — Mythril + hardhat_setBalance + template .call() (12/06/2026)
 
 | Bug | Cause racine | Correctif |

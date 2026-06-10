@@ -5,7 +5,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/blockchain-scanner)](https://pypi.org/project/blockchain-scanner/)
 [![License](https://img.shields.io/pypi/l/blockchain-scanner)](LICENSE)
 
-**Surveillance en temps réel de 6 blockchains + détection de vulnérabilités Solidity + validation d'exploits sur fork Hardhat.**
+**Surveillance en temps réel de 10 blockchains EVM + détection de vulnérabilités Solidity + validation d'exploits sur fork Hardhat.**
 
 Analysez des milliers de contrats intelligents par jour, détectez des failles de sécurité avec 34 patterns de détection, et validez si elles sont réellement exploitables — le tout depuis votre terminal, sans clé API pour la surveillance de base.
 
@@ -82,7 +82,7 @@ blockchain-scanner --chains ethereum -v
 
 | Ce que vous pouvez faire | En une commande |
 |---|---|
-| Surveiller 6 blockchains en temps réel | `blockchain-scanner` |
+| Surveiller 10 blockchains EVM en temps réel | `blockchain-scanner` |
 | Détecter des failles dans des smart contracts | Automatique sur les contrats vérifiés |
 | Valider si une faille est réellement exploitable | `exploit-pipeline --address 0x... --chain ethereum` |
 | Scanner 24/7 avec base de données SQLite | `guardian` |
@@ -355,11 +355,15 @@ chains:
 | Optimism | `wss://optimism-rpc.publicnode.com` | ✅ |
 | Avalanche | `wss://avalanche-c-chain-rpc.publicnode.com` | ✅ |
 | Base | `wss://base-rpc.publicnode.com` | ✅ |
-| Fantom | `wss://fantom-rpc.publicnode.com` | ✅ |
-| Solana | `wss://solana-rpc.publicnode.com` | ✅ |
-| Bitcoin | `wss://mempool.space/api/v1/ws` | ✅ |
+| Fantom | `wss://wsapi.fantom.network/` (officiel) | ✅ |
+| Gnosis | `wss://rpc.gnosischain.com/wss` | ✅ |
+| Celo | `wss://forno.celo.org/ws` (polling) | ✅ |
+| Solana | Désactivé (non-EVM) | ❌ |
+| Bitcoin | Désactivé (non-EVM) | ❌ |
 
 > Tous les endpoints sont des **nœuds publics gratuits**. Aucune clé API requise pour la surveillance de base.
+
+> **Note** : Fantom utilise désormais `wsapi.fantom.network` (endpoint officiel Fantom Foundation). Gnosis nécessite le path `/wss` (corrigé).
 
 ### Clé API optionnelle
 

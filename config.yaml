@@ -167,8 +167,8 @@ chains:
   # --- EVM Chain 8: Fantom --------------------------------------------------
   fantom:
     enabled: true
-    rpc_ws: "wss://fantom-rpc.publicnode.com"
-    rpc_http: "https://fantom-rpc.publicnode.com"
+    rpc_ws: "wss://wsapi.fantom.network/"
+    rpc_http: "https://rpc.ftm.tools"
     name: "Fantom"
     currency: "FTM"
     chain_id: 250
@@ -176,6 +176,42 @@ chains:
     track_blocks: true
     filters:
       min_value_eth: 1.0
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 9: Gnosis ------------------------------------------------
+  gnosis:
+    enabled: true
+    rpc_ws: "wss://rpc.gnosischain.com/wss"
+    rpc_http: "https://rpc.gnosischain.com"
+    name: "Gnosis"
+    currency: "xDAI"
+    chain_id: 100
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
+      max_value_eth: null
+      tracked_addresses: []
+      tracked_events:
+        - "Transfer"
+      tracked_tokens: []
+
+  # --- EVM Chain 10: Celo ---------------------------------------------------
+  celo:
+    enabled: true
+    rpc_ws: "wss://forno.celo.org/ws"
+    rpc_http: "https://forno.celo.org"
+    name: "Celo"
+    currency: "CELO"
+    chain_id: 42220
+    track_mempool: false
+    track_blocks: true
+    filters:
+      min_value_eth: 0.1
       max_value_eth: null
       tracked_addresses: []
       tracked_events:

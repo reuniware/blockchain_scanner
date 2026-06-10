@@ -21,11 +21,13 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
 import logging
 import os
 import platform
 import re
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -420,13 +422,11 @@ class HardhatValidator:
         self._processes.clear()
         logger.info("[PROC] All tracked subprocesses cleaned up")
 
-    async def _kill_all_node_processes_async(self) -> dict:
-        """Async wrapper for kill_all_node_processes to avoid blocking the event loop."""
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, HardhatValidator.kill_all_node_processes)
+    @staticmethod
+    def kill_all_node_processes() -> dict:
         """Emergency cleanup: kill only Hardhat-related node processes (Windows) or node (Unix).
 
-        On Windows, uses wmic with a WQL filter (CommandLine LIKE '%%hardhat%%')
+        On Windows, uses Get-CimInstance (PowerShell, the modern wmic replacement)
         to selectively kill only node.exe processes launched by Hardhat/npx.
         Does NOT use 'taskkill /F /IM node.exe' which kills ALL node processes
         including Codebuff itself.
@@ -436,27 +436,24 @@ class HardhatValidator:
         """
         if sys.platform == "win32":
             try:
-                # Use wmic WQL to find only node.exe processes whose
-                # command line contains "hardhat" (selective kill).
-                # Also catch the parent npx process which spawns hardhat.
+                # Use PowerShell Get-CimInstance (modern wmic replacement)
+                # to find only node.exe processes whose command line contains "hardhat".
+                # This is more reliable than wmic on modern Windows.
+                ps_cmd = (
+                    'Get-CimInstance Win32_Process -Filter "name=\"node.exe\"" | '
+                    'Where-Object { $_.CommandLine -match "hardhat" } | '
+                    'Select-Object -ExpandProperty ProcessId'
+                )
                 result = subprocess.run(
-                    [
-                        "wmic", "process", "where",
-                        "name='node.exe' and (CommandLine like '%hardhat%' or CommandLine like '%npx%hardhat%')",
-                        "get", "ProcessId", "/format:csv"
-                    ],
-                    capture_output=True, text=True, timeout=10,
+                    ["powershell", "-Command", ps_cmd],
+                    capture_output=True, text=True, timeout=15,
                     creationflags=_CREATION_FLAGS,
                 )
                 pids = []
                 for line in result.stdout.splitlines():
                     line = line.strip()
-                    if not line or "ProcessId" in line or "Node" in line:
-                        continue
-                    parts = line.split(",")
-                    pid = parts[-1].strip()
-                    if pid.isdigit():
-                        pids.append(pid)
+                    if line and line.isdigit():
+                        pids.append(line)
 
                 if pids:
                     for pid in pids:
@@ -490,6 +487,11 @@ class HardhatValidator:
                 return {"killed": -1, "error": None}
             except Exception as e:
                 return {"killed": 0, "error": str(e)}
+
+    async def _kill_all_node_processes_async(self) -> dict:
+        """Async wrapper for kill_all_node_processes to avoid blocking the event loop."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, HardhatValidator.kill_all_node_processes)
 
     async def _generate_exploit_contract(self, target_addr: str, finding_name: str, finding_type: str, index: int = 0, chain_id: int = 56) -> str:
         """Generate a Solidity exploit contract for a given finding type.
@@ -1830,6 +1832,101 @@ class Guardian:
 
         self._hardhat_task = asyncio.create_task(hardhat_loop())
 
+        # Anti-OOM: periodic memory & log cleanup every 10 minutes
+        async def memory_cleanup_loop():
+            """Periodic cleanup to prevent OOM on long runs.
+
+            - Rotates guardian_output.log if > 50 MB
+            - Forces Python garbage collection
+            - Estimates process RSS memory (ctypes on Windows, /proc/self/status on Linux)
+            """
+            while self.running:
+                await asyncio.sleep(600)  # Every 10 minutes
+
+                # 1. Log rotation (guardian_output.log > 50 MB)
+                log_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "guardian_output.log"
+                )
+                try:
+                    if os.path.exists(log_path):
+                        size_mb = os.path.getsize(log_path) / (1024 * 1024)
+                        if size_mb > 50:
+                            # Rotate: guardian_output.log -> guardian_output.1.log
+                            backup = log_path + ".1"
+                            if os.path.exists(backup):
+                                os.remove(backup)
+                            shutil.move(log_path, backup)
+                            logger.warning(
+                                f"[MEM] Log rotated: {size_mb:.0f} MB -> {backup}"
+                            )
+                except Exception as e:
+                    logger.debug(f"[MEM] Log rotation error: {e}")
+
+                # 2. Force garbage collection
+                before = gc.get_stats()
+                collected = gc.collect()
+                after = gc.get_stats()
+                if collected > 100:
+                    logger.info(
+                        f"[MEM] GC: collected {collected} objects "
+                        f"(gen0={after[0][0]-before[0][0]}, "
+                        f"gen1={after[1][0]-before[1][0]}, "
+                        f"gen2={after[2][0]-before[2][0]})"
+                    )
+
+                # 3. Log orphaned asyncio task count
+                all_tasks = asyncio.all_tasks()
+                task_count = len(all_tasks)
+                if task_count > 500:
+                    logger.warning(
+                        f"[MEM] {task_count} asyncio tasks active (possible leak?)"
+                    )
+
+                # 4. Lightweight memory estimate (no tracemalloc overhead)
+                try:
+                    if sys.platform == "win32":
+                        # Use psapi.dll to get WorkingSetSize (RSS) on Windows
+                        import ctypes
+                        from ctypes import wintypes
+                        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+                        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+                        process_handle = kernel32.GetCurrentProcess()
+                        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+                            _fields_ = [
+                                ("cb", wintypes.DWORD),
+                                ("PageFaultCount", wintypes.DWORD),
+                                ("PeakWorkingSetSize", ctypes.c_size_t),
+                                ("WorkingSetSize", ctypes.c_size_t),
+                                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                                ("PagefileUsage", ctypes.c_size_t),
+                                ("PeakPagefileUsage", ctypes.c_size_t),
+                            ]
+                        counters = PROCESS_MEMORY_COUNTERS()
+                        counters.cb = ctypes.sizeof(counters)
+                        if psapi.GetProcessMemoryInfo(
+                            process_handle, ctypes.byref(counters),
+                            ctypes.sizeof(counters)
+                        ):
+                            rss_mb = counters.WorkingSetSize / (1024 * 1024)
+                            logger.info(f"[MEM] RSS: {rss_mb:.0f} MB")
+                            if rss_mb > 800:
+                                logger.warning(f"[MEM] High memory usage: {rss_mb:.0f} MB!")
+                    else:
+                        with open("/proc/self/status") as f:
+                            for line in f:
+                                if line.startswith("VmRSS:") or line.startswith("VmSize:"):
+                                    parts = line.split()
+                                    value = int(parts[1]) / 1024
+                                    logger.info(f"[MEM] {parts[0][:-1]}: {value:.0f} MB")
+                                    break
+                except Exception:
+                    pass
+
+        memory_task = asyncio.create_task(memory_cleanup_loop())
+
         try:
             # Wait FOREVER — no stop on vulnerability!
             logger.info("[GUARDIAN] Running. Press Ctrl+C to stop.")
@@ -1838,6 +1935,7 @@ class Guardian:
             logger.info("Keyboard interrupt received...")
         finally:
             stats_task.cancel()
+            memory_task.cancel()
             if self._hardhat_task:
                 self._hardhat_task.cancel()
             await self.stop()

@@ -40,6 +40,8 @@ RPC_URLS = {
     43114: "https://api.avax.network/ext/bc/C/rpc",
     8453: "https://mainnet.base.org",
     250: "https://rpc.ftm.tools",
+    100: "https://rpc.gnosischain.com",
+    42220: "https://forno.celo.org",
 }
 
 # Cross-platform npx command
@@ -51,6 +53,7 @@ _CREATION_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 CHAIN_NAMES = {
     1: "ethereum", 56: "bsc", 137: "polygon", 42161: "arbitrum",
     10: "optimism", 43114: "avalanche", 8453: "base", 250: "fantom",
+    100: "gnosis", 42220: "celo",
 }
 
 @dataclass
@@ -267,7 +270,8 @@ async def main():
 
     chain_ids = {"ethereum": 1, "bsc": 56, "polygon": 137,
                  "arbitrum": 42161, "optimism": 10,
-                 "avalanche": 43114, "base": 8453, "fantom": 250}
+                 "avalanche": 43114, "base": 8453, "fantom": 250,
+                 "gnosis": 100, "celo": 42220}
 
     tester = HardhatForkTester(api_key=args.api_key)
 

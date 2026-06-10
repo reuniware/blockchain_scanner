@@ -2,7 +2,44 @@
 
 Ce répertoire répertorie tous les contrats analysés par le scanner de vulnérabilités, avec les résultats détaillés de chaque analyse.
 
-## Résumé (09/06/2026)
+## Résumé (10/06/2026) — Session 10
+
+| Statut | Nombre |
+|:---|---:|
+| Contrats dans la DB Guardian | **24 945** |
+| Contrats vérifiés analysés | **985** |
+| Findings totaux cumulés | **8 109** |
+| Exploitables (théorique - pipeline) | **4 943** |
+| Tests Hardhat fork | **2 635** |
+| Exploits confirmés | **0** |
+
+### 🔧 Changements récents (Session 10 — 10/06/2026)
+
+#### 4 nouvelles chaînes EVM : Base, Fantom, Gnosis, Celo
+
+| Chaîne | Chain ID | Currency | Nouveau endpoint WS |
+|--------|:--------:|:--------:|---------------------|
+| **Base** | 8453 | ETH | `wss://base-rpc.publicnode.com` |
+| **Fantom** | 250 | FTM | `wss://wsapi.fantom.network/` (officiel 🔄) |
+| **Gnosis** | 100 | xDAI | `wss://rpc.gnosischain.com/wss` (path /wss corrigé 🔄) |
+| **Celo** | 42220 | CELO | `wss://forno.celo.org/ws` (polling) |
+
+#### Bugs corrigés
+- **`kill_all_node_processes`** : wmic (déprécié) → `Get-CimInstance` PowerShell
+- **Base + Fantom ignorées** : ajoutées dans le tuple `_create_scanner()`
+- **Gnosis + Celo absentes** : CHAIN_REGISTRY + config.yaml + hardhat_fork_tester complétés
+
+#### Anti-OOM
+- Rotation automatique des logs (>50 Mo)
+- `gc.collect()` forcé toutes les 10 min
+- Monitoring RSS mémoire (Windows ctypes / Linux /proc)
+- Détection de fuite de tâches asyncio (>500 tâches = alerte)
+
+#### Résultats après correction
+- Guardian tourne sur **12 chaînes simultanément** (10 EVM + Bitcoin + Solana désactivé)
+- **Base** : 19 pipelines d'exploit déclenchés 🔥
+- **Celo** : 1 pipeline d'exploit déclenché
+- Fantom et Gnosis : initialisés avec nouveaux endpoints WS
 
 | Statut | Nombre |
 |:---|---:|
